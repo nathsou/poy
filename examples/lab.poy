@@ -1,0 +1,26 @@
+
+module Lab {
+    type ReturnType<Function<args, ret>> = ret
+    type Parameters<Function<args, ret>> = args
+    type Id<t> = t -> t
+    type First<head::tail> = head
+    type First<Tuple<elems>> = First<elems>
+    type Second<fst::snd::tail> = snd
+    type Second<Tuple<elems>> = Second<elems>
+    type ElementType<t[]> = t
+
+    type Reversed<head::tail> = ReversedAux<head::tail, []>
+    type Reversed<Tuple<elems>> = Tuple<Reversed<elems>>
+
+    type ReversedAux<[], acc> = acc
+    type ReversedAux<head::tail, acc> = ReversedAux<tail, head::acc>
+
+    fun main() {
+        let f = n -> n * n
+        f(7)
+    }
+
+    module B {
+        let a = 3
+    }
+}
