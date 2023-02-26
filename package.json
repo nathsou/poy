@@ -10,6 +10,10 @@
   },
   "author": "Nathan Soufflet",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nathsou/poy"
+  },
   "devDependencies": {
     "esbuild": "^0.17.8",
     "itsamatch": "^1.2.0",
