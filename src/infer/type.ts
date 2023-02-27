@@ -75,7 +75,13 @@ export const Type = {
 function isList(ty: Type): boolean {
     return match(ty, {
         Var: () => false,
-        Fun: ({ name }) => name === 'Nil' || name === 'Cons',
+        Fun: ({ name, args }) => {
+            if (name === 'Nil') {
+                return true;
+            }
+
+            return name === 'Cons' && isList(args[1]);
+        },
     });
 }
 
@@ -87,6 +93,10 @@ function show(ty: Type): string {
                 case 'Nil':
                     return '[]';
                 case 'Cons':
+                    if (isList(args[1])) {
+                        return `[${show(args[0])}, ${unlist(args[1]).map(show).join(', ')}]`;
+                    }
+
                     return `${show(args[0])}::${show(args[1])}`;
                 case 'Array':
                     return `${show(args[0])}[]`;

@@ -3,14 +3,16 @@ import { Decl, ModuleDecl } from "../ast/sweet/decl";
 import { Expr } from "../ast/sweet/expr";
 import { Stmt } from "../ast/sweet/stmt";
 import { Type, TypeVar } from "../infer/type";
+import { Context } from "../misc/context";
 import { Maybe, None, Some } from "../misc/maybe";
 import { isUpperCase } from "../misc/strings";
-import { panic } from "../misc/utils";
+import { assert, last, panic } from "../misc/utils";
 import { BinaryOp, Literal, Symbol, Token, UnaryOp } from "./token";
 
 export const parse = (tokens: Token[]) => {
     let index = 0;
     let letLevel = 0;
+    const typeScopes: Map<string, number>[] = [];
 
     // ------ meta ------
 
@@ -127,6 +129,30 @@ export const parse = (tokens: Token[]) => {
         }
     }
 
+    function typeScoped<T>(action: () => T): T {
+        typeScopes.push(new Map());
+        const ret = action();
+        typeScopes.pop();
+
+        return ret;
+    }
+
+    function getTypeVarId(name: string): number {
+        assert(typeScopes.length > 0, 'empty type scope stack');
+
+        for (let i = typeScopes.length - 1; i >= 0; i--) {
+            const scope = typeScopes[i];
+            if (scope.has(name)) {
+                return scope.get(name)!;
+            }
+        }
+
+        const id = Context.freshTypeVarId();
+        last(typeScopes).set(name, id);
+        return id;
+    }
+
+
     // ------ types ------
 
     function type(): Type {
@@ -221,7 +247,8 @@ export const parse = (tokens: Token[]) => {
     }
 
     function varType(name: string): Type {
-        return Type.Var(TypeVar.fresh(letLevel, name));
+        const id = getTypeVarId(name);
+        return Type.Var(TypeVar.Unbound({ id, level: letLevel, name }));
     }
 
     // ------ expressions ------
@@ -490,11 +517,14 @@ export const parse = (tokens: Token[]) => {
     }
 
     function typeDecl(): Decl {
-        const lhs = type();
-        consume(Token.Symbol('='));
-        const rhs = type();
-        consumeIfPresent(Token.Symbol(';'));
-        return Decl.Type(lhs, rhs);
+        return typeScoped(() => {
+            const lhs = type();
+            consume(Token.Symbol('='));
+            const rhs = type();
+            consumeIfPresent(Token.Symbol(';'));
+
+            return Decl.Type(lhs, rhs);
+        });
     }
 
     function moduleDecl(): VariantOf<Decl, 'Module'> {

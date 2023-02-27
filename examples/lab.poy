@@ -8,19 +8,23 @@ type Second<fst::snd::tail> = snd
 type Second<Tuple<elems>> = Second<elems>
 type ElementType<t[]> = t
 
-type Reversed<head::tail> = ReversedAux<head::tail, []>
 type Reversed<Tuple<elems>> = Tuple<Reversed<elems>>
+type Reversed<lst> = ReversedAux<lst, []>
+
+type Length<Tuple<elems>> = Length<elems>
+type Length<[]> = Zero
+type Length<head::tail> = S<Length<tail>>
 
 type ReversedAux<[], acc> = acc
 type ReversedAux<head::tail, acc> = ReversedAux<tail, head::acc>
 
-type Query = First<ReturnType<Num -> (Bool, Num)>>
+type Query = Length<Reversed<ReturnType<Num -> (Bool, Num, Str)>>>
 
 let a = 3 * 7 + 2
 let f = n -> n * n
 
 fun main() {
-    f(7)
+    f(a)
 }
 
 module B {

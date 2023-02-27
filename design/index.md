@@ -94,7 +94,7 @@ use n = 3 in n * 7 // 21
 ```poy
 enum Option<T> { Some<T>, None }
 
-// Some<T> <=> T?
+// Option<T> <=> T?
 
 extend Option<T> {
   fun flatMap<U>(f: T -> U?): U? {
@@ -139,7 +139,7 @@ let d2: { a: Num, b: Str, ...Str: Num[] } = { a: 1, b: true, c: [3] }
 
 // Reference equality
 [1, 2] =ref= [1, 2] // false
-use a = [1, 2] in a =ref= a // true
+{ let a = [1, 2]; let b = a; a =ref= b } // true
 ```
 
 ### Argument labels
@@ -148,11 +148,11 @@ use a = [1, 2] in a =ref= a // true
 // and can be aliased inside the body of the function
 
 fun buildUnicycle(
-  brand: String,
-  year: Number,
-  model: String,
+  brand: Str,
+  year: Num,
+  model: Str,
   color: Color,
-  wheelSize (d): String,
+  wheelSize (d): Str,
 ) {
   // ...
 }

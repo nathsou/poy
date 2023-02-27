@@ -33,20 +33,21 @@ function reduce(ty: Type, trs: TRS): { term: Type, changed: boolean } {
         Var: () => ({ term: ty, changed: false }),
         Fun: ({ name, args }) => {
             const rules = trs.get(name) ?? [];
+            const newArgs = args.map(arg => reduce(arg, trs));
+            const newTy = Type.Fun(name, newArgs.map(arg => arg.term));
+            const changed = newArgs.some(arg => arg.changed);
 
             for (const [lhs, rhs] of rules) {
                 const subst: Subst = new Map();
                 try {
-                    Type.unify(lhs, ty, subst);
-                    const reduced = reduce(Type.substitute(rhs, subst), trs);
+                    Type.unify(lhs, newTy, subst);
+                    const substituted = Type.substitute(rhs, subst);
+                    const reduced = reduce(substituted, trs);
                     return { term: reduced.term, changed: true };
                 } catch { }
             }
 
-            const newArgs = args.map(arg => reduce(arg, trs));
-            const changed = newArgs.some(arg => arg.changed);
-            const term = Type.Fun(name, newArgs.map(arg => arg.term));
-            return { term, changed };
+            return { term: newTy, changed };
         },
     });
 }
