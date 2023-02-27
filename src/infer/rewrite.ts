@@ -1,8 +1,32 @@
 import { match } from "itsamatch";
+import { Impl, Show } from "../misc/traits";
+import { assert } from "../misc/utils";
 import { Subst, Type } from "./type";
 
 export type Rule = [lhs: Type, rhs: Type];
 export type TRS = Map<string, Rule[]>;
+
+export const TRS = {
+    create: (parent?: TRS): TRS => new Map(parent ?? []),
+    add: (trs: TRS, lhs: Type, rhs: Type): void => {
+        assert(lhs.variant === 'Fun');
+
+        if (trs.has(lhs.name)) {
+            trs.get(lhs.name)!.push([lhs, rhs]);
+        } else {
+            trs.set(lhs.name, [[lhs, rhs]]);
+        }
+    },
+    normalize,
+    reduce,
+    show,
+} satisfies Impl<Show<TRS>>;
+
+function show(trs: TRS): string {
+    return [...trs.values()].map((rules) => {
+        return rules.map(([lhs, rhs]) => `${Type.show(lhs)} -> ${Type.show(rhs)}`).join('\n');
+    }).join('\n');
+}
 
 function reduce(ty: Type, trs: TRS): { term: Type, changed: boolean } {
     return match(ty, {
@@ -28,7 +52,7 @@ function reduce(ty: Type, trs: TRS): { term: Type, changed: boolean } {
     });
 }
 
-export function normalize(ty: Type, trs: TRS, maxReductions = 10_000): Type {
+export function normalize(trs: TRS, ty: Type, maxReductions = 10_000): Type {
     let term = ty;
 
     for (let i = 0; i < maxReductions; i++) {

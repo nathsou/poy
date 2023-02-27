@@ -4,17 +4,20 @@ import { Expr } from "../ast/sweet/expr";
 import { Stmt } from "../ast/sweet/stmt";
 import { Scope } from "../misc/scope";
 import { panic } from "../misc/utils";
-import { BinaryOp, Literal, UnaryOp } from "../parse/token";
+import { BinaryOp, UnaryOp } from "../parse/token";
+import { TRS } from "./rewrite";
 import { Type, TypeVar } from "./type";
 
 export class TypeEnv {
     public variables: Scope<{ mutable: boolean, ty: Type }>;
     public modules: Scope<TypeEnv>;
+    public typeRules: TRS;
     private letLevel = 0;
 
     constructor(parent?: TypeEnv) {
         this.variables = new Scope(parent?.variables);
         this.modules = new Scope(parent?.modules);
+        this.typeRules = TRS.create(parent?.typeRules);
     }
 
     public child(): TypeEnv {
@@ -37,7 +40,7 @@ export class TypeEnv {
                 this.inferLet(false, name, Expr.Fun({ args, body }));
             },
             Type: ({ lhs, rhs }) => {
-
+                TRS.add(this.typeRules, lhs, rhs);
             },
             Module: ({ name, decls }) => {
                 const moduleEnv = this.child();

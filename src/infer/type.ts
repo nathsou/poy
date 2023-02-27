@@ -1,6 +1,6 @@
 import { DataType, genConstructors, match, matchMany } from "itsamatch";
 import { Context } from "../misc/context";
-import { Eq, Impl, Show } from "../misc/traits";
+import { Eq, Impl, Rewrite, Show } from "../misc/traits";
 import { panic } from "../misc/utils";
 import { normalize } from './rewrite';
 
@@ -49,7 +49,7 @@ export const Type = {
         switch (elems.length) {
             case 0: return Type.Fun('Unit', []);
             case 1: return elems[0];
-            default: return Type.Fun('Tuple', elems);
+            default: return Type.Fun('Tuple', [list(elems)]);
         }
     },
     Function: (args: Type[], ret: Type): Type => Type.Fun('Function', [list(args), ret]),
@@ -62,12 +62,22 @@ export const Type = {
     show,
     list,
     unlist,
+    isList,
     eq,
     unify,
     substitute,
     normalize,
     fresh,
-} satisfies Impl<Show<Type> & Eq<Type>>;
+    vars,
+    rewrite,
+} satisfies Impl<Show<Type> & Eq<Type> & Rewrite<Type>>;
+
+function isList(ty: Type): boolean {
+    return match(ty, {
+        Var: () => false,
+        Fun: ({ name }) => name === 'Nil' || name === 'Cons',
+    });
+}
 
 function show(ty: Type): string {
     return match(ty, {
@@ -77,13 +87,23 @@ function show(ty: Type): string {
                 case 'Nil':
                     return '[]';
                 case 'Cons':
-                    return `${show(args[0])}::${show(args[1])}}`;
+                    return `${show(args[0])}::${show(args[1])}`;
                 case 'Array':
                     return `${show(args[0])}[]`;
                 case 'Tuple':
-                    return `(${args.map(show).join(', ')})`;
+                    if (!isList(args[0])) {
+                        return `Tuple<${show(args[0])}>`;
+                    }
+
+                    return `(${unlist(args[0]).map(show).join(', ')})`;
                 case 'Function': {
-                    const [params, ret] = [unlist(args[0]), args[1]];
+                    const ret = args[1];
+
+                    if (!isList(args[0])) {
+                        return `Function<${show(args[0])}, ${show(ret)}>`;
+                    }
+
+                    const params = unlist(args[0]);
 
                     if (params.length === 1) {
                         return `${show(params[0])} -> ${show(ret)}`;
@@ -102,6 +122,31 @@ function show(ty: Type): string {
     });
 }
 
+function rewrite(ty: Type, f: (ty: Type) => Type): Type {
+    return f(match(ty, {
+        Var: ({ ref }) => Type.Var(ref),
+        Fun: ({ name, args }) => Type.Fun(name, args.map(f)),
+    }));
+}
+
+function vars(ty: Type): Map<string, number> {
+    const go = (ty: Type): void => {
+        match(ty, {
+            Var: ({ ref }) => {
+                if (ref.variant === 'Unbound' && ref.name != null) {
+                    vars.set(ref.name, ref.id);
+                }
+            },
+            Fun: ({ args }) => args.forEach(go),
+        });
+    };
+
+    const vars = new Map<string, number>();
+    go(ty);
+
+    return vars;
+}
+
 function list(elems: Type[]): Type {
     return elems.reduceRight((tail, head) => Type.Cons(head, tail), Type.Nil);
 }
@@ -118,8 +163,11 @@ function unlist(ty: Type): Type[] {
             if (ty.name === 'Cons') {
                 elems.push(ty.args[0]);
                 ty = ty.args[1];
+                continue;
             }
         }
+
+        panic(`Expected list, got '${show(ty)}'`);
     }
 }
 

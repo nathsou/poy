@@ -120,6 +120,11 @@ var Expr = __spreadProps(__spreadValues({}, genConstructors([
 var panic = (msg) => {
   throw new Error(msg);
 };
+function assert(test, message = "") {
+  if (!test) {
+    throw new Error(`assertion failed: ${typeof message === "string" ? message : message()}`);
+  }
+}
 
 // src/misc/maybe.ts
 var _Maybe = class {
@@ -252,41 +257,6 @@ var Context = {
   }
 };
 
-// src/infer/rewrite.ts
-function reduce(ty, trs) {
-  return match(ty, {
-    Var: () => ({ term: ty, changed: false }),
-    Fun: ({ name, args }) => {
-      var _a;
-      const rules = (_a = trs.get(name)) != null ? _a : [];
-      for (const [lhs, rhs] of rules) {
-        const subst = /* @__PURE__ */ new Map();
-        try {
-          Type.unify(lhs, ty, subst);
-        } catch (e) {
-        }
-        const reduced = reduce(Type.substitute(rhs, subst), trs);
-        return { term: reduced.term, changed: true };
-      }
-      const newArgs = args.map((arg) => reduce(arg, trs));
-      const changed = newArgs.some((arg) => arg.changed);
-      const term = Type.Fun(name, newArgs.map((arg) => arg.term));
-      return { term, changed };
-    }
-  });
-}
-function normalize(ty, trs, maxReductions = 1e4) {
-  let term = ty;
-  for (let i = 0; i < maxReductions; i++) {
-    const { term: reduced, changed } = reduce(term, trs);
-    term = reduced;
-    if (!changed) {
-      return term;
-    }
-  }
-  throw new Error(`Possibly infinite type rewriting for '${Type.show(ty)}'`);
-}
-
 // src/infer/type.ts
 var TypeVar = __spreadProps(__spreadValues({}, genConstructors(["Unbound", "Generic"])), {
   Link: (type) => ({ variant: "Link", type }),
@@ -323,7 +293,7 @@ var Type = {
       case 1:
         return elems[0];
       default:
-        return Type.Fun("Tuple", elems);
+        return Type.Fun("Tuple", [list(elems)]);
     }
   },
   Function: (args, ret) => Type.Fun("Function", [list(args), ret]),
@@ -336,12 +306,21 @@ var Type = {
   show,
   list,
   unlist,
+  isList,
   eq,
   unify,
   substitute,
   normalize,
-  fresh
+  fresh,
+  vars,
+  rewrite
 };
+function isList(ty) {
+  return match(ty, {
+    Var: () => false,
+    Fun: ({ name }) => name === "Nil" || name === "Cons"
+  });
+}
 function show(ty) {
   return match(ty, {
     Var: ({ ref }) => TypeVar.show(ref),
@@ -350,13 +329,20 @@ function show(ty) {
         case "Nil":
           return "[]";
         case "Cons":
-          return `${show(args[0])}::${show(args[1])}}`;
+          return `${show(args[0])}::${show(args[1])}`;
         case "Array":
           return `${show(args[0])}[]`;
         case "Tuple":
-          return `(${args.map(show).join(", ")})`;
+          if (!isList(args[0])) {
+            return `Tuple<${show(args[0])}>`;
+          }
+          return `(${unlist(args[0]).map(show).join(", ")})`;
         case "Function": {
-          const [params, ret] = [unlist(args[0]), args[1]];
+          const ret = args[1];
+          if (!isList(args[0])) {
+            return `Function<${show(args[0])}, ${show(ret)}>`;
+          }
+          const params = unlist(args[0]);
           if (params.length === 1) {
             return `${show(params[0])} -> ${show(ret)}`;
           }
@@ -371,6 +357,27 @@ function show(ty) {
     }
   });
 }
+function rewrite(ty, f) {
+  return f(match(ty, {
+    Var: ({ ref }) => Type.Var(ref),
+    Fun: ({ name, args }) => Type.Fun(name, args.map(f))
+  }));
+}
+function vars(ty) {
+  const go = (ty2) => {
+    match(ty2, {
+      Var: ({ ref }) => {
+        if (ref.variant === "Unbound" && ref.name != null) {
+          vars2.set(ref.name, ref.id);
+        }
+      },
+      Fun: ({ args }) => args.forEach(go)
+    });
+  };
+  const vars2 = /* @__PURE__ */ new Map();
+  go(ty);
+  return vars2;
+}
 function list(elems) {
   return elems.reduceRight((tail, head) => Type.Cons(head, tail), Type.Nil);
 }
@@ -384,8 +391,10 @@ function unlist(ty) {
       if (ty.name === "Cons") {
         elems.push(ty.args[0]);
         ty = ty.args[1];
+        continue;
       }
     }
+    panic(`Expected list, got '${show(ty)}'`);
   }
 }
 function eq(a, b) {
@@ -475,12 +484,67 @@ function fresh(level, name) {
   return Type.Var(TypeVar.fresh(level, name));
 }
 
+// src/infer/rewrite.ts
+var TRS = {
+  create: (parent) => new Map(parent != null ? parent : []),
+  add: (trs, lhs, rhs) => {
+    assert(lhs.variant === "Fun");
+    if (trs.has(lhs.name)) {
+      trs.get(lhs.name).push([lhs, rhs]);
+    } else {
+      trs.set(lhs.name, [[lhs, rhs]]);
+    }
+  },
+  normalize,
+  reduce,
+  show: show2
+};
+function show2(trs) {
+  return [...trs.values()].map((rules) => {
+    return rules.map(([lhs, rhs]) => `${Type.show(lhs)} -> ${Type.show(rhs)}`).join("\n");
+  }).join("\n");
+}
+function reduce(ty, trs) {
+  return match(ty, {
+    Var: () => ({ term: ty, changed: false }),
+    Fun: ({ name, args }) => {
+      var _a;
+      const rules = (_a = trs.get(name)) != null ? _a : [];
+      for (const [lhs, rhs] of rules) {
+        const subst = /* @__PURE__ */ new Map();
+        try {
+          Type.unify(lhs, ty, subst);
+        } catch (e) {
+        }
+        const reduced = reduce(Type.substitute(rhs, subst), trs);
+        return { term: reduced.term, changed: true };
+      }
+      const newArgs = args.map((arg) => reduce(arg, trs));
+      const changed = newArgs.some((arg) => arg.changed);
+      const term = Type.Fun(name, newArgs.map((arg) => arg.term));
+      return { term, changed };
+    }
+  });
+}
+function normalize(trs, ty, maxReductions = 1e4) {
+  let term = ty;
+  for (let i = 0; i < maxReductions; i++) {
+    const { term: reduced, changed } = reduce(term, trs);
+    term = reduced;
+    if (!changed) {
+      return term;
+    }
+  }
+  throw new Error(`Possibly infinite type rewriting for '${Type.show(ty)}'`);
+}
+
 // src/infer/infer.ts
 var TypeEnv = class {
   constructor(parent) {
     this.letLevel = 0;
     this.variables = new Scope(parent == null ? void 0 : parent.variables);
     this.modules = new Scope(parent == null ? void 0 : parent.modules);
+    this.typeRules = TRS.create(parent == null ? void 0 : parent.typeRules);
   }
   child() {
     return new TypeEnv(this);
@@ -499,6 +563,7 @@ var TypeEnv = class {
         this.inferLet(false, name, Expr.Fun({ args, body }));
       },
       Type: ({ lhs, rhs }) => {
+        TRS.add(this.typeRules, lhs, rhs);
       },
       Module: ({ name, decls }) => {
         const moduleEnv = this.child();
@@ -908,7 +973,22 @@ var lex = (source) => {
 };
 
 // src/ast/sweet/decl.ts
-var Decl = __spreadValues({}, genConstructors(["Let", "Fun", "Type", "Module"]));
+var Decl = __spreadProps(__spreadValues({}, genConstructors(["Let", "Fun", "Module"])), {
+  Type: (lhs, rhs) => {
+    const lhsVars = Type.vars(lhs);
+    const newRhs = Type.rewrite(rhs, (ty) => {
+      if (ty.variant === "Var" && ty.ref.variant === "Unbound" && ty.ref.name != null && lhsVars.has(ty.ref.name)) {
+        return Type.Var(TypeVar.Unbound({
+          id: lhsVars.get(ty.ref.name),
+          name: ty.ref.name,
+          level: ty.ref.level
+        }));
+      }
+      return ty;
+    });
+    return { variant: "Type", lhs, rhs: newRhs };
+  }
+});
 
 // src/ast/sweet/stmt.ts
 var Stmt = __spreadProps(__spreadValues({}, genConstructors(["Let"])), {
@@ -924,6 +1004,9 @@ function isUpperCase(str) {
 var parse = (tokens) => {
   let index = 0;
   let letLevel = 0;
+  function isAtEnd() {
+    return index >= tokens.length;
+  }
   function peek(lookahead = 0) {
     if (index + lookahead >= tokens.length) {
       return Token.EOF({});
@@ -1306,7 +1389,7 @@ var parse = (tokens) => {
     consume(Token.Symbol("="));
     const rhs = type();
     consumeIfPresent(Token.Symbol(";"));
-    return Decl.Type({ lhs, rhs });
+    return Decl.Type(lhs, rhs);
   }
   function moduleDecl() {
     consumeIfPresent(Token.Keyword("module"));
@@ -1319,7 +1402,14 @@ var parse = (tokens) => {
     consumeIfPresent(Token.Symbol(";"));
     return Decl.Module({ name, decls });
   }
-  return { expr, stmt, decl, module: moduleDecl };
+  function topModule() {
+    const decls = [];
+    while (!isAtEnd()) {
+      decls.push(decl());
+    }
+    return { name: "top", decls };
+  }
+  return { expr, stmt, decl, module: moduleDecl, topModule };
 };
 
 // src/main.ts
@@ -1328,10 +1418,19 @@ function main() {
     const fs = yield createFileSystem();
     const source = yield fs.readFile("./examples/lab.poy");
     const tokens = lex(source);
-    const topModule = parse(tokens).module();
+    const topModule = parse(tokens).topModule();
     const env = new TypeEnv();
-    env.inferDecl(topModule);
+    for (const decl of topModule.decls) {
+      env.inferDecl(decl);
+    }
     console.log(env.show());
+    console.log(TRS.show(env.typeRules));
+    console.log(Type.show(
+      TRS.normalize(
+        env.typeRules,
+        Type.Fun("Query", [])
+      )
+    ));
   });
 }
 main();

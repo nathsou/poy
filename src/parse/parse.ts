@@ -1,5 +1,5 @@
 import { match, VariantOf } from "itsamatch";
-import { Decl } from "../ast/sweet/decl";
+import { Decl, ModuleDecl } from "../ast/sweet/decl";
 import { Expr } from "../ast/sweet/expr";
 import { Stmt } from "../ast/sweet/stmt";
 import { Type, TypeVar } from "../infer/type";
@@ -13,6 +13,10 @@ export const parse = (tokens: Token[]) => {
     let letLevel = 0;
 
     // ------ meta ------
+
+    function isAtEnd(): boolean {
+        return index >= tokens.length;
+    }
 
     function peek(lookahead: number = 0): Token {
         if (index + lookahead >= tokens.length) {
@@ -490,7 +494,7 @@ export const parse = (tokens: Token[]) => {
         consume(Token.Symbol('='));
         const rhs = type();
         consumeIfPresent(Token.Symbol(';'));
-        return Decl.Type({ lhs, rhs });
+        return Decl.Type(lhs, rhs);
     }
 
     function moduleDecl(): VariantOf<Decl, 'Module'> {
@@ -508,5 +512,15 @@ export const parse = (tokens: Token[]) => {
         return Decl.Module({ name, decls });
     }
 
-    return { expr, stmt, decl, module: moduleDecl };
+    function topModule(): ModuleDecl {
+        const decls: Decl[] = [];
+
+        while (!isAtEnd()) {
+            decls.push(decl());
+        }
+
+        return { name: 'top', decls };
+    }
+
+    return { expr, stmt, decl, module: moduleDecl, topModule };
 };
