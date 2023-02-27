@@ -17,12 +17,19 @@ export const Decl = {
 export type LetDecl = {
     mutable: boolean,
     name: string,
+    ann?: Type,
     value: Expr,
+};
+
+export type FunctionArgument = {
+    name: string,
+    ann?: Type,
 };
 
 export type FunDecl = {
     name: string,
-    args: string[],
+    args: FunctionArgument[],
+    ret?: Type,
     body: Expr,
 };
 

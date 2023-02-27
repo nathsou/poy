@@ -24,6 +24,13 @@ export class TypeEnv {
         return new TypeEnv(this);
     }
 
+    private unify(s: Type, t: Type): void {
+        Type.unify(
+            TRS.normalize(this.typeRules, s),
+            TRS.normalize(this.typeRules, t),
+        );
+    }
+
     private inferLet(mutable: boolean, name: string, value: Expr): Type {
         this.letLevel += 1;
         const ty = this.inferExpr(value);
@@ -36,8 +43,8 @@ export class TypeEnv {
     public inferDecl(decl: Decl): void {
         match(decl, {
             Let: (decl) => this.inferLet(decl.mutable, decl.name, decl.value),
-            Fun: ({ name, args, body }) => {
-                this.inferLet(false, name, Expr.Fun({ args, body }));
+            Fun: ({ name, args, ret, body }) => {
+                this.inferLet(false, name, Expr.Fun({ args, ret, body }));
             },
             Type: ({ lhs, rhs }) => {
                 TRS.add(this.typeRules, lhs, rhs);
@@ -81,7 +88,7 @@ export class TypeEnv {
                     '+': Type.Num,
                 };
 
-                Type.unify(exprTy, UNARY_OP_TYPE[op]);
+                this.unify(exprTy, UNARY_OP_TYPE[op]);
 
                 return exprTy;
             },
@@ -109,8 +116,8 @@ export class TypeEnv {
                 };
 
                 const [lhsExpected, rhsExpected] = BINARY_OP_TYPE[op];
-                Type.unify(lhsTy, lhsExpected);
-                Type.unify(rhsTy, rhsExpected);
+                this.unify(lhsTy, lhsExpected);
+                this.unify(rhsTy, rhsExpected);
 
                 return lhsTy;
             },
@@ -131,23 +138,26 @@ export class TypeEnv {
                 const elemTy = Type.fresh(this.letLevel);
 
                 for (const elem of elems) {
-                    Type.unify(elemTy, this.inferExpr(elem));
+                    this.unify(elemTy, this.inferExpr(elem));
                 }
 
                 return Type.Array(elemTy);
             },
-            Fun: ({ args, body }) => {
+            Fun: ({ args, ret, body }) => {
                 const funEnv = this.child();
-                const argTys = args.map(() => Type.fresh(this.letLevel));
+                const argTys = args.map(arg => arg.ann ?? Type.fresh(this.letLevel));
 
-                args.forEach((arg, i) => {
-                    funEnv.variables.declare(arg, {
+                args.forEach(({ name }, i) => {
+                    funEnv.variables.declare(name, {
                         mutable: false,
                         ty: argTys[i],
                     });
                 });
 
                 const bodyTy = funEnv.inferExpr(body);
+                if (ret) {
+                    this.unify(bodyTy, ret);
+                }
 
                 return Type.Function(argTys, bodyTy);
             },
@@ -156,15 +166,15 @@ export class TypeEnv {
                 const argTys = args.map(arg => this.inferExpr(arg));
                 const retTy = Type.fresh(this.letLevel);
                 const expectedFunTy = Type.Function(argTys, retTy);
-                Type.unify(funTy, expectedFunTy);
+                this.unify(funTy, expectedFunTy);
 
                 return retTy;
             },
             If: ({ cond, then, otherwise }) => {
-                Type.unify(this.inferExpr(cond), Type.Bool);
+                this.unify(this.inferExpr(cond), Type.Bool);
                 const thenTy = this.inferExpr(then);
                 const elseTy = this.inferExpr(otherwise);
-                Type.unify(thenTy, elseTy);
+                this.unify(thenTy, elseTy);
 
                 return thenTy;
             },

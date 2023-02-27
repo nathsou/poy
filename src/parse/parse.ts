@@ -1,5 +1,5 @@
 import { match, VariantOf } from "itsamatch";
-import { Decl, ModuleDecl } from "../ast/sweet/decl";
+import { Decl, FunctionArgument, ModuleDecl } from "../ast/sweet/decl";
 import { Expr } from "../ast/sweet/expr";
 import { Stmt } from "../ast/sweet/stmt";
 import { Type, TypeVar } from "../infer/type";
@@ -251,6 +251,12 @@ export const parse = (tokens: Token[]) => {
         return Type.Var(TypeVar.Unbound({ id, level: letLevel, name }));
     }
 
+    function typeAnnotation(): Type | undefined {
+        if (matches(Token.Symbol(':'))) {
+            return type();
+        }
+    }
+
     // ------ expressions ------
 
     function expr(): Expr {
@@ -270,25 +276,33 @@ export const parse = (tokens: Token[]) => {
         return funExpr();
     }
 
+    function functionArgument(): FunctionArgument {
+        const name = identifier();
+        const ann = typeAnnotation();
+        return { name, ann };
+    }
+
     function funExpr(): Expr {
         return attempt<Expr>(() => {
-            let args: string[];
+            let args: FunctionArgument[];
+            let ret: Type | undefined;
             const token = peek();
 
             if (token.variant === 'Identifier') {
                 next();
-                args = [token.$value];
+                args = [{ name: token.$value }];
             } else if (token.variant === 'Symbol' && token.$value === '(') {
                 next();
-                args = commas(identifier);
+                args = commas(functionArgument);
                 consume(Token.Symbol(')'));
+                ret = typeAnnotation();
             } else {
                 throw 'fail';
             }
 
             consume(Token.Symbol('->'));
             const body = expr();
-            return Expr.Fun({ args, body });
+            return Expr.Fun({ args, ret, body });
         }).orDefault(equalityExpr);
     }
 
@@ -495,25 +509,29 @@ export const parse = (tokens: Token[]) => {
     function letDecl(mutable: boolean): Decl {
         letLevel += 1;
         const name = identifier();
+        const ann = typeAnnotation();
         consume(Token.Symbol('='));
         const value = expr();
         consumeIfPresent(Token.Symbol(';'));
         letLevel -= 1;
 
-        return Decl.Let({ mutable, name, value });
+        return Decl.Let({ mutable, name, ann, value });
     }
 
     function funDecl(): Decl {
-        letLevel += 1;
-        const name = identifier();
-        consume(Token.Symbol('('));
-        const args = commas(identifier);
-        consume(Token.Symbol(')'));
-        const body = expr();
-        consumeIfPresent(Token.Symbol(';'));
-        letLevel -= 1;
+        return typeScoped(() => {
+            letLevel += 1;
+            const name = identifier();
+            consume(Token.Symbol('('));
+            const args = commas(functionArgument);
+            consume(Token.Symbol(')'));
+            const ret = typeAnnotation();
+            const body = expr();
+            consumeIfPresent(Token.Symbol(';'));
+            letLevel -= 1;
 
-        return Decl.Fun({ name, args, body });
+            return Decl.Fun({ name, args, ret, body });
+        });
     }
 
     function typeDecl(): Decl {

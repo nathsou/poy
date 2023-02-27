@@ -2,7 +2,8 @@ import { DataType, genConstructors, match, matchMany } from "itsamatch";
 import { Context } from "../misc/context";
 import { Eq, Impl, Rewrite, Show } from "../misc/traits";
 import { panic } from "../misc/utils";
-import { normalize } from './rewrite';
+import { TypeEnv } from "./infer";
+import { normalize, TRS } from './rewrite';
 
 export type TypeVar = DataType<{
     Unbound: { id: number, name?: string, level: number },
@@ -58,7 +59,7 @@ export const Type = {
     Str: Object.freeze<Type>({ variant: 'Fun', name: 'Str', args: [] }),
     Nil: Object.freeze<Type>({ variant: 'Fun', name: 'Nil', args: [] }),
     Cons: (head: Type, tail: Type): Type => Type.Fun('Cons', [head, tail]),
-    Unit: Object.freeze<Type>({ variant: 'Fun', name: 'Unit', args: [] }),
+    Unit: Object.freeze<Type>({ variant: 'Fun', name: 'Tuple', args: [{ variant: 'Fun', name: 'Nil', args: [] }] }),
     show,
     list,
     unlist,
@@ -199,9 +200,9 @@ function occursCheckAdjustLevels(id: number, level: number, ty: Type): void {
         match(t, {
             Var: v => match(v.ref, {
                 Unbound: ({ id: id2, level: level2 }) => {
-                    if (id === id2) {
-                        panic('Recursive type');
-                    }
+                    // if (id === id2) {
+                    //     panic('Recursive type');
+                    // }
 
                     if (level2 > level) {
                         v.ref = TypeVar.Unbound({ id: id2, level });
@@ -222,9 +223,9 @@ function occursCheckAdjustLevels(id: number, level: number, ty: Type): void {
 function unifyVar(v: { ref: TypeVar }, ty: Type, eqs: [Type, Type][], subst?: Subst) {
     match(v.ref, {
         Unbound: ({ id, level }) => {
-            if (ty.variant === 'Var' && ty.ref.variant === 'Unbound' && ty.ref.id === id) {
-                panic('There should only be one instance of a particular type variable.');
-            }
+            // if (ty.variant === 'Var' && ty.ref.variant === 'Unbound' && ty.ref.id === id) {
+            //     panic('There should only be one instance of a particular type variable.');
+            // }
 
             occursCheckAdjustLevels(id, level, ty);
 
