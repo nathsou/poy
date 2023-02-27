@@ -38,10 +38,9 @@ function reduce(ty: Type, trs: TRS): { term: Type, changed: boolean } {
                 const subst: Subst = new Map();
                 try {
                     Type.unify(lhs, ty, subst);
+                    const reduced = reduce(Type.substitute(rhs, subst), trs);
+                    return { term: reduced.term, changed: true };
                 } catch { }
-
-                const reduced = reduce(Type.substitute(rhs, subst), trs);
-                return { term: reduced.term, changed: true };
             }
 
             const newArgs = args.map(arg => reduce(arg, trs));

@@ -14,12 +14,12 @@ type Reversed<Tuple<elems>> = Tuple<Reversed<elems>>
 type ReversedAux<[], acc> = acc
 type ReversedAux<head::tail, acc> = ReversedAux<tail, head::acc>
 
-type Query = ReturnType<Num -> (Bool, Num)>
+type Query = First<ReturnType<Num -> (Bool, Num)>>
 
 let a = 3 * 7 + 2
+let f = n -> n * n
 
 fun main() {
-    let f = n -> n * n
     f(7)
 }
 
