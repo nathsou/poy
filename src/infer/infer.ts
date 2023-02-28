@@ -12,12 +12,13 @@ export class TypeEnv {
     public variables: Scope<{ mutable: boolean, ty: Type }>;
     public modules: Scope<TypeEnv>;
     public typeRules: TRS;
-    private letLevel = 0;
+    private letLevel: number;
 
     constructor(parent?: TypeEnv) {
         this.variables = new Scope(parent?.variables);
         this.modules = new Scope(parent?.modules);
         this.typeRules = TRS.create(parent?.typeRules);
+        this.letLevel = parent?.letLevel ?? 0;
     }
 
     public child(): TypeEnv {
@@ -34,15 +35,20 @@ export class TypeEnv {
     private inferLet(mutable: boolean, name: string, value: Expr): Type {
         this.letLevel += 1;
         const ty = this.inferExpr(value);
-        this.variables.declare(name, { mutable, ty });
         this.letLevel -= 1;
 
-        return ty;
+        // https://en.wikipedia.org/wiki/Value_restriction
+        const genTy = mutable ? ty : Type.generalize(ty, this.letLevel);
+        this.variables.declare(name, { mutable, ty: genTy });
+
+        return genTy;
     }
 
     public inferDecl(decl: Decl): void {
         match(decl, {
-            Let: (decl) => this.inferLet(decl.mutable, decl.name, decl.value),
+            Let: (decl) => {
+                this.inferLet(decl.mutable, decl.name, decl.value);
+            },
             Fun: ({ name, args, ret, body }) => {
                 this.inferLet(false, name, Expr.Fun({ args, ret, body }));
             },
@@ -77,7 +83,7 @@ export class TypeEnv {
         const ty = match(expr, {
             Literal: ({ literal }) => Type[literal.variant],
             Variable: name => this.variables.lookup(name).match({
-                Some: ({ ty }) => ty,
+                Some: ({ ty }) => Type.instantiate(ty, this.letLevel),
                 None: () => panic(`Variable ${name} not found`),
             }),
             Unary: ({ op, expr }) => {

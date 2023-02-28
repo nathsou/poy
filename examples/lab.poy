@@ -26,13 +26,14 @@ type Query = At<Elements<Reversed<ReturnType<Num -> (Bool, Num, Str)>>>, S<S<Zer
 
 let a = 3 * 7 + 2
 let f = n -> n * n
+let id = x -> x
 
 fun twice(f) {
     x -> f(f(x))
 }
 
 fun main() {
-    twice(f)(a)
+    twice(f)(2.11)
 }
 
 module B {

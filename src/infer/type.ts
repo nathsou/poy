@@ -2,8 +2,7 @@ import { DataType, genConstructors, match, matchMany } from "itsamatch";
 import { Context } from "../misc/context";
 import { Eq, Impl, Rewrite, Show } from "../misc/traits";
 import { panic } from "../misc/utils";
-import { TypeEnv } from "./infer";
-import { normalize, TRS } from './rewrite';
+import { normalize } from './rewrite';
 
 export type TypeVar = DataType<{
     Unbound: { id: number, name?: string, level: number },
@@ -71,6 +70,8 @@ export const Type = {
     fresh,
     vars,
     rewrite,
+    generalize,
+    instantiate,
 } satisfies Impl<Show<Type> & Eq<Type> & Rewrite<Type>>;
 
 function isList(ty: Type): boolean {
@@ -87,50 +88,68 @@ function isList(ty: Type): boolean {
 }
 
 function show(ty: Type): string {
-    return match(ty, {
-        Var: ({ ref }) => TypeVar.show(ref),
-        Fun: ({ name, args }) => {
-            switch (name) {
-                case 'Nil':
-                    return '[]';
-                case 'Cons':
-                    if (isList(args[1])) {
-                        return `[${show(args[0])}, ${unlist(args[1]).map(show).join(', ')}]`;
-                    }
+    const genericTyVars = new Set<number>();
 
-                    return `${show(args[0])}::${show(args[1])}`;
-                case 'Array':
-                    return `${show(args[0])}[]`;
-                case 'Tuple':
-                    if (!isList(args[0])) {
-                        return `Tuple<${show(args[0])}>`;
-                    }
-
-                    return `(${unlist(args[0]).map(show).join(', ')})`;
-                case 'Function': {
-                    const ret = args[1];
-
-                    if (!isList(args[0])) {
-                        return `Function<${show(args[0])}, ${show(ret)}>`;
-                    }
-
-                    const params = unlist(args[0]);
-
-                    if (params.length === 1) {
-                        return `${show(params[0])} -> ${show(ret)}`;
-                    }
-
-                    return `(${params.map(show).join(', ')}) -> ${show(ret)}`;
+    const aux = (ty: Type): string => {
+        return match(ty, {
+            Var: ({ ref }) => {
+                if (ref.variant === 'Generic') {
+                    genericTyVars.add(ref.id);
                 }
-                default:
-                    if (args.length === 0) {
-                        return name;
-                    }
 
-                    return `${name}<${args.map(show).join(', ')}>`;
-            }
-        },
-    });
+                return TypeVar.show(ref);
+            },
+            Fun: ({ name, args }) => {
+                switch (name) {
+                    case 'Nil':
+                        return '[]';
+                    case 'Cons':
+                        if (isList(args[1])) {
+                            return `[${aux(args[0])}, ${unlist(args[1]).map(aux).join(', ')}]`;
+                        }
+
+                        return `${aux(args[0])}::${aux(args[1])}`;
+                    case 'Array':
+                        return `${aux(args[0])}[]`;
+                    case 'Tuple':
+                        if (!isList(args[0])) {
+                            return `Tuple<${show(args[0])}>`;
+                        }
+
+                        return `(${unlist(args[0]).map(aux).join(', ')})`;
+                    case 'Function': {
+                        const ret = args[1];
+
+                        if (!isList(args[0])) {
+                            return `Function<${aux(args[0])}, ${aux(ret)}>`;
+                        }
+
+                        const params = unlist(args[0]);
+
+                        if (params.length === 1) {
+                            return `${aux(params[0])} -> ${aux(ret)}`;
+                        }
+
+                        return `(${params.map(aux).join(', ')}) -> ${aux(ret)}`;
+                    }
+                    default:
+                        if (args.length === 0) {
+                            return name;
+                        }
+
+                        return `${name}<${args.map(aux).join(', ')}>`;
+                }
+            },
+        });
+    };
+
+    const rhs = aux(ty);
+
+    if (genericTyVars.size > 0) {
+        return `forall ${Array.from(genericTyVars).map(id => `?${id}`).join(', ')}. ${rhs}`;
+    }
+
+    return rhs;
 }
 
 function rewrite(ty: Type, f: (ty: Type) => Type): Type {
@@ -274,6 +293,49 @@ function substitute(ty: Type, subst: Subst): Type {
         }),
         Fun: ({ name, args }) => Type.Fun(name, args.map(arg => substitute(arg, subst))),
     });
+}
+
+function generalize(ty: Type, level: number): Type {
+    return match(ty, {
+        Var: ({ ref }) => match(ref, {
+            Unbound: ({ id, level: level2, name }) => {
+                if (level2 > level) {
+                    return Type.Var(TypeVar.Generic({ id, name }));
+                }
+
+                return ty;
+            },
+            Generic: () => ty,
+            Link: ({ type }) => generalize(type, level),
+        }),
+        Fun: ({ name, args }) => Type.Fun(name, args.map(arg => generalize(arg, level))),
+    });
+}
+
+function instantiate(ty: Type, level: number): Type {
+    const varMapping = new Map<number, Type>();
+
+    const aux = (ty: Type): Type => {
+        return match(ty, {
+            Var: ({ ref }) => match(ref, {
+                Unbound: () => ty,
+                Generic: ({ id }) => {
+                    if (varMapping.has(id)) {
+                        return varMapping.get(id)!;
+                    }
+
+                    const freshTy = Type.fresh(level);
+                    varMapping.set(id, freshTy);
+
+                    return freshTy;
+                },
+                Link: ({ type }) => aux(type),
+            }),
+            Fun: ({ name, args }) => Type.Fun(name, args.map(arg => aux(arg))),
+        });
+    };
+
+    return aux(ty);
 }
 
 function fresh(level: number, name?: string): Type {

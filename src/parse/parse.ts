@@ -359,13 +359,13 @@ export const parse = (tokens: Token[]) => {
     }
 
     function callExpr(): Expr {
-        const lhs = primaryExpr();
+        let lhs = primaryExpr();
 
-        if (matches(Token.Symbol('('))) {
+        while (matches(Token.Symbol('('))) {
             const args = commas(expr);
             consume(Token.Symbol(')'));
 
-            return Expr.Call({ fun: lhs, args });
+            lhs = Expr.Call({ fun: lhs, args });
         }
 
         return lhs;
