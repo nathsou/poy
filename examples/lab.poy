@@ -2,25 +2,28 @@
 type {
     ReturnType<Function<args, ret>> = ret
     Parameters<Function<args, ret>> = args
-    Id<t> = t -> t
-    First<head::tail> = head
-    First<Tuple<elems>> = First<elems>
-    Second<fst::snd::tail> = snd
-    Second<Tuple<elems>> = Second<elems>
-    ElementType<t[]> = t
-    Elements<Tuple<elems>> = elems
-    Reversed<Tuple<elems>> = Tuple<Reversed<elems>>
-    Reversed<lst> = ReversedAux<lst, []>
-    Length<Tuple<elems>> = Length<elems>
-    Length<[]> = Zero
-    Length<head::tail> = S<Length<tail>>
-    At<head::tail, Zero> = head
-    At<head::tail, S<n>> = At<tail, n>
-    ReversedAux<[], acc> = acc
-    ReversedAux<head::tail, acc> = ReversedAux<tail, head::acc>
-}
 
-type Query = At<Elements<Reversed<ReturnType<Num -> (Bool, Num, Str)>>>, S<S<Zero>>>
+    Fields<Record<fields>> = fields
+
+    Keys<Record<fields>> = KeysAux<fields>
+    KeysAux<[]> = []
+    KeysAux<(k, v)::tail> = k::KeysAux<tail>
+
+    Values<Record<fields>> = ValuesAux<fields>
+    ValuesAux<[]> = []
+    ValuesAux<(k, v)::tail> = v::ValuesAux<tail>
+
+    Reverse<lst> = ReverseAux<lst, []>
+    ReverseAux<[], rev> = rev
+    ReverseAux<h::tl, rev> = ReverseAux<tl, h::rev>
+
+    Unzip<pairs> = UnzipAux<pairs, [], []>
+    UnzipAux<[], as, bs> = (Reverse<as>, Reverse<bs>)
+    UnzipAux<(a, b)::tail, as, bs> = UnzipAux<tail, a::as, b::bs>
+
+    R = Record<[(Name, Str), (Age, Num), (Pets, Bool)]>
+    Query = Unzip<Fields<R>>
+}
 
 let {
     a = 3 * 7 + 2

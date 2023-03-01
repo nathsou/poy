@@ -7,7 +7,7 @@ import { Context } from "../misc/context";
 import { Maybe, None, Some } from "../misc/maybe";
 import { isUpperCase } from "../misc/strings";
 import { assert, last, panic } from "../misc/utils";
-import { BinaryOp, Literal, Symbol, Token, UnaryOp } from "./token";
+import { BinaryOp, Keyword, Literal, Symbol, Token, UnaryOp } from "./token";
 
 export const parse = (tokens: Token[]) => {
     let index = 0;
@@ -156,7 +156,18 @@ export const parse = (tokens: Token[]) => {
     // ------ types ------
 
     function type(): Type {
-        return funType();
+        return consType();
+    }
+
+    function consType(): Type {
+        const lhs = funType();
+
+        if (matches(Token.Symbol('::'))) {
+            const rhs = type();
+            return Type.Cons(lhs, rhs);
+        }
+
+        return lhs;
     }
 
     function funType(): Type {
@@ -199,21 +210,10 @@ export const parse = (tokens: Token[]) => {
 
             const types = commas(type);
             consume(Token.Symbol(']'));
-            return Type.list(types);
+            return Type.utils.list(types);
         }
 
-        return consType();
-    }
-
-    function consType(): Type {
-        const lhs = primaryType();
-
-        if (matches(Token.Symbol('::'))) {
-            const rhs = type();
-            return Type.Cons(lhs, rhs);
-        }
-
-        return lhs;
+        return primaryType();
     }
 
     function primaryType(): Type {
@@ -478,43 +478,28 @@ export const parse = (tokens: Token[]) => {
 
     // ------ declarations ------
 
+    const KEYWORD_MAPPING: Partial<Record<Keyword, () => Decl>> = {
+        let: () => letDecl(false),
+        mut: () => letDecl(true),
+        fun: funDecl,
+        type: typeDecl,
+        module: moduleDecl,
+    };
+
     function decl(): Decl {
         const token = peek();
 
         if (token.variant === 'Keyword') {
-            switch (token.$value) {
-                case 'let':
-                    next();
+            const parser = KEYWORD_MAPPING[token.$value];
 
-                    if (matches(Token.Symbol('{'))) {
-                        return manyDecl(() => letDecl(false));
-                    }
+            if (parser) {
+                next();
 
-                    return letDecl(false);
-                case 'mut':
-                    next();
+                if (matches(Token.Symbol('{'))) {
+                    return manyDecl(parser);
+                }
 
-                    if (matches(Token.Symbol('{'))) {
-                        return manyDecl(() => letDecl(true));
-                    }
-
-                    return letDecl(true);
-                case 'fun':
-                    next();
-                    return funDecl();
-                case 'type':
-                    next();
-
-                    if (matches(Token.Symbol('{'))) {
-                        return manyDecl(typeDecl);
-                    }
-
-                    return typeDecl();
-                case 'module':
-                    next();
-                    return moduleDecl();
-                default:
-                    break;
+                return parser();
             }
         }
 

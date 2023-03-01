@@ -1,7 +1,7 @@
 import { DataType, genConstructors, match, matchMany } from "itsamatch";
 import { Context } from "../misc/context";
 import { Eq, Impl, Rewrite, Show } from "../misc/traits";
-import { panic } from "../misc/utils";
+import { assert, panic } from "../misc/utils";
 import { normalize } from './rewrite';
 
 export type TypeVar = DataType<{
@@ -64,9 +64,6 @@ export const Type = {
     Cons: (head: Type, tail: Type): Type => Type.Fun('Cons', [head, tail]),
     Unit: Object.freeze<Type>({ variant: 'Fun', name: 'Tuple', args: [{ variant: 'Fun', name: 'Nil', args: [] }] }),
     show,
-    list,
-    unlist,
-    isList,
     eq,
     unify,
     unifyPure,
@@ -77,6 +74,23 @@ export const Type = {
     rewrite,
     generalize,
     instantiate,
+    utils: {
+        vars,
+        isFunction(ty: Type): ty is Type & { variant: 'Fun', name: 'Function', args: [Type, Type] } {
+            return ty.variant === 'Fun' && ty.name === 'Function' && ty.args.length === 2 && isList(ty.args[0]);
+        },
+        functionParameters(ty: Type): Type[] {
+            assert(Type.utils.isFunction(ty));
+            return unlist(ty.args[0]);
+        },
+        functionReturnType(ty: Type): Type {
+            assert(Type.utils.isFunction(ty));
+            return ty.args[1];
+        },
+        list,
+        unlist,
+        isList,
+    },
 } satisfies Impl<Show<Type> & Eq<Type> & Rewrite<Type>>;
 
 function isList(ty: Type): boolean {
@@ -184,30 +198,6 @@ function vars(ty: Type): Map<string, number> {
     go(ty);
 
     return vars;
-}
-
-function list(elems: Type[]): Type {
-    return elems.reduceRight((tail, head) => Type.Cons(head, tail), Type.Nil);
-}
-
-function unlist(ty: Type): Type[] {
-    const elems: Type[] = [];
-
-    while (true) {
-        if (ty.variant === 'Fun') {
-            if (ty.name === 'Nil') {
-                return elems;
-            }
-
-            if (ty.name === 'Cons') {
-                elems.push(ty.args[0]);
-                ty = ty.args[1];
-                continue;
-            }
-        }
-
-        panic(`Expected list, got '${show(ty)}'`);
-    }
 }
 
 function eq(a: Type, b: Type): boolean {
@@ -362,3 +352,28 @@ function instantiate(ty: Type, level: number): Type {
 function fresh(level: number, name?: string): Type {
     return Type.Var(TypeVar.fresh(level, name));
 }
+
+function list(elems: Type[]): Type {
+    return elems.reduceRight((tail, head) => Type.Cons(head, tail), Type.Nil);
+}
+
+function unlist(ty: Type): Type[] {
+    const elems: Type[] = [];
+
+    while (true) {
+        if (ty.variant === 'Fun') {
+            if (ty.name === 'Nil') {
+                return elems;
+            }
+
+            if (ty.name === 'Cons') {
+                elems.push(ty.args[0]);
+                ty = ty.args[1];
+                continue;
+            }
+        }
+
+        panic(`Expected list, got '${show(ty)}'`);
+    }
+}
+

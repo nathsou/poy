@@ -1,3 +1,4 @@
+import { bitterModuleOf } from "./codegen/lower/decl";
 import { TypeEnv } from "./infer/infer";
 import { TRS } from "./infer/rewrite";
 import { Type } from "./infer/type";
@@ -15,6 +16,8 @@ async function main() {
     for (const decl of topModule.decls) {
         env.inferDecl(decl);
     }
+
+    const sweetModule = bitterModuleOf(topModule);
 
     console.log(env.show());
     console.log(TRS.show(env.typeRules));

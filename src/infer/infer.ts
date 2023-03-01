@@ -163,6 +163,8 @@ export class TypeEnv {
                         mutable: false,
                         ty: argTys[i],
                     });
+
+                    args[i].ann = argTys[i];
                 });
 
                 const bodyTy = funEnv.inferExpr(body);
