@@ -485,15 +485,30 @@ export const parse = (tokens: Token[]) => {
             switch (token.$value) {
                 case 'let':
                     next();
+
+                    if (matches(Token.Symbol('{'))) {
+                        return manyDecl(() => letDecl(false));
+                    }
+
                     return letDecl(false);
                 case 'mut':
                     next();
+
+                    if (matches(Token.Symbol('{'))) {
+                        return manyDecl(() => letDecl(true));
+                    }
+
                     return letDecl(true);
                 case 'fun':
                     next();
                     return funDecl();
                 case 'type':
                     next();
+
+                    if (matches(Token.Symbol('{'))) {
+                        return manyDecl(typeDecl);
+                    }
+
                     return typeDecl();
                 case 'module':
                     next();
@@ -504,6 +519,19 @@ export const parse = (tokens: Token[]) => {
         }
 
         return panic(`Unexpected token '${Token.show(token)}'`);
+    }
+
+    function manyDecl(declParser: () => Decl): Decl {
+        const decls: Decl[] = [];
+        consumeIfPresent(Token.Symbol('{'));
+
+        while (!matches(Token.Symbol('}'))) {
+            decls.push(declParser());
+        }
+
+        consumeIfPresent(Token.Symbol(';'));
+
+        return Decl._Many({ decls });
     }
 
     function letDecl(mutable: boolean): Decl {

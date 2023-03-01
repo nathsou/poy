@@ -1,32 +1,32 @@
 
-type ReturnType<Function<args, ret>> = ret
-type Parameters<Function<args, ret>> = args
-type Id<t> = t -> t
-type First<head::tail> = head
-type First<Tuple<elems>> = First<elems>
-type Second<fst::snd::tail> = snd
-type Second<Tuple<elems>> = Second<elems>
-type ElementType<t[]> = t
-type Elements<Tuple<elems>> = elems
-
-type Reversed<Tuple<elems>> = Tuple<Reversed<elems>>
-type Reversed<lst> = ReversedAux<lst, []>
-
-type Length<Tuple<elems>> = Length<elems>
-type Length<[]> = Zero
-type Length<head::tail> = S<Length<tail>>
-
-type At<head::tail, Zero> = head
-type At<head::tail, S<n>> = At<tail, n>
-
-type ReversedAux<[], acc> = acc
-type ReversedAux<head::tail, acc> = ReversedAux<tail, head::acc>
+type {
+    ReturnType<Function<args, ret>> = ret
+    Parameters<Function<args, ret>> = args
+    Id<t> = t -> t
+    First<head::tail> = head
+    First<Tuple<elems>> = First<elems>
+    Second<fst::snd::tail> = snd
+    Second<Tuple<elems>> = Second<elems>
+    ElementType<t[]> = t
+    Elements<Tuple<elems>> = elems
+    Reversed<Tuple<elems>> = Tuple<Reversed<elems>>
+    Reversed<lst> = ReversedAux<lst, []>
+    Length<Tuple<elems>> = Length<elems>
+    Length<[]> = Zero
+    Length<head::tail> = S<Length<tail>>
+    At<head::tail, Zero> = head
+    At<head::tail, S<n>> = At<tail, n>
+    ReversedAux<[], acc> = acc
+    ReversedAux<head::tail, acc> = ReversedAux<tail, head::acc>
+}
 
 type Query = At<Elements<Reversed<ReturnType<Num -> (Bool, Num, Str)>>>, S<S<Zero>>>
 
-let a = 3 * 7 + 2
-let f = n -> n * n
-let id = x -> x
+let {
+    a = 3 * 7 + 2
+    f = n -> n * n
+    id = x -> x
+}
 
 fun twice(f) {
     x -> f(f(x))
