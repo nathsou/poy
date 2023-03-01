@@ -1,7 +1,8 @@
 import { match } from "itsamatch";
+import { config } from "../config";
 import { Impl, Show } from "../misc/traits";
 import { assert } from "../misc/utils";
-import { Subst, Type } from "./type";
+import { Type } from "./type";
 
 export type Rule = [lhs: Type, rhs: Type];
 export type TRS = Map<string, Rule[]>;
@@ -18,7 +19,6 @@ export const TRS = {
         }
     },
     normalize,
-    reduce,
     show,
 } satisfies Impl<Show<TRS>>;
 
@@ -28,40 +28,48 @@ function show(trs: TRS): string {
     }).join('\n');
 }
 
-function reduce(ty: Type, trs: TRS): { term: Type, changed: boolean } {
+type StepCounter = { steps: number };
+
+function reduce(ty: Type, trs: TRS, counter: StepCounter): { term: Type, matched: boolean } {
+    counter.steps += 1;
+
     return match(ty, {
-        Var: () => ({ term: ty, changed: false }),
+        Var: () => ({ term: ty, matched: false }),
         Fun: ({ name, args }) => {
             const rules = trs.get(name) ?? [];
-            const newArgs = args.map(arg => reduce(arg, trs));
-            const newTy = Type.Fun(name, newArgs.map(arg => arg.term));
-            const changed = newArgs.some(arg => arg.changed);
+            const newTy = Type.Fun(name, args.map(arg => normalize(trs, arg, counter)));
 
             for (const [lhs, rhs] of rules) {
-                const subst: Subst = new Map();
-                try {
-                    Type.unify(lhs, newTy, subst);
+                const subst = Type.unifyPure(lhs, newTy);
+
+                if (subst) {
                     const substituted = Type.substitute(rhs, subst);
-                    const reduced = reduce(substituted, trs);
-                    return { term: reduced.term, changed: true };
-                } catch { }
+                    const reduced = reduce(substituted, trs, counter);
+                    return { term: reduced.term, matched: true };
+                }
             }
 
-            return { term: newTy, changed };
+            return { term: newTy, matched: false };
         },
     });
 }
 
-export function normalize(trs: TRS, ty: Type, maxReductions = 10_000): Type {
+export function normalize(
+    trs: TRS,
+    ty: Type,
+    counter: StepCounter = { steps: 0 },
+): Type {
     let term = ty;
 
-    for (let i = 0; i < maxReductions; i++) {
-        const { term: reduced, changed } = reduce(term, trs);
+    while (counter.steps < config.maxReductionSteps) {
+        const { term: reduced, matched } = reduce(term, trs, counter);
         term = reduced;
-        if (!changed) {
+
+        if (!matched) {
             return term;
         }
     }
 
-    throw new Error(`Possibly infinite type rewriting for '${Type.show(ty)}'`);
+
+    throw new Error(`Type '${Type.show(ty)}' did not reach a normal form after ${config.maxReductionSteps} reductions`);
 }

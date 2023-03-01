@@ -10,6 +10,10 @@ export type TypeVar = DataType<{
     Link: { type: Type },
 }>;
 
+const showTypeVarId = (id: number): string => {
+    return String.fromCharCode(97 + (id % 26)) + (id >= 26 ? String(Math.floor(id / 26)) : '');
+};
+
 export const TypeVar = {
     ...genConstructors<TypeVar>(['Unbound', 'Generic']),
     Link: (type: Type): TypeVar => ({ variant: 'Link', type }),
@@ -20,8 +24,8 @@ export const TypeVar = {
         _: () => false,
     }),
     show: self => match(self, {
-        Unbound: ({ id, name }) => name ?? `?${id}`,
-        Generic: ({ id, name }) => name ?? `?${id}`,
+        Unbound: ({ id, name }) => name ?? showTypeVarId(id),
+        Generic: ({ id, name }) => name ?? showTypeVarId(id),
         Link: ({ type }) => Type.show(type),
     }),
     linkTo: (self: { ref: TypeVar }, type: Type, subst?: Subst): void => {
@@ -65,6 +69,7 @@ export const Type = {
     isList,
     eq,
     unify,
+    unifyPure,
     substitute,
     normalize,
     fresh,
@@ -90,7 +95,7 @@ function isList(ty: Type): boolean {
 function show(ty: Type): string {
     const genericTyVars = new Set<number>();
 
-    const aux = (ty: Type): string => {
+    const show = (ty: Type): string => {
         return match(ty, {
             Var: ({ ref }) => {
                 if (ref.variant === 'Generic') {
@@ -105,48 +110,52 @@ function show(ty: Type): string {
                         return '[]';
                     case 'Cons':
                         if (isList(args[1])) {
-                            return `[${aux(args[0])}, ${unlist(args[1]).map(aux).join(', ')}]`;
+                            if (args[1].variant === 'Fun' && args[1].name === 'Nil') {
+                                return `[${show(args[0])}]`;
+                            }
+
+                            return `[${show(args[0])}, ${unlist(args[1]).map(show).join(', ')}]`;
                         }
 
-                        return `${aux(args[0])}::${aux(args[1])}`;
+                        return `${show(args[0])}::${show(args[1])}`;
                     case 'Array':
-                        return `${aux(args[0])}[]`;
+                        return `${show(args[0])}[]`;
                     case 'Tuple':
                         if (!isList(args[0])) {
                             return `Tuple<${show(args[0])}>`;
                         }
 
-                        return `(${unlist(args[0]).map(aux).join(', ')})`;
+                        return `(${unlist(args[0]).map(show).join(', ')})`;
                     case 'Function': {
                         const ret = args[1];
 
                         if (!isList(args[0])) {
-                            return `Function<${aux(args[0])}, ${aux(ret)}>`;
+                            return `Function<${show(args[0])}, ${show(ret)}>`;
                         }
 
                         const params = unlist(args[0]);
 
                         if (params.length === 1) {
-                            return `${aux(params[0])} -> ${aux(ret)}`;
+                            return `${show(params[0])} -> ${show(ret)}`;
                         }
 
-                        return `(${params.map(aux).join(', ')}) -> ${aux(ret)}`;
+                        return `(${params.map(show).join(', ')}) -> ${show(ret)}`;
                     }
                     default:
                         if (args.length === 0) {
                             return name;
                         }
 
-                        return `${name}<${args.map(aux).join(', ')}>`;
+                        return `${name}<${args.map(show).join(', ')}>`;
                 }
             },
         });
     };
 
-    const rhs = aux(ty);
+    const rhs = show(ty);
 
     if (genericTyVars.size > 0) {
-        return `forall ${Array.from(genericTyVars).map(id => `?${id}`).join(', ')}. ${rhs}`;
+        return `forall ${Array.from(genericTyVars).map(showTypeVarId).join(', ')}. ${rhs}`;
     }
 
     return rhs;
@@ -219,9 +228,9 @@ function occursCheckAdjustLevels(id: number, level: number, ty: Type): void {
         match(t, {
             Var: v => match(v.ref, {
                 Unbound: ({ id: id2, level: level2 }) => {
-                    // if (id === id2) {
-                    //     panic('Recursive type');
-                    // }
+                    if (id === id2) {
+                        panic('Recursive type');
+                    }
 
                     if (level2 > level) {
                         v.ref = TypeVar.Unbound({ id: id2, level });
@@ -239,12 +248,12 @@ function occursCheckAdjustLevels(id: number, level: number, ty: Type): void {
     go(ty);
 }
 
-function unifyVar(v: { ref: TypeVar }, ty: Type, eqs: [Type, Type][], subst?: Subst) {
+function unifyVar(v: { ref: TypeVar }, ty: Type, eqs: [Type, Type][], subst?: Subst): void {
     match(v.ref, {
         Unbound: ({ id, level }) => {
-            // if (ty.variant === 'Var' && ty.ref.variant === 'Unbound' && ty.ref.id === id) {
-            //     panic('There should only be one instance of a particular type variable.');
-            // }
+            if (ty.variant === 'Var' && ty.ref.variant === 'Unbound' && ty.ref.id === id) {
+                panic('There should only be one instance of a particular type variable.');
+            }
 
             occursCheckAdjustLevels(id, level, ty);
 
@@ -259,9 +268,9 @@ function unifyVar(v: { ref: TypeVar }, ty: Type, eqs: [Type, Type][], subst?: Su
     });
 }
 
-function unify(a: Type, b: Type, subst?: Subst): void {
+// returns true if unification succeeded
+function unify(a: Type, b: Type, subst?: Subst): boolean {
     const eqs: [Type, Type][] = [[a, b]];
-    const error = () => panic(`Cannot unify ${show(a)} with ${show(b)}`);
 
     while (eqs.length > 0) {
         const [s, t] = eqs.pop()!;
@@ -272,16 +281,28 @@ function unify(a: Type, b: Type, subst?: Subst): void {
             unifyVar(t, s, eqs, subst);
         } else if (s.variant === 'Fun' && t.variant === 'Fun') {
             if (s.name !== t.name || s.args.length !== t.args.length) {
-                error();
+                return false;
             }
 
             for (let i = 0; i < s.args.length; i++) {
                 eqs.push([s.args[i], t.args[i]]);
             }
         } else {
-            error();
+            return false;
         }
     }
+
+    return true;
+}
+
+function unifyPure(a: Type, b: Type): Subst | undefined {
+    const subst = new Map<number, Type>();
+
+    if (!unify(a, b, subst)) {
+        return undefined;
+    }
+
+    return subst;
 }
 
 function substitute(ty: Type, subst: Subst): Type {

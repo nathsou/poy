@@ -63,6 +63,11 @@ export class TypeEnv {
                     moduleEnv.inferDecl(decl);
                 }
             },
+            _Many: ({ decls }) => {
+                for (const decl of decls) {
+                    this.inferDecl(decl);
+                }
+            },
         });
     }
 
@@ -121,7 +126,7 @@ export class TypeEnv {
                     '|': [Type.Num, Type.Num],
                 };
 
-                const [lhsExpected, rhsExpected] = BINARY_OP_TYPE[op];
+                const [lhsExpected, rhsExpected] = BINARY_OP_TYPE[op].map(Type.instantiate);
                 this.unify(lhsTy, lhsExpected);
                 this.unify(rhsTy, rhsExpected);
 

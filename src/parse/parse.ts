@@ -452,7 +452,7 @@ export const parse = (tokens: Token[]) => {
                         next();
                         return letStmt(keyword === 'mut');
                     default:
-                        throw new Error(`Unexpected keyword '${keyword}'`);
+                        return exprStmt();
                 }
             },
             _: () => exprStmt(),

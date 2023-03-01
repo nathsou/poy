@@ -7,10 +7,11 @@ export type Decl = DataType<{
     Fun: FunDecl,
     Type: TypeDecl,
     Module: ModuleDecl,
+    _Many: { decls: Decl[] },
 }>;
 
 export const Decl = {
-    ...genConstructors<Decl>(['Let', 'Fun', 'Module']),
+    ...genConstructors<Decl>(['Let', 'Fun', 'Module', '_Many']),
     Type: (lhs: Type, rhs: Type): Decl => ({ variant: 'Type', lhs, rhs }),
 };
 

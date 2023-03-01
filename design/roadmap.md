@@ -13,8 +13,8 @@
 
 ### 1. Modules
 - [x] Primitive expressions (literals, arithmetic) 
-- [ ] Compound expressions (tuples, arrays, blocks, closures, function calls)
-- [ ] Function and let declarations
+- [x] Compound expressions (tuples, arrays, blocks, closures, function calls)
+- [x] Functions and let declarations
 - [ ] Modules (Support nested modules and imports)
 
 ### 2. Structs & Type Aliases
