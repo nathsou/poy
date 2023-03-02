@@ -1,7 +1,7 @@
-import { bitterModuleOf } from "./codegen/lower/decl";
+import { Decl as JSDecl } from "./ast/js/decl";
+import { bitterModuleOf } from "./codegen/bitter/decl";
+import { jsOfDecl } from "./codegen/js/decl";
 import { TypeEnv } from "./infer/infer";
-import { TRS } from "./infer/rewrite";
-import { Type } from "./infer/type";
 import { createFileSystem } from "./misc/fs";
 import { lex } from "./parse/lex";
 import { parse } from "./parse/parse";
@@ -17,16 +17,19 @@ async function main() {
         env.inferDecl(decl);
     }
 
-    const sweetModule = bitterModuleOf(topModule);
+    const bitterModule = bitterModuleOf(topModule);
+    const jsModule = jsOfDecl(bitterModule);
 
-    console.log(env.show());
-    console.log(TRS.show(env.typeRules));
-    console.log(Type.show(
-        TRS.normalize(
-            env.typeRules,
-            Type.Fun('Query', [])
-        )
-    ));
+    console.log(JSDecl.show(jsModule));
+
+    // console.log(env.show());
+    // console.log(TRS.show(env.typeRules));
+    // console.log(Type.show(
+    //     TRS.normalize(
+    //         env.typeRules,
+    //         Type.Fun('Query', [])
+    //     )
+    // ));
 }
 
 main();
