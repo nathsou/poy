@@ -182,11 +182,10 @@ export const parse = (tokens: Token[], newlines: number[]) => {
         const args: Type[] = [];
 
         if (matches(Token.Symbol('('))) {
-            do {
+            while (!matches(Token.Symbol(')'))) {
                 args.push(type());
-            } while (matches(Token.Symbol(',')));
-
-            consume(Token.Symbol(')'));
+                consumeIfPresent(Token.Symbol(','));
+            }
         } else {
             args.push(arrayType());
         }
@@ -197,6 +196,16 @@ export const parse = (tokens: Token[], newlines: number[]) => {
         } else {
             return Type.Tuple(args);
         }
+    }
+
+    function tupleType(): Type {
+        if (matches(Token.Symbol('('))) {
+            const types = commas(type);
+            consume(Token.Symbol(')'));
+            return Type.Tuple(types);
+        }
+
+        return arrayType();
     }
 
     function arrayType(): Type {
@@ -516,6 +525,7 @@ export const parse = (tokens: Token[], newlines: number[]) => {
     const KEYWORD_MAPPING: Partial<Record<Keyword, () => Decl>> = {
         type: typeDecl,
         module: moduleDecl,
+        declare: declareDecl,
     };
 
     function decl(): Decl {
@@ -563,6 +573,17 @@ export const parse = (tokens: Token[], newlines: number[]) => {
             consumeIfPresent(Token.Symbol(';'));
 
             return Decl.Type(lhs, rhs);
+        });
+    }
+
+    function declareDecl(): Decl {
+        return typeScoped(() => {
+            const name = identifier();
+            consume(Token.Symbol(':'));
+            const ty = type();
+            consumeIfPresent(Token.Symbol(';'));
+
+            return Decl.Declare({ name, ty });
         });
     }
 

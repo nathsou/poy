@@ -61,6 +61,7 @@ export type Symbol = UnaryOp | BinaryOp | Punctuation;
 const keywords = [
     'module', 'let', 'mut', 'fun', 'if', 'else', 'match', 'for', 'while',
     'return', 'break', 'type', 'enum', 'struct', 'interface', 'extend', 'use', 'in',
+    'declare',
 ] as const;
 
 export type Keyword = typeof keywords[number];

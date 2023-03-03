@@ -34,6 +34,7 @@ export function jsOfDecl(decl: BitterDecl): JSDecl {
                                 members.push({ name, ty });
                             },
                             Type: () => { },
+                            Declare: () => { },
                         });
 
                     }
@@ -44,20 +45,23 @@ export function jsOfDecl(decl: BitterDecl): JSDecl {
                     const stmt = JSStmt.Let({
                         const_: true,
                         name,
-                        value: JSExpr.Closure({
-                            args: [],
-                            stmts: [
-                                ...stmts,
-                                JSStmt.Return(JSExpr.Object({
-                                    entries: members.map(member => ({
-                                        key: member.name,
-                                        value: JSExpr.Variable(member.name, member.ty),
+                        value: JSExpr.Call(
+                            JSExpr.Closure({
+                                args: [],
+                                stmts: [
+                                    ...stmts,
+                                    JSStmt.Return(JSExpr.Object({
+                                        entries: members.map(member => ({
+                                            key: member.name,
+                                            value: JSExpr.Variable(member.name, member.ty),
+                                        })),
+                                        ty: exportObjectTy,
                                     })),
-                                    ty: exportObjectTy,
-                                })),
-                            ],
-                            ty: exportObjectTy,
-                        }),
+                                ],
+                                ty: exportObjectTy,
+                            }),
+                            [],
+                        ),
                     });
 
                     return { stmt, ty: exportObjectTy };
@@ -65,6 +69,7 @@ export function jsOfDecl(decl: BitterDecl): JSDecl {
 
                 return [JSDecl.Stmt(moduleToStmt(name, decls).stmt)];
             },
+            Declare: () => [],
             Type: () => [],
         });
     };

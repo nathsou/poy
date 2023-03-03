@@ -13,6 +13,7 @@ export const bitterModuleOf = (sweet: ModuleDecl): VariantOf<BitterDecl, 'Module
 export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] => match(sweet, {
     Stmt: ({ stmt }) => bitterStmtOf(stmt).map(BitterDecl.Stmt),
     Type: ({ lhs, rhs }) => [BitterDecl.Type(lhs, rhs)],
+    Declare: ({ name, ty }) => [BitterDecl.Declare({ name, ty })],
     Module: mod => [bitterModuleOf(mod)],
     _Many: ({ decls }) => decls.flatMap(bitterDeclsOf),
 });

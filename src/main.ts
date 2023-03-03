@@ -22,6 +22,7 @@ async function main() {
     const bitterModule = bitterModuleOf(topModule);
     const jsModule = jsOfDecl(bitterModule);
 
+    console.log('const print = console.log;');
     console.log(JSDecl.show(jsModule));
 
     // console.log(env.show());

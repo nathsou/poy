@@ -60,6 +60,9 @@ export class TypeEnv {
             Type: ({ lhs, rhs }) => {
                 TRS.add(this.typeRules, lhs, rhs);
             },
+            Declare: ({ name, ty }) => {
+                this.variables.declare(name, { mutable: false, ty });
+            },
             Module: ({ name, decls }) => {
                 const moduleEnv = this.child();
                 this.modules.declare(name, moduleEnv);

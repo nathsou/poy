@@ -6,11 +6,12 @@ export type Decl = DataType<{
     Stmt: { stmt: Stmt },
     Type: TypeDecl,
     Module: ModuleDecl,
+    Declare: { name: string, ty: Type },
     _Many: { decls: Decl[] },
 }>;
 
 export const Decl = {
-    ...genConstructors<Decl>(['Module', '_Many']),
+    ...genConstructors<Decl>(['Module', 'Declare', '_Many']),
     Stmt: (stmt: Stmt): Decl => ({ variant: 'Stmt', stmt }),
     Type: (lhs: Type, rhs: Type): Decl => ({ variant: 'Type', lhs, rhs }),
 };

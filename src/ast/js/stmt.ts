@@ -18,7 +18,13 @@ export const Stmt = {
 function show(stmt: Stmt): string {
     return match(stmt, {
         Expr: ({ expr }) => `${Expr.show(expr)};`,
-        Let: ({ const_, name, value }) => `${const_ ? 'const' : 'let'} ${name} = ${Expr.show(value)};`,
+        Let: ({ const_, name, value }) => {
+            if (value.variant === 'Closure' && const_) {
+                return `function ${name}(${value.args.map(arg => arg.name).join(', ')}) {\n${value.stmts.map(Stmt.show).join('\n')}\n}`;
+            }
+
+            return `${const_ ? 'const' : 'let'} ${name} = ${Expr.show(value)};`;
+        },
         Return: ({ value }) => `return ${Expr.show(value)};`,
     });
 }

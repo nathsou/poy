@@ -49,7 +49,13 @@ function show(expr: Expr): string {
         Ternary: ({ cond, then, otherwise }) => `(${show(cond)} ? ${show(then)} : ${show(otherwise)})`,
         Array: ({ elems }) => `[${elems.map(show).join(', ')}]`,
         Closure: ({ args, stmts }) => `(${args.map(({ name }) => name).join(', ')}) => {\n${stmts.map(Stmt.show).join('\n')}\n}`,
-        Call: ({ fun, args }) => `${show(fun)}(${args.map(show).join(', ')})`,
+        Call: ({ fun, args }) => {
+            if (fun.variant === 'Closure') {
+                fun = Expr.Paren(fun);
+            }
+
+            return `${show(fun)}(${args.map(show).join(', ')})`;
+        },
         Paren: ({ expr }) => `(${show(expr)})`,
         Object: ({ entries }) => {
             const entriesFmt = entries.map(({ key, value }) =>
