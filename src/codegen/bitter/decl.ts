@@ -1,7 +1,7 @@
 import { match, VariantOf } from 'itsamatch';
 import { Decl as BitterDecl } from '../../ast/bitter/decl';
 import { Decl as SweetDecl, ModuleDecl } from '../../ast/sweet/decl';
-import { bitterExprOf } from './expr';
+import { bitterStmtOf } from './stmt';
 
 export const bitterModuleOf = (sweet: ModuleDecl): VariantOf<BitterDecl, 'Module'> => {
     return BitterDecl.Module({
@@ -11,16 +11,7 @@ export const bitterModuleOf = (sweet: ModuleDecl): VariantOf<BitterDecl, 'Module
 };
 
 export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] => match(sweet, {
-    Let: ({ mutable, name, value }) => [BitterDecl.Let({
-        mutable,
-        name,
-        value: bitterExprOf(value),
-    })],
-    Fun: ({ name, args, body }) => [BitterDecl.Fun({
-        name,
-        args: args.map(arg => ({ name: arg.name, ty: arg.ann! })),
-        body: bitterExprOf(body),
-    })],
+    Stmt: ({ stmt }) => bitterStmtOf(stmt).map(BitterDecl.Stmt),
     Type: ({ lhs, rhs }) => [BitterDecl.Type(lhs, rhs)],
     Module: mod => [bitterModuleOf(mod)],
     _Many: ({ decls }) => decls.flatMap(bitterDeclsOf),

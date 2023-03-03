@@ -1,7 +1,6 @@
 import { DataType, genConstructors } from 'itsamatch';
 import { Type } from '../../infer/type';
 import { BinaryOp, Literal, UnaryOp } from '../../parse/token';
-import { FunctionArgument } from './decl';
 import { Stmt } from './stmt';
 
 export type Expr = DataType<{
@@ -17,6 +16,8 @@ export type Expr = DataType<{
     Fun: { args: FunctionArgument[], ret?: Type, body: Expr },
     Call: { fun: Expr, args: Expr[] },
 }> & { ty?: Type };
+
+export type FunctionArgument = { name: string, ann?: Type };
 
 export const Expr = {
     ...genConstructors<Expr>([

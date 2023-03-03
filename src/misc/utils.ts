@@ -52,3 +52,15 @@ export const zip = <A, B>(as: A[], bs: B[]): [A, B][] => {
 
     return zipped;
 };
+
+export const indices = <T>(vals: T[], pred: (val: T) => boolean): number[] => {
+    const indices: number[] = [];
+
+    for (let i = 0; i < vals.length; i++) {
+        if (pred(vals[i])) {
+            indices.push(i);
+        }
+    }
+
+    return indices;
+};

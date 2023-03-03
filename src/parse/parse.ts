@@ -1,6 +1,6 @@
 import { match, VariantOf } from "itsamatch";
-import { Decl, FunctionArgument, ModuleDecl } from "../ast/sweet/decl";
-import { Expr } from "../ast/sweet/expr";
+import { Decl, ModuleDecl } from "../ast/sweet/decl";
+import { Expr, FunctionArgument } from "../ast/sweet/expr";
 import { Stmt } from "../ast/sweet/stmt";
 import { Type, TypeVar } from "../infer/type";
 import { Context } from "../misc/context";
@@ -9,7 +9,7 @@ import { isUpperCase } from "../misc/strings";
 import { assert, last, panic } from "../misc/utils";
 import { BinaryOp, Keyword, Literal, Symbol, Token, UnaryOp } from "./token";
 
-export const parse = (tokens: Token[]) => {
+export const parse = (tokens: Token[], newlines: number[]) => {
     let index = 0;
     let letLevel = 0;
     const typeScopes: Map<string, number>[] = [];
@@ -59,7 +59,7 @@ export const parse = (tokens: Token[]) => {
         if (check(token)) {
             next();
         } else {
-            throw new Error(error);
+            reportError(error);
         }
     }
 
@@ -76,9 +76,17 @@ export const parse = (tokens: Token[]) => {
                 return name;
             },
             _: () => {
-                throw new Error('Expected identifier');
+                reportError('Expected identifier');
             },
         });
+    }
+
+    function reportError(message: string): never {
+        const { loc } = tokens[index];
+        const start = loc?.start ?? 0;
+        const line = (newlines.findIndex(pos => pos > start) ?? 1) - 1;
+        const column = start - newlines[line] ?? 0;
+        return panic(`Parse error: ${message} at ${line}:${column}`);
     }
 
     // sepBy(rule, sep) -> (<rule> (sep <rule>)*)?
@@ -273,7 +281,7 @@ export const parse = (tokens: Token[]) => {
             }
         }
 
-        return funExpr();
+        return funExpr(true);
     }
 
     function functionArgument(): FunctionArgument {
@@ -282,8 +290,8 @@ export const parse = (tokens: Token[]) => {
         return { name, ann };
     }
 
-    function funExpr(): Expr {
-        return attempt<Expr>(() => {
+    function funExpr(isArrowFunction: boolean): Expr {
+        return attempt<Expr>(() => typeScoped(() => {
             let args: FunctionArgument[];
             let ret: Type | undefined;
             const token = peek();
@@ -300,10 +308,13 @@ export const parse = (tokens: Token[]) => {
                 throw 'fail';
             }
 
-            consume(Token.Symbol('->'));
+            if (isArrowFunction) {
+                consume(Token.Symbol('->'));
+            }
+
             const body = expr();
             return Expr.Fun({ args, ret, body });
-        }).orDefault(equalityExpr);
+        })).orDefault(equalityExpr);
     }
 
     function useInExpr(): Expr {
@@ -390,11 +401,11 @@ export const parse = (tokens: Token[]) => {
                     case '[':
                         return arrayExpr();
                     default:
-                        throw new Error(`Unexpected symbol '${symb}'`);
+                        reportError(`Unexpected symbol '${symb}'`);
                 }
             },
             _: () => {
-                throw new Error('Expected expression');
+                reportError('Expected expression');
             },
         });
     }
@@ -450,13 +461,37 @@ export const parse = (tokens: Token[]) => {
                     case 'let':
                     case 'mut':
                         next();
+
+                        if (matches(Token.Symbol('{'))) {
+                            const stmts: Stmt[] = [];
+
+                            while (!matches(Token.Symbol('}'))) {
+                                stmts.push(letStmt(keyword === 'mut'));
+                            }
+
+                            consumeIfPresent(Token.Symbol(';'));
+
+                            return Stmt._Many({ stmts });
+                        }
+
                         return letStmt(keyword === 'mut');
+                    case 'fun':
+                        next();
+                        return funStmt();
                     default:
                         return exprStmt();
                 }
             },
             _: () => exprStmt(),
         });
+    }
+
+    function funStmt(): Stmt {
+        const name = identifier();
+        const value = funExpr(false);
+        consumeIfPresent(Token.Symbol(';'));
+
+        return Stmt.Let({ mutable: false, name, value });
     }
 
     function letStmt(mutable: boolean): Stmt {
@@ -479,9 +514,6 @@ export const parse = (tokens: Token[]) => {
     // ------ declarations ------
 
     const KEYWORD_MAPPING: Partial<Record<Keyword, () => Decl>> = {
-        let: () => letDecl(false),
-        mut: () => letDecl(true),
-        fun: funDecl,
         type: typeDecl,
         module: moduleDecl,
     };
@@ -503,7 +535,7 @@ export const parse = (tokens: Token[]) => {
             }
         }
 
-        return panic(`Unexpected token '${Token.show(token)}'`);
+        return stmtDecl();
     }
 
     function manyDecl(declParser: () => Decl): Decl {
@@ -519,32 +551,8 @@ export const parse = (tokens: Token[]) => {
         return Decl._Many({ decls });
     }
 
-    function letDecl(mutable: boolean): Decl {
-        letLevel += 1;
-        const name = identifier();
-        const ann = typeAnnotation();
-        consume(Token.Symbol('='));
-        const value = expr();
-        consumeIfPresent(Token.Symbol(';'));
-        letLevel -= 1;
-
-        return Decl.Let({ mutable, name, ann, value });
-    }
-
-    function funDecl(): Decl {
-        return typeScoped(() => {
-            letLevel += 1;
-            const name = identifier();
-            consume(Token.Symbol('('));
-            const args = commas(functionArgument);
-            consume(Token.Symbol(')'));
-            const ret = typeAnnotation();
-            const body = expr();
-            consumeIfPresent(Token.Symbol(';'));
-            letLevel -= 1;
-
-            return Decl.Fun({ name, args, ret, body });
-        });
+    function stmtDecl(): Decl {
+        return Decl.Stmt(stmt());
     }
 
     function typeDecl(): Decl {

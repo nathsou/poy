@@ -12,7 +12,7 @@ export function jsExprOf(bitter: BitterExpr): JSExpr {
 
     return match(bitter, {
         Literal: ({ literal }) => JSExpr.Literal({ literal, ty }),
-        Variable: ({ name }) => JSExpr.Variable({ name, ty }),
+        Variable: ({ name }) => JSExpr.Variable(name, ty),
         Unary: ({ op, expr }) => JSExpr.Unary({ op, expr: jsExprOf(expr), ty }),
         Binary: ({ lhs, op, rhs }) => JSExpr.Binary({ lhs: jsExprOf(lhs), op, rhs: jsExprOf(rhs), ty }),
         Block: ({ stmts, ret }) => {

@@ -1,37 +1,18 @@
 import { DataType, genConstructors } from 'itsamatch';
 import { Type } from '../../infer/type';
-import { Expr } from './expr';
+import { Stmt } from './stmt';
 
 export type Decl = DataType<{
-    Let: LetDecl,
-    Fun: FunDecl,
+    Stmt: { stmt: Stmt },
     Type: TypeDecl,
     Module: ModuleDecl,
     _Many: { decls: Decl[] },
 }>;
 
 export const Decl = {
-    ...genConstructors<Decl>(['Let', 'Fun', 'Module', '_Many']),
+    ...genConstructors<Decl>(['Module', '_Many']),
+    Stmt: (stmt: Stmt): Decl => ({ variant: 'Stmt', stmt }),
     Type: (lhs: Type, rhs: Type): Decl => ({ variant: 'Type', lhs, rhs }),
-};
-
-export type LetDecl = {
-    mutable: boolean,
-    name: string,
-    ann?: Type,
-    value: Expr,
-};
-
-export type FunctionArgument = {
-    name: string,
-    ann?: Type,
-};
-
-export type FunDecl = {
-    name: string,
-    args: FunctionArgument[],
-    ret?: Type,
-    body: Expr,
 };
 
 export type TypeDecl = {

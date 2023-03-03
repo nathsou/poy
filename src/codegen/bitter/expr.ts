@@ -19,7 +19,7 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
             ty
         }),
         Block: ({ stmts, ret }) => BitterExpr.Block({
-            stmts: stmts.map(bitterStmtOf),
+            stmts: stmts.flatMap(bitterStmtOf),
             ret: ret ? bitterExprOf(ret) : undefined,
             ty
         }),

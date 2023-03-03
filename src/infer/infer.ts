@@ -25,6 +25,10 @@ export class TypeEnv {
         return new TypeEnv(this);
     }
 
+    public freshType(): Type {
+        return Type.fresh(this.letLevel);
+    }
+
     private unify(s: Type, t: Type): void {
         Type.unify(
             TRS.normalize(this.typeRules, s),
@@ -35,7 +39,7 @@ export class TypeEnv {
     private inferLet(mutable: boolean, name: string, value: Expr): Type {
         this.letLevel += 1;
         const rhsEnv = this.child();
-        const freshTy = Type.fresh(rhsEnv.letLevel);
+        const freshTy = rhsEnv.freshType();
         rhsEnv.variables.declare(name, { mutable, ty: freshTy });
         const ty = rhsEnv.inferExpr(value);
         this.unify(ty, freshTy);
@@ -50,11 +54,8 @@ export class TypeEnv {
 
     public inferDecl(decl: Decl): void {
         match(decl, {
-            Let: (decl) => {
-                this.inferLet(decl.mutable, decl.name, decl.value);
-            },
-            Fun: ({ name, args, ret, body }) => {
-                this.inferLet(false, name, Expr.Fun({ args, ret, body }));
+            Stmt: ({ stmt }) => {
+                this.inferStmt(stmt);
             },
             Type: ({ lhs, rhs }) => {
                 TRS.add(this.typeRules, lhs, rhs);
@@ -82,6 +83,11 @@ export class TypeEnv {
             },
             Let: ({ mutable, name, value }) => {
                 this.inferLet(mutable, name, value);
+            },
+            _Many: ({ stmts }) => {
+                for (const stmt of stmts) {
+                    this.inferStmt(stmt);
+                }
             },
         });
     }
@@ -150,7 +156,7 @@ export class TypeEnv {
                 }
             },
             Array: ({ elems }) => {
-                const elemTy = Type.fresh(this.letLevel);
+                const elemTy = this.freshType();
 
                 for (const elem of elems) {
                     this.unify(elemTy, this.inferExpr(elem));
@@ -160,7 +166,7 @@ export class TypeEnv {
             },
             Fun: ({ args, ret, body }) => {
                 const funEnv = this.child();
-                const argTys = args.map(arg => arg.ann ?? Type.fresh(this.letLevel));
+                const argTys = args.map(arg => arg.ann ?? this.freshType());
 
                 args.forEach(({ name }, i) => {
                     funEnv.variables.declare(name, {
@@ -181,7 +187,7 @@ export class TypeEnv {
             Call: ({ fun, args }) => {
                 const funTy = this.inferExpr(fun);
                 const argTys = args.map(arg => this.inferExpr(arg));
-                const retTy = Type.fresh(this.letLevel);
+                const retTy = this.freshType();
                 const expectedFunTy = Type.Function(argTys, retTy);
                 this.unify(funTy, expectedFunTy);
 

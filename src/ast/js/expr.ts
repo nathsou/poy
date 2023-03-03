@@ -16,13 +16,15 @@ export type Expr = DataType<Typed<{
     Closure: { args: { name: string, ty: TSType }[], stmts: Stmt[] },
     Call: { fun: Expr, args: Expr[] },
     Paren: { expr: Expr },
+    Object: { entries: { key: string, value: Expr }[] },
 }>>;
 
 export const Expr = {
     ...genConstructors<Expr>([
-        'Literal', 'Variable', 'Unary', 'Binary', 'Ternary',
-        'Array', 'Closure',
+        'Literal', 'Unary', 'Binary', 'Ternary',
+        'Array', 'Closure', 'Object',
     ]),
+    Variable: (name: string, ty: TSType): Expr => ({ variant: 'Variable', name, ty }) as const,
     Paren: (expr: Expr): Expr => ({ variant: 'Paren', expr, ty: expr.ty }) as const,
     Call: (fun: Expr, args: Expr[]): Expr => ({
         variant: 'Call',
@@ -49,5 +51,13 @@ function show(expr: Expr): string {
         Closure: ({ args, stmts }) => `(${args.map(({ name }) => name).join(', ')}) => {\n${stmts.map(Stmt.show).join('\n')}\n}`,
         Call: ({ fun, args }) => `${show(fun)}(${args.map(show).join(', ')})`,
         Paren: ({ expr }) => `(${show(expr)})`,
+        Object: ({ entries }) => {
+            const entriesFmt = entries.map(({ key, value }) =>
+                value.variant === 'Variable' && value.name === key ?
+                    key : `${key}: ${show(value)}`
+            );
+
+            return `{ ${entriesFmt.join(', ')} }`;
+        },
     });
 }
