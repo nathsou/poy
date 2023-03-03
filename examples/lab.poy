@@ -39,6 +39,8 @@ fun main() {
     twice(f)(2.11)
 }
 
+let fact = n -> if n == 0 { 1 } else { n * fact(n - 1) }
+
 module B {
     let a = 3
 }

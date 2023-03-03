@@ -34,7 +34,11 @@ export class TypeEnv {
 
     private inferLet(mutable: boolean, name: string, value: Expr): Type {
         this.letLevel += 1;
-        const ty = this.inferExpr(value);
+        const rhsEnv = this.child();
+        const freshTy = Type.fresh(rhsEnv.letLevel);
+        rhsEnv.variables.declare(name, { mutable, ty: freshTy });
+        const ty = rhsEnv.inferExpr(value);
+        this.unify(ty, freshTy);
         this.letLevel -= 1;
 
         // https://en.wikipedia.org/wiki/Value_restriction

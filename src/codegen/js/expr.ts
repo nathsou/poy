@@ -16,6 +16,9 @@ export function jsExprOf(bitter: BitterExpr): JSExpr {
         Unary: ({ op, expr }) => JSExpr.Unary({ op, expr: jsExprOf(expr), ty }),
         Binary: ({ lhs, op, rhs }) => JSExpr.Binary({ lhs: jsExprOf(lhs), op, rhs: jsExprOf(rhs), ty }),
         Block: ({ stmts, ret }) => {
+            if (stmts.length === 0 && ret) {
+                return jsExprOf(ret);
+            }
             // TODO: Linearzie scopes for much better performance
             return JSExpr.Call(JSExpr.Paren(JSExpr.Closure({
                 args: [],
