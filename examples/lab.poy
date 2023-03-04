@@ -1,17 +1,17 @@
 
 type {
-    ReturnType<Function<args, ret>> = ret
-    Parameters<Function<args, ret>> = args
+    ReturnType<Function<_, ret>> = ret
+    Parameters<Function<args, _>> = args
 
     Fields<Record<fields>> = fields
 
     Keys<Record<fields>> = KeysAux<fields>
     KeysAux<[]> = []
-    KeysAux<(k, v)::tail> = k::KeysAux<tail>
+    KeysAux<(k, _)::tail> = k::KeysAux<tail>
 
     Values<Record<fields>> = ValuesAux<fields>
     ValuesAux<[]> = []
-    ValuesAux<(k, v)::tail> = v::ValuesAux<tail>
+    ValuesAux<(_, v)::tail> = v::ValuesAux<tail>
 
     Reverse<lst> = ReverseAux<lst, []>
     ReverseAux<[], rev> = rev
@@ -39,7 +39,7 @@ fun main() {
     twice(f)(2.11)
 }
 
-declare print: a -> ()
+declare print: _ -> ()
 
 let fact = n -> if n == 0 { 1 } else { n * fact(n - 1) }
 

@@ -235,6 +235,15 @@ export const parse = (tokens: Token[], newlines: number[]) => {
             }
         }
 
+        if (token.variant === 'Symbol' && token.$value === '_') {
+            next();
+            return Type.Var(
+                TypeVar.Unbound({
+                    id: Context.freshTypeVarId(),
+                    level: letLevel,
+                }));
+        }
+
         return panic('Expected type');
     }
 

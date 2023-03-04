@@ -4,7 +4,7 @@ import { Expr } from "./expr";
 
 export type Stmt = DataType<{
     Expr: { expr: Expr },
-    Let: { mutable: boolean, ann?: Type, name: string, value: Expr },
+    Let: { mutable: boolean, name: string, ann?: Type, value: Expr },
     _Many: { stmts: Stmt[] },
 }>;
 
