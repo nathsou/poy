@@ -222,6 +222,15 @@ export class TypeEnv {
                 rhsEnv.inferLet(false, name, ann, value);
                 return rhsEnv.inferExpr(rhs);
             },
+            Path: ({ path, member }) => {
+                let mod: TypeEnv = this;
+
+                for (const name of path) {
+                    mod = mod.modules.lookup(name).unwrap();
+                }
+
+                return mod.variables.lookup(member).unwrap().ty;
+            },
         });
 
         expr.ty = ty;

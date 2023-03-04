@@ -21,13 +21,14 @@ export type TSType = DataType<{
     Record: { fields: { [key: string]: TSType } },
     Literal: { value: string },
     Ref: { name: string, args: TSType[] },
+    Access: { path: TSType[], member: string },
 }>;
 
 export const TSType = {
     ...genConstructors<TSType>([
         'Any', 'Void', 'Never', 'Null', 'Undefined', 'Boolean', 'Number',
         'String', 'Variable', 'Array', 'Tuple', 'Union', 'Intersection',
-        'Function', 'Record', 'Literal', 'Ref',
+        'Function', 'Record', 'Literal', 'Ref', 'Access',
     ]),
     show,
     from,
@@ -53,6 +54,7 @@ function show(ty: TSType): string {
         Record: ({ fields }) => `{ ${Object.entries(fields).map(([key, value]) => `${key}: ${show(value)}`).join(', ')} }`,
         Literal: ({ value }) => value,
         Ref: ({ name, args }) => `${name}${args.length > 0 ? `<${args.map(show).join(', ')}>` : ''}`,
+        Access: ({ path, member }) => `${path.map(show).join('.')}['${member}']`,
     });
 }
 

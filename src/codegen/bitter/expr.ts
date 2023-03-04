@@ -43,5 +43,6 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
             ty,
         }),
         Call: ({ fun, args }) => BitterExpr.Call({ fun: bitterExprOf(fun), args: args.map(bitterExprOf), ty }),
+        Path: ({ path, member }) => BitterExpr.Path(path, member, ty),
     });
 }

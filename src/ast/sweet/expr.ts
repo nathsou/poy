@@ -15,6 +15,7 @@ export type Expr = DataType<{
     UseIn: { name: string, ann?: Type, value: Expr, rhs: Expr },
     Fun: { args: FunctionArgument[], ret?: Type, body: Expr },
     Call: { fun: Expr, args: Expr[] },
+    Path: { path: string[], member: string },
 }> & { ty?: Type };
 
 export type FunctionArgument = { name: string, ann?: Type };
@@ -25,4 +26,5 @@ export const Expr = {
         'UseIn', 'Fun', 'Call',
     ]),
     Literal: (literal: Literal): Expr => ({ variant: 'Literal', literal }) as const,
+    Path: (path: string[], member: string): Expr => ({ variant: 'Path', path, member }) as const,
 };

@@ -31,20 +31,20 @@ let {
     id = x -> x
 }
 
-fun twice(f) {
-    x -> f(f(x))
-}
-
-fun main() {
-    twice(f)(2.11)
-}
-
 declare print: _ -> ()
 
-let fact = n -> if n == 0 { 1 } else { n * fact(n - 1) }
-
-module B {
-    let a = 3
+module Math {
+    let fact = n -> if n == 0 { 1 } else { n * fact(n - 1) }
 }
 
-print(fact(17))
+module A {
+    let a = 3
+    module B {
+        let b = 7
+        module C {
+            let c = 11
+        }
+    }
+}
+
+print(use sum = A.a + A.B.b + A.B.C.c in Math.fact(sum))

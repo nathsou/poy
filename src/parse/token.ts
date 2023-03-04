@@ -55,7 +55,7 @@ export const Literal = {
 
 export type UnaryOp = '+' | '-' | '!';
 export type BinaryOp = '+' | '-' | '*' | '/' | '%' | '**' | '==' | '!=' | '<' | '<=' | '>' | '>=' | '&&' | '||' | '&' | '|';
-export type Punctuation = '(' | ')' | '{' | '}' | '[' | ']' | ',' | ';' | ':' | '->' | '=>' | '=' | '::' | '_';
+export type Punctuation = '(' | ')' | '{' | '}' | '[' | ']' | ',' | ';' | ':' | '->' | '=>' | '=' | '::' | '_' | '.';
 export type Symbol = UnaryOp | BinaryOp | Punctuation;
 
 const keywords = [

@@ -400,6 +400,11 @@ export const parse = (tokens: Token[], newlines: number[]) => {
             },
             Identifier: name => {
                 next();
+
+                if (isUpperCase(name[0])) {
+                    return pathExpr(name);
+                }
+
                 return Expr.Variable(name);
             },
             Symbol: symb => {
@@ -418,6 +423,31 @@ export const parse = (tokens: Token[], newlines: number[]) => {
                 reportError('Expected expression');
             },
         });
+    }
+
+    function path(prefix: string): string[] {
+        const parts: string[] = [prefix];
+
+        let token = peek();
+
+        while (matches(Token.Symbol('.'))) {
+            token = peek();
+
+            if (token.variant === 'Identifier') {
+                next();
+                parts.push(token.$value);
+            } else {
+                reportError('Expected identifier');
+            }
+        }
+
+        return parts;
+    }
+
+    function pathExpr(prefix: string): Expr {
+        const parts = path(prefix);
+        assert(parts.length > 1);
+        return Expr.Path(parts.slice(0, -1), last(parts));
     }
 
     function tupleExpr(): Expr {

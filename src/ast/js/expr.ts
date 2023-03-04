@@ -1,5 +1,6 @@
 import { DataType, genConstructors, match } from "itsamatch";
 import { Impl, Show } from "../../misc/traits";
+import { proj } from "../../misc/utils";
 import { Literal } from "../../parse/token";
 import { Stmt } from "./stmt";
 import { TSType } from "./tsType";
@@ -17,6 +18,7 @@ export type Expr = DataType<Typed<{
     Call: { fun: Expr, args: Expr[] },
     Paren: { expr: Expr },
     Object: { entries: { key: string, value: Expr }[] },
+    Dot: { lhs: Expr[], rhs: string },
 }>>;
 
 export const Expr = {
@@ -31,6 +33,12 @@ export const Expr = {
         fun,
         args,
         ty: TSType.Ref({ name: 'ReturnType', args: [fun.ty] }),
+    }) as const,
+    Dot: (lhs: Expr[], rhs: string): Expr => ({
+        variant: 'Dot',
+        lhs,
+        rhs,
+        ty: TSType.Access({ path: lhs.map(proj('ty')), member: rhs }),
     }) as const,
     show,
 } satisfies Impl<Show<Expr>>;
@@ -65,5 +73,6 @@ function show(expr: Expr): string {
 
             return `{ ${entriesFmt.join(', ')} }`;
         },
+        Dot: ({ lhs, rhs }) => `${lhs.map(show).join('.')}.${rhs}`,
     });
 }

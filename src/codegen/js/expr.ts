@@ -48,5 +48,6 @@ export function jsExprOf(bitter: BitterExpr): JSExpr {
             ty: TSType.Function({ args: args.map(arg => TSType.from(arg.ty)), ret: ty }),
         }),
         Call: ({ fun, args }) => JSExpr.Call(jsExprOf(fun), args.map(jsExprOf)),
+        Path: ({ path, member }) => JSExpr.Dot(path.map(name => JSExpr.Variable(name, TSType.Any())), member),
     });
 };
