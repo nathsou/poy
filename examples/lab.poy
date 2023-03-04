@@ -39,7 +39,7 @@ fun main() {
     twice(f)(2.11)
 }
 
-declare print: Str -> ()
+declare print: a -> ()
 
 let fact = n -> if n == 0 { 1 } else { n * fact(n - 1) }
 

@@ -160,7 +160,6 @@ export const parse = (tokens: Token[], newlines: number[]) => {
         return id;
     }
 
-
     // ------ types ------
 
     function type(): Type {
@@ -196,16 +195,6 @@ export const parse = (tokens: Token[], newlines: number[]) => {
         } else {
             return Type.Tuple(args);
         }
-    }
-
-    function tupleType(): Type {
-        if (matches(Token.Symbol('('))) {
-            const types = commas(type);
-            consume(Token.Symbol(')'));
-            return Type.Tuple(types);
-        }
-
-        return arrayType();
     }
 
     function arrayType(): Type {
@@ -327,15 +316,18 @@ export const parse = (tokens: Token[], newlines: number[]) => {
     }
 
     function useInExpr(): Expr {
-        letLevel += 1;
-        const name = identifier();
-        consume(Token.Symbol('='));
-        const value = expr();
-        consume(Token.Keyword('in'));
-        const rhs = expr();
-        letLevel -= 1;
+        return typeScoped(() => {
+            letLevel += 1;
+            const name = identifier();
+            const ann = typeAnnotation();
+            consume(Token.Symbol('='));
+            const value = expr();
+            consume(Token.Keyword('in'));
+            const rhs = expr();
+            letLevel -= 1;
 
-        return Expr.UseIn({ name, value, rhs });
+            return Expr.UseIn({ name, ann, value, rhs });
+        });
     }
 
     function ifExpr(): Expr {
@@ -504,14 +496,17 @@ export const parse = (tokens: Token[], newlines: number[]) => {
     }
 
     function letStmt(mutable: boolean): Stmt {
-        letLevel += 1;
-        const name = identifier();
-        consume(Token.Symbol('='));
-        const value = expr();
-        consumeIfPresent(Token.Symbol(';'));
-        letLevel -= 1;
+        return typeScoped(() => {
+            letLevel += 1;
+            const name = identifier();
+            const ann = typeAnnotation();
+            consume(Token.Symbol('='));
+            const value = expr();
+            consumeIfPresent(Token.Symbol(';'));
+            letLevel -= 1;
 
-        return Stmt.Let({ mutable, name, value });
+            return Stmt.Let({ ann, mutable, name, value });
+        });
     }
 
     function exprStmt(): Stmt {
@@ -578,10 +573,12 @@ export const parse = (tokens: Token[], newlines: number[]) => {
 
     function declareDecl(): Decl {
         return typeScoped(() => {
+            letLevel += 1;
             const name = identifier();
             consume(Token.Symbol(':'));
             const ty = type();
             consumeIfPresent(Token.Symbol(';'));
+            letLevel -= 1;
 
             return Decl.Declare({ name, ty });
         });

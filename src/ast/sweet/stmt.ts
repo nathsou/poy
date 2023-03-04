@@ -1,9 +1,10 @@
 import { DataType, genConstructors } from "itsamatch";
+import { Type } from "../../infer/type";
 import { Expr } from "./expr";
 
 export type Stmt = DataType<{
     Expr: { expr: Expr },
-    Let: { mutable: boolean, name: string, value: Expr },
+    Let: { mutable: boolean, ann?: Type, name: string, value: Expr },
     _Many: { stmts: Stmt[] },
 }>;
 

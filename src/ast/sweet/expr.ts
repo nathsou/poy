@@ -12,7 +12,7 @@ export type Expr = DataType<{
     If: { cond: Expr, then: Expr, otherwise: Expr },
     Tuple: { elems: Expr[] },
     Array: { elems: Expr[] },
-    UseIn: { name: string, value: Expr, rhs: Expr },
+    UseIn: { name: string, ann?: Type, value: Expr, rhs: Expr },
     Fun: { args: FunctionArgument[], ret?: Type, body: Expr },
     Call: { fun: Expr, args: Expr[] },
 }> & { ty?: Type };

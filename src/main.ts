@@ -22,10 +22,10 @@ async function main() {
     const bitterModule = bitterModuleOf(topModule);
     const jsModule = jsOfDecl(bitterModule);
 
+    console.log(env.show().split('\n').map(line => `// ${line}`).join('\n'));
     console.log('const print = console.log;');
     console.log(JSDecl.show(jsModule));
 
-    // console.log(env.show());
     // console.log(TRS.show(env.typeRules));
     // console.log(Type.show(
     //     TRS.normalize(

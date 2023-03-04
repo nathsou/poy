@@ -1,4 +1,5 @@
 import { DataType, genConstructors, match, matchMany } from "itsamatch";
+import { config } from "../config";
 import { Context } from "../misc/context";
 import { Eq, Impl, Rewrite, Show } from "../misc/traits";
 import { assert, panic } from "../misc/utils";
@@ -107,19 +108,21 @@ function isList(ty: Type): boolean {
 }
 
 function show(ty: Type): string {
-    const genericTyVars = new Set<number>();
+    const genericTyVars = new Set<string>();
 
     const show = (ty: Type): string => {
         return match(ty, {
             Var: ({ ref }) => {
                 if (ref.variant === 'Generic') {
-                    genericTyVars.add(ref.id);
+                    genericTyVars.add(ref.name ?? showTypeVarId(ref.id));
                 }
 
                 return TypeVar.show(ref);
             },
             Fun: ({ name, args }) => {
                 switch (name) {
+                    case 'Unit':
+                        return '()';
                     case 'Nil':
                         return '[]';
                     case 'Cons':
@@ -169,7 +172,7 @@ function show(ty: Type): string {
     const rhs = show(ty);
 
     if (genericTyVars.size > 0) {
-        return `forall ${Array.from(genericTyVars).map(showTypeVarId).join(', ')}. ${rhs}`;
+        return `forall ${Array.from(genericTyVars).join(', ')}. ${rhs}`;
     }
 
     return rhs;
@@ -264,6 +267,9 @@ function unify(a: Type, b: Type, subst?: Subst): boolean {
 
     while (eqs.length > 0) {
         const [s, t] = eqs.pop()!;
+        if (config.debug.unification) {
+            console.log(`unify '${show(s)}' with '${show(t)}'`);
+        }
 
         if (s.variant === 'Var') {
             unifyVar(s, t, eqs, subst);

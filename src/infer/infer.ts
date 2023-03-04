@@ -30,13 +30,17 @@ export class TypeEnv {
     }
 
     private unify(s: Type, t: Type): void {
-        Type.unify(
+        const unifiable = Type.unify(
             TRS.normalize(this.typeRules, s),
             TRS.normalize(this.typeRules, t),
         );
+
+        if (!unifiable) {
+            panic(`Cannot unify '${Type.show(s)}' with '${Type.show(t)}'`);
+        }
     }
 
-    private inferLet(mutable: boolean, name: string, value: Expr): Type {
+    private inferLet(mutable: boolean, name: string, ann: Type | undefined, value: Expr): Type {
         this.letLevel += 1;
         const rhsEnv = this.child();
         const freshTy = rhsEnv.freshType();
@@ -44,6 +48,10 @@ export class TypeEnv {
         const ty = rhsEnv.inferExpr(value);
         this.unify(ty, freshTy);
         this.letLevel -= 1;
+
+        if (ann) {
+            this.unify(ann, ty);
+        }
 
         // https://en.wikipedia.org/wiki/Value_restriction
         const genTy = mutable ? ty : Type.generalize(ty, this.letLevel);
@@ -61,7 +69,8 @@ export class TypeEnv {
                 TRS.add(this.typeRules, lhs, rhs);
             },
             Declare: ({ name, ty }) => {
-                this.variables.declare(name, { mutable: false, ty });
+                const genTy = Type.generalize(ty, this.letLevel);
+                this.variables.declare(name, { mutable: false, ty: genTy });
             },
             Module: ({ name, decls }) => {
                 const moduleEnv = this.child();
@@ -84,8 +93,8 @@ export class TypeEnv {
             Expr: ({ expr }) => {
                 this.inferExpr(expr);
             },
-            Let: ({ mutable, name, value }) => {
-                this.inferLet(mutable, name, value);
+            Let: ({ mutable, name, ann, value }) => {
+                this.inferLet(mutable, name, ann, value);
             },
             _Many: ({ stmts }) => {
                 for (const stmt of stmts) {
@@ -120,30 +129,30 @@ export class TypeEnv {
                 const lhsTy = this.inferExpr(lhs);
                 const rhsTy = this.inferExpr(rhs);
 
-                const BINARY_OP_TYPE: Record<BinaryOp, [Type, Type]> = {
-                    '+': [Type.Num, Type.Num],
-                    '-': [Type.Num, Type.Num],
-                    '*': [Type.Num, Type.Num],
-                    '/': [Type.Num, Type.Num],
-                    '%': [Type.Num, Type.Num],
-                    '**': [Type.Num, Type.Num],
-                    '==': [Type.Var(TypeVar.Generic({ id: 0 })), Type.Var(TypeVar.Generic({ id: 0 }))],
-                    '!=': [Type.Var(TypeVar.Generic({ id: 0 })), Type.Var(TypeVar.Generic({ id: 0 }))],
-                    '<': [Type.Num, Type.Num],
-                    '>': [Type.Num, Type.Num],
-                    '<=': [Type.Num, Type.Num],
-                    '>=': [Type.Num, Type.Num],
-                    '&&': [Type.Bool, Type.Bool],
-                    '||': [Type.Bool, Type.Bool],
-                    '&': [Type.Num, Type.Num],
-                    '|': [Type.Num, Type.Num],
+                const BINARY_OP_TYPE: Record<BinaryOp, [Type, Type, Type]> = {
+                    '+': [Type.Num, Type.Num, Type.Num],
+                    '-': [Type.Num, Type.Num, Type.Num],
+                    '*': [Type.Num, Type.Num, Type.Num],
+                    '/': [Type.Num, Type.Num, Type.Num],
+                    '%': [Type.Num, Type.Num, Type.Num],
+                    '**': [Type.Num, Type.Num, Type.Num],
+                    '==': [Type.Var(TypeVar.Generic({ id: 0 })), Type.Var(TypeVar.Generic({ id: 0 })), Type.Bool],
+                    '!=': [Type.Var(TypeVar.Generic({ id: 0 })), Type.Var(TypeVar.Generic({ id: 0 })), Type.Bool],
+                    '<': [Type.Num, Type.Num, Type.Bool],
+                    '>': [Type.Num, Type.Num, Type.Bool],
+                    '<=': [Type.Num, Type.Num, Type.Bool],
+                    '>=': [Type.Num, Type.Num, Type.Bool],
+                    '&&': [Type.Bool, Type.Bool, Type.Bool],
+                    '||': [Type.Bool, Type.Bool, Type.Bool],
+                    '&': [Type.Num, Type.Num, Type.Num],
+                    '|': [Type.Num, Type.Num, Type.Num],
                 };
 
-                const [lhsExpected, rhsExpected] = BINARY_OP_TYPE[op].map(Type.instantiate);
+                const [lhsExpected, rhsExpected, retTy] = BINARY_OP_TYPE[op].map(Type.instantiate);
                 this.unify(lhsTy, lhsExpected);
                 this.unify(rhsTy, rhsExpected);
 
-                return lhsTy;
+                return retTy;
             },
             Block: ({ stmts, ret }) => {
                 const blockEnv = this.child();
@@ -208,9 +217,9 @@ export class TypeEnv {
                 const elemTys = elems.map(elem => this.inferExpr(elem));
                 return Type.Tuple(elemTys);
             },
-            UseIn: ({ name, value, rhs }) => {
+            UseIn: ({ name, ann, value, rhs }) => {
                 const rhsEnv = this.child();
-                rhsEnv.inferLet(false, name, value);
+                rhsEnv.inferLet(false, name, ann, value);
                 return rhsEnv.inferExpr(rhs);
             },
         });
