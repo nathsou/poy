@@ -1,11 +1,12 @@
 import { DataType, genConstructors } from 'itsamatch';
 import { Type } from '../../infer/type';
+import { Signature } from '../sweet/decl';
 import { Stmt } from './stmt';
 
 export type Decl = DataType<{
     Stmt: { stmt: Stmt },
     Type: { lhs: Type, rhs: Type },
-    Declare: { name: string, ty: Type },
+    Declare: { sig: Signature },
     Module: { name: string, decls: Decl[] },
 }>;
 

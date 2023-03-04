@@ -31,10 +31,10 @@ let {
     id = x -> x
 }
 
-declare print: _ -> ()
+declare let print: _ -> ()
 
-module Math {
-    let fact = n -> if n == 0 { 1 } else { n * fact(n - 1) }
+fun fact(n) {
+    if n == 0 { 1 } else { n * fact(n - 1) }
 }
 
 module A {
@@ -47,4 +47,9 @@ module A {
     }
 }
 
-print(use sum = A.a + A.B.b + A.B.C.c in Math.fact(sum))
+declare module Math {
+    fun sqrt(x: Num): Num
+    let cbrt: Num -> Num
+}
+
+print(use sum = A.a + A.B.b + A.B.C.c in Math.sqrt(fact(sum)))

@@ -68,10 +68,23 @@ export class TypeEnv {
             Type: ({ lhs, rhs }) => {
                 TRS.add(this.typeRules, lhs, rhs);
             },
-            Declare: ({ name, ty }) => {
-                const genTy = Type.generalize(ty, this.letLevel);
-                this.variables.declare(name, { mutable: false, ty: genTy });
-            },
+            Declare: ({ sig }) => match(sig, {
+                Variable: ({ mutable, name, ty }) => {
+                    const genTy = mutable ? ty : Type.generalize(ty, this.letLevel);
+                    this.variables.declare(name, { mutable, ty: genTy });
+                },
+                Module: ({ name, signatures }) => {
+                    const moduleEnv = this.child();
+                    this.modules.declare(name, moduleEnv);
+
+                    for (const sig of signatures) {
+                        moduleEnv.inferDecl(Decl.Declare(sig));
+                    }
+                },
+                Type: ({ lhs, rhs }) => {
+                    TRS.add(this.typeRules, lhs, rhs);
+                },
+            }),
             Module: ({ name, decls }) => {
                 const moduleEnv = this.child();
                 this.modules.declare(name, moduleEnv);

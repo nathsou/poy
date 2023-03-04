@@ -1,12 +1,12 @@
 import { match, VariantOf } from "itsamatch";
-import { Decl, ModuleDecl } from "../ast/sweet/decl";
+import { Decl, Signature, ModuleDecl } from "../ast/sweet/decl";
 import { Expr, FunctionArgument } from "../ast/sweet/expr";
 import { Stmt } from "../ast/sweet/stmt";
 import { Type, TypeVar } from "../infer/type";
 import { Context } from "../misc/context";
 import { Maybe, None, Some } from "../misc/maybe";
 import { isUpperCase } from "../misc/strings";
-import { assert, last, panic } from "../misc/utils";
+import { assert, last, letIn, panic } from "../misc/utils";
 import { BinaryOp, Keyword, Literal, Symbol, Token, UnaryOp } from "./token";
 
 export const parse = (tokens: Token[], newlines: number[]) => {
@@ -160,6 +160,14 @@ export const parse = (tokens: Token[], newlines: number[]) => {
         return id;
     }
 
+    function parens<T>(p: () => T): T {
+        consume(Token.Symbol('('));
+        const ret = p();
+        consume(Token.Symbol(')'));
+
+        return ret;
+    }
+
     // ------ types ------
 
     function type(): Type {
@@ -270,6 +278,15 @@ export const parse = (tokens: Token[], newlines: number[]) => {
         if (matches(Token.Symbol(':'))) {
             return type();
         }
+    }
+
+    function typeAnnotationRequired(): Type {
+        const ann = typeAnnotation();
+        if (ann === undefined) {
+            reportError('Expected type annotation');
+        }
+
+        return ann;
     }
 
     // ------ expressions ------
@@ -599,7 +616,7 @@ export const parse = (tokens: Token[], newlines: number[]) => {
         return Decl.Stmt(stmt());
     }
 
-    function typeDecl(): Decl {
+    function typeDecl(): VariantOf<Decl, 'Type'> {
         return typeScoped(() => {
             const lhs = type();
             consume(Token.Symbol('='));
@@ -610,17 +627,94 @@ export const parse = (tokens: Token[], newlines: number[]) => {
         });
     }
 
-    function declareDecl(): Decl {
+    function variableSignature(mutable: boolean): VariantOf<Signature, 'Variable'> {
         return typeScoped(() => {
             letLevel += 1;
             const name = identifier();
-            consume(Token.Symbol(':'));
-            const ty = type();
+            const ty = typeAnnotationRequired();
             consumeIfPresent(Token.Symbol(';'));
             letLevel -= 1;
 
-            return Decl.Declare({ name, ty });
+            return { variant: 'Variable', mutable, name, ty };
         });
+    }
+
+    function functionSignature(): VariantOf<Signature, 'Variable'> {
+        return typeScoped(() => {
+            letLevel += 1;
+            const name = identifier();
+            consume(Token.Symbol('('));
+            const args = commas(functionArgument);
+            consume(Token.Symbol(')'));
+            const ret = typeAnnotationRequired();
+            consumeIfPresent(Token.Symbol(';'));
+            letLevel -= 1;
+
+            if (args.some(arg => arg.ann === undefined)) {
+                reportError('All arguments in a function signature must have a type annotation');
+            }
+
+            const funTy = Type.Function(args.map(arg => arg.ann!), ret);
+
+            return { variant: 'Variable', mutable: false, name, ty: funTy };
+        });
+    }
+
+    function moduleSignature(): VariantOf<Signature, 'Module'> {
+        const name = identifier();
+        const sigs: Signature[] = [];
+        consume(Token.Symbol('{'));
+
+        while (!matches(Token.Symbol('}'))) {
+            sigs.push(...signatures());
+        }
+
+        consumeIfPresent(Token.Symbol(';'));
+
+        return { variant: 'Module', name, signatures: sigs };
+    }
+
+    function signatures(): Signature[] {
+        const SIGNATURE_MAPPING: Partial<Record<Keyword, () => Signature>> = {
+            let: () => variableSignature(false),
+            mut: () => variableSignature(true),
+            fun: functionSignature,
+            type: () => letIn(typeDecl(), td => ({ variant: 'Type', lhs: td.lhs, rhs: td.rhs })),
+            module: moduleSignature,
+        };
+
+        const token = peek();
+
+        if (token.variant === 'Keyword') {
+            const parser = SIGNATURE_MAPPING[token.$value];
+
+            if (parser) {
+                next();
+
+                if (matches(Token.Symbol('{'))) {
+                    const signatures: Signature[] = [];
+                    while (!matches(Token.Symbol('}'))) {
+                        signatures.push(parser());
+                    }
+
+                    return signatures;
+                }
+
+                return [parser()];
+            }
+        }
+
+        reportError('Expected a signature');
+    }
+
+    function declareDecl(): Decl {
+        const sigs = signatures();
+
+        if (sigs.length === 1) {
+            return Decl.Declare(sigs[0]);
+        }
+
+        return Decl._Many({ decls: sigs.map(sig => Decl.Declare(sig)) });
     }
 
     function moduleDecl(): VariantOf<Decl, 'Module'> {
