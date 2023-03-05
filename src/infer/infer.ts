@@ -95,6 +95,9 @@ export class TypeEnv {
                     moduleEnv.inferDecl(decl);
                 }
             },
+            Import: ({ path, module, members }) => {
+
+            },
             _Many: ({ decls }) => {
                 for (const decl of decls) {
                     this.inferDecl(decl);

@@ -10,7 +10,15 @@ import { parse } from "./parse/parse";
 
 async function main() {
     const fs = await createFileSystem();
-    const source = await fs.readFile('./examples/lab.poy');
+    const args = process.argv.slice(2);
+    const sourceFile = args[0];
+
+    if (sourceFile === undefined) {
+        console.error('Usage: poy <source-file>');
+        process.exit(1);
+    }
+
+    const source = await fs.readFile(sourceFile);
     const tokens = lex(source);
     const newlines = indices(source.split(''), c => c === '\n');
     const topModule = parse(tokens, newlines).topModule();
@@ -25,7 +33,7 @@ async function main() {
     const jsModule = jsOfDecl(bitterModule, topLevelScope);
     assert(topLevelScope.statements.length === 0);
 
-    console.log(env.show().split('\n').map(line => `// ${line}`).join('\n'));
+    // console.log(env.show().split('\n').map(line => `// ${line}`).join('\n'));
     console.log('const print = console.log;');
     console.log(JSDecl.show(jsModule));
 

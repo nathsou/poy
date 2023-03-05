@@ -8,6 +8,7 @@ export type Decl = DataType<{
     Type: { lhs: Type, rhs: Type },
     Declare: { sig: Signature },
     Module: { name: string, decls: Decl[] },
+    Import: { path: string[], module: string, members?: string[] },
 }>;
 
 export type FunctionArgument = {
@@ -16,7 +17,7 @@ export type FunctionArgument = {
 };
 
 export const Decl = {
-    ...genConstructors<Decl>(['Module', 'Declare']),
+    ...genConstructors<Decl>(['Module', 'Declare', 'Import']),
     Stmt: (stmt: Stmt): Decl => ({ variant: 'Stmt', stmt }),
     Type: (lhs: Type, rhs: Type): Decl => ({ variant: 'Type', lhs, rhs }),
 };

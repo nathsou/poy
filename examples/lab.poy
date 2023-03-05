@@ -1,3 +1,4 @@
+import ../examples/Euler { euler1 }
 
 type {
     ReturnType<Function<_, ret>> = ret
@@ -54,21 +55,6 @@ declare module Math {
 
 let y = use sum = A.a + A.B.b + A.B.C.c in Math.sqrt(fact(sum))
 let x = { let x = 3; let y = 7; x * { let x = 11; let y = 17; x + y } - y } + y
-
-fun euler1() {
-    mut sum = 0
-    mut i = 0
-
-    while i < 1000 {
-        if i % 3 == 0 || i % 5 == 0 {
-            sum += i
-        }
-
-        i += 1
-    }
-
-    sum
-}
 
 fun isPrime(n) {
     if n == 2 { return true }

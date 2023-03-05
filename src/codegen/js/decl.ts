@@ -43,11 +43,11 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSDecl {
                                     Module: ({ name }) => {
                                         moduleScope.declare(name);
                                     },
-                                    Type: ({ }) => { },
+                                    Type: () => { },
                                 });
                             },
+                            Import: () => { },
                         });
-
                     }
                     const exportObjectTy = TSType.Record({
                         fields: Object.fromEntries(members.map(({ name, ty }) => [name, ty])),

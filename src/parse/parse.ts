@@ -635,6 +635,7 @@ export const parse = (tokens: Token[], newlines: number[]) => {
         type: typeDecl,
         module: moduleDecl,
         declare: declareDecl,
+        import: importDecl,
     };
 
     function decl(): Decl {
@@ -672,6 +673,56 @@ export const parse = (tokens: Token[], newlines: number[]) => {
 
     function stmtDecl(): Decl {
         return Decl.Stmt(stmt());
+    }
+
+    function importPath(): string[] {
+        const path: string[] = [];
+        let continue_ = true;
+
+        while (continue_) {
+            match(peek(), {
+                Identifier: id => {
+                    path.push(id);
+                    next();
+                },
+                Symbol: sym => {
+                    if (sym === '.' && matches(Token.Symbol('.'))) {
+                        path.push('..');
+                        next();
+                    } else if (sym === '/') {
+                        next();
+                    } else if (sym === '{' || sym === ';') {
+                        continue_ = false;
+                    } else {
+                        reportError(`Unexpected symbol in import path: '${sym}'`);
+                    }
+                },
+                _: () => {
+                    continue_ = false;
+                },
+            });
+        }
+
+        return path;
+    }
+
+    function importDecl(): Decl {
+        const path = importPath();
+
+        if (path.length === 0) {
+            reportError('Expected import path');
+        }
+
+        let members: string[] | undefined;
+
+        if (matches(Token.Symbol('{'))) {
+            members = sepBy(identifier, Token.Symbol(','), Token.Symbol('}'));
+            consume(Token.Symbol('}'));
+        }
+
+        consumeIfPresent(Token.Symbol(';'));
+
+        return Decl.Import({ path: path.slice(0, -1), module: last(path), members });
     }
 
     function typeDecl(): VariantOf<Decl, 'Type'> {
