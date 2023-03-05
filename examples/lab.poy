@@ -1,4 +1,4 @@
-import Euler { euler1 }
+import Euler
 
 type {
     ReturnType<Function<_, ret>> = ret
@@ -89,4 +89,4 @@ fun countPrimes(upTo) {
 }
 
 print(countPrimes(10 ** 6))
-print(euler1())
+print(Euler.euler1())

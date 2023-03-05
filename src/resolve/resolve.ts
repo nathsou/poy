@@ -2,7 +2,7 @@ import { ModuleDecl } from "../ast/sweet/decl";
 import { TypeEnv } from "../infer/infer";
 import { FileSystem } from "../misc/fs";
 import { camelCase } from "../misc/strings";
-import { indices, last } from "../misc/utils";
+import { indices, last, panic } from "../misc/utils";
 import { lex } from "../parse/lex";
 import { parse } from "../parse/parse";
 
@@ -11,17 +11,21 @@ export type Module = ModuleDecl & {
 };
 
 export class Resolver {
-    public modules: Map<string, Module>;
+    public modules = new Map<string, Module>();
+    private beingResolved: Set<string> = new Set();
     public fs: FileSystem;
 
     constructor(fs: FileSystem) {
         this.fs = fs;
-        this.modules = new Map();
     }
 
     async resolve(path: string): Promise<Module> {
         const absolutePath = this.fs.absolutePath(path);
+        if (this.beingResolved.has(absolutePath)) {
+            panic(`Circular module imports:\n${[...this.beingResolved, absolutePath].join(' ->\n')}`);
+        }
 
+        this.beingResolved.add(absolutePath);
         if (this.modules.has(absolutePath)) {
             return this.modules.get(absolutePath)!;
         }
@@ -38,6 +42,7 @@ export class Resolver {
         }
 
         const module: Module = { ...topModule, env };
+        this.beingResolved.delete(absolutePath);
         this.modules.set(absolutePath, module);
 
         return module;

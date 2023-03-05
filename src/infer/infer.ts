@@ -9,9 +9,12 @@ import { Resolver } from "../resolve/resolve";
 import { TRS } from "./rewrite";
 import { Type, TypeVar } from "./type";
 
+type VarInfo = { pub: boolean, mutable: boolean, ty: Type };
+type ModuleInfo = { pub: boolean, local: boolean, env: TypeEnv };
+
 export class TypeEnv {
-    public variables: Scope<{ pub: boolean, mutable: boolean, ty: Type }>;
-    public modules: Scope<{ pub: boolean, env: TypeEnv }>;
+    public variables: Scope<VarInfo>;
+    public modules: Scope<ModuleInfo>;
     public typeRules: TRS;
     private letLevel: number;
     private functionStack: Type[];
@@ -88,7 +91,7 @@ export class TypeEnv {
                 },
                 Module: ({ name, signatures }) => {
                     const moduleEnv = this.child();
-                    this.modules.declare(name, { pub: true, env: moduleEnv });
+                    this.modules.declare(name, { pub: true, local: true, env: moduleEnv });
 
                     for (const sig of signatures) {
                         moduleEnv.inferDecl(Decl.Declare(sig));
@@ -100,7 +103,7 @@ export class TypeEnv {
             }),
             Module: ({ pub, name, decls }) => {
                 const moduleEnv = this.child();
-                this.modules.declare(name, { pub, env: moduleEnv });
+                this.modules.declare(name, { pub, local: true, env: moduleEnv });
 
                 for (const decl of decls) {
                     moduleEnv.inferDecl(decl);
@@ -111,7 +114,7 @@ export class TypeEnv {
                 const fullPath = this.resolver.fs.join(moduleDir, ...path, `${module}.poy`);
                 const mod = await this.resolver.resolve(fullPath);
 
-                this.modules.declare(module, { pub: false, env: mod.env });
+                this.modules.declare(module, { pub: true, local: false, env: mod.env });
 
                 if (members) {
                     for (const member of members) {
@@ -127,7 +130,7 @@ export class TypeEnv {
                                 mod.env.modules.lookup(member).match({
                                     Some: ({ pub, env }) => {
                                         if (pub) {
-                                            this.modules.declare(member, { pub, env });
+                                            this.modules.declare(member, { pub, local: false, env });
                                         } else {
                                             panic(`Cannot import private module '${member}' from module '${module}'`);
                                         }
@@ -334,13 +337,23 @@ export class TypeEnv {
                 return rhsEnv.inferExpr(rhs);
             },
             Path: ({ path, member }) => {
-                let mod: TypeEnv = this;
+                let mod: ModuleInfo = { env: this, local: true, pub: true };
 
-                for (const name of path) {
-                    mod = mod.modules.lookup(name).unwrap().env;
+                path.forEach((name, index) => {
+                    mod = mod.env.modules.lookup(name).unwrap();
+
+                    if (!mod.local && !mod.pub) {
+                        panic(`Module ${path.slice(0, index).join('.')} is private`);
+                    }
+                });
+
+                const { pub, ty } = mod.env.variables.lookup(member).unwrap();
+
+                if (!mod.local && !pub) {
+                    panic(`Member ${path.join('.')}.${member} is private`);
                 }
 
-                return mod.variables.lookup(member).unwrap().ty;
+                return ty;
             },
         });
 
