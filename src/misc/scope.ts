@@ -10,6 +10,10 @@ export class Scope<T> {
         this.parent = parent;
     }
 
+    public has(name: string): boolean {
+        return this.members.has(name) || (this.parent != null && this.parent.has(name));
+    }
+
     public declare(name: string, value: T): void {
         if (this.members.has(name)) {
             panic(`Member '${name}' already declared`);

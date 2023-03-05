@@ -46,7 +46,22 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSDecl {
                                     Type: () => { },
                                 });
                             },
-                            Import: () => { },
+                            Import: ({ module, members }) => {
+                                const moduleName = moduleScope.declare(module);
+
+                                if (members) {
+                                    for (const member of members) {
+                                        const memberName = moduleScope.declare(member);
+                                        moduleScope.add(JSStmt.Const({
+                                            name: memberName,
+                                            value: JSExpr.Dot(
+                                                [JSExpr.Variable(moduleName, TSType.Any())],
+                                                member,
+                                            ),
+                                        }));
+                                    }
+                                }
+                            },
                         });
                     }
                     const exportObjectTy = TSType.Record({

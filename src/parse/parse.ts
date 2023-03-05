@@ -13,6 +13,7 @@ export const parse = (tokens: Token[], newlines: number[]) => {
     let index = 0;
     let letLevel = 0;
     const typeScopes: Map<string, number>[] = [];
+    const modifiers = { pub: false };
 
     // ------ meta ------
 
@@ -527,6 +528,10 @@ export const parse = (tokens: Token[], newlines: number[]) => {
         return match(peek(), {
             Keyword: keyword => {
                 switch (keyword) {
+                    case 'pub':
+                        next();
+                        modifiers.pub = true;
+                        return stmt();
                     case 'let':
                     case 'mut':
                         next();
@@ -566,7 +571,7 @@ export const parse = (tokens: Token[], newlines: number[]) => {
         const value = funExpr(false);
         consumeIfPresent(Token.Symbol(';'));
 
-        return Stmt.Let({ mutable: false, name, value });
+        return Stmt.Let({ pub: modifiers.pub, mutable: false, name, value });
     }
 
     function letStmt(mutable: boolean): Stmt {
@@ -579,7 +584,7 @@ export const parse = (tokens: Token[], newlines: number[]) => {
             consumeIfPresent(Token.Symbol(';'));
             letLevel -= 1;
 
-            return Stmt.Let({ ann, mutable, name, value });
+            return Stmt.Let({ pub: modifiers.pub, mutable, name, ann, value });
         });
     }
 
@@ -642,6 +647,12 @@ export const parse = (tokens: Token[], newlines: number[]) => {
         const token = peek();
 
         if (token.variant === 'Keyword') {
+            if (token.$value === 'pub') {
+                next();
+                modifiers.pub = true;
+                return decl();
+            }
+
             const parser = KEYWORD_MAPPING[token.$value];
 
             if (parser) {
@@ -732,7 +743,7 @@ export const parse = (tokens: Token[], newlines: number[]) => {
             const rhs = type();
             consumeIfPresent(Token.Symbol(';'));
 
-            return Decl.Type(lhs, rhs);
+            return Decl.Type({ pub: modifiers.pub, lhs, rhs });
         });
     }
 
@@ -788,13 +799,24 @@ export const parse = (tokens: Token[], newlines: number[]) => {
             let: () => variableSignature(false),
             mut: () => variableSignature(true),
             fun: functionSignature,
-            type: () => letIn(typeDecl(), td => ({ variant: 'Type', lhs: td.lhs, rhs: td.rhs })),
+            type: () => letIn(typeDecl(), td => ({
+                variant: 'Type',
+                pub: modifiers.pub,
+                lhs: td.lhs,
+                rhs: td.rhs,
+            })),
             module: moduleSignature,
         };
 
         const token = peek();
 
         if (token.variant === 'Keyword') {
+            if (token.$value === 'pub') {
+                next();
+                modifiers.pub = true;
+                return signatures();
+            }
+
             const parser = SIGNATURE_MAPPING[token.$value];
 
             if (parser) {
@@ -838,17 +860,17 @@ export const parse = (tokens: Token[], newlines: number[]) => {
 
         consumeIfPresent(Token.Symbol(';'));
 
-        return Decl.Module({ name, decls });
+        return Decl.Module({ pub: modifiers.pub, name, decls });
     }
 
-    function topModule(): ModuleDecl {
+    function topModule(name: string): ModuleDecl {
         const decls: Decl[] = [];
 
         while (!isAtEnd()) {
             decls.push(decl());
         }
 
-        return { name: 'top', decls };
+        return { pub: true, name, decls };
     }
 
     return { expr, stmt, decl, module: moduleDecl, topModule };

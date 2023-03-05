@@ -1,5 +1,5 @@
 
-fun euler1() {
+pub fun euler1() {
     mut sum = 0
     mut i = 0
 

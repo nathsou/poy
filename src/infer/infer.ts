@@ -5,26 +5,31 @@ import { Stmt } from "../ast/sweet/stmt";
 import { Scope } from "../misc/scope";
 import { last, panic } from "../misc/utils";
 import { AssignmentOp, BinaryOp, UnaryOp } from "../parse/token";
+import { Resolver } from "../resolve/resolve";
 import { TRS } from "./rewrite";
 import { Type, TypeVar } from "./type";
 
 export class TypeEnv {
-    public variables: Scope<{ mutable: boolean, ty: Type }>;
-    public modules: Scope<TypeEnv>;
+    public variables: Scope<{ pub: boolean, mutable: boolean, ty: Type }>;
+    public modules: Scope<{ pub: boolean, env: TypeEnv }>;
     public typeRules: TRS;
     private letLevel: number;
     private functionStack: Type[];
+    private resolver: Resolver;
+    private modulePath: string;
 
-    constructor(parent?: TypeEnv) {
+    constructor(resolver: Resolver, modulePath: string, parent?: TypeEnv) {
+        this.resolver = resolver;
         this.variables = new Scope(parent?.variables);
         this.modules = new Scope(parent?.modules);
         this.typeRules = TRS.create(parent?.typeRules);
         this.letLevel = parent?.letLevel ?? 0;
         this.functionStack = [...parent?.functionStack ?? []];
+        this.modulePath = modulePath;
     }
 
     public child(): TypeEnv {
-        return new TypeEnv(this);
+        return new TypeEnv(this.resolver, this.modulePath, this);
     }
 
     public freshType(): Type {
@@ -42,11 +47,17 @@ export class TypeEnv {
         }
     }
 
-    private inferLet(mutable: boolean, name: string, ann: Type | undefined, value: Expr): Type {
+    private inferLet(
+        pub: boolean,
+        mutable: boolean,
+        name: string,
+        ann: Type | undefined,
+        value: Expr
+    ): Type {
         this.letLevel += 1;
         const rhsEnv = this.child();
         const freshTy = rhsEnv.freshType();
-        rhsEnv.variables.declare(name, { mutable, ty: freshTy });
+        rhsEnv.variables.declare(name, { pub, mutable, ty: freshTy });
         const ty = rhsEnv.inferExpr(value);
         this.unify(ty, freshTy);
         this.letLevel -= 1;
@@ -57,13 +68,13 @@ export class TypeEnv {
 
         // https://en.wikipedia.org/wiki/Value_restriction
         const genTy = mutable ? ty : Type.generalize(ty, this.letLevel);
-        this.variables.declare(name, { mutable, ty: genTy });
+        this.variables.declare(name, { pub, mutable, ty: genTy });
 
         return genTy;
     }
 
-    public inferDecl(decl: Decl): void {
-        match(decl, {
+    public async inferDecl(decl: Decl): Promise<void> {
+        await match(decl, {
             Stmt: ({ stmt }) => {
                 this.inferStmt(stmt);
             },
@@ -73,11 +84,11 @@ export class TypeEnv {
             Declare: ({ sig }) => match(sig, {
                 Variable: ({ mutable, name, ty }) => {
                     const genTy = mutable ? ty : Type.generalize(ty, this.letLevel);
-                    this.variables.declare(name, { mutable, ty: genTy });
+                    this.variables.declare(name, { pub: true, mutable, ty: genTy });
                 },
                 Module: ({ name, signatures }) => {
                     const moduleEnv = this.child();
-                    this.modules.declare(name, moduleEnv);
+                    this.modules.declare(name, { pub: true, env: moduleEnv });
 
                     for (const sig of signatures) {
                         moduleEnv.inferDecl(Decl.Declare(sig));
@@ -87,16 +98,48 @@ export class TypeEnv {
                     TRS.add(this.typeRules, lhs, rhs);
                 },
             }),
-            Module: ({ name, decls }) => {
+            Module: ({ pub, name, decls }) => {
                 const moduleEnv = this.child();
-                this.modules.declare(name, moduleEnv);
+                this.modules.declare(name, { pub, env: moduleEnv });
 
                 for (const decl of decls) {
                     moduleEnv.inferDecl(decl);
                 }
             },
-            Import: ({ path, module, members }) => {
+            Import: async ({ path, module, members }) => {
+                const moduleDir = this.resolver.fs.directoryName(this.modulePath);
+                const fullPath = this.resolver.fs.join(moduleDir, ...path, `${module}.poy`);
+                const mod = await this.resolver.resolve(fullPath);
 
+                this.modules.declare(module, { pub: false, env: mod.env });
+
+                if (members) {
+                    for (const member of members) {
+                        mod.env.variables.lookup(member).match({
+                            Some: ({ pub, mutable, ty }) => {
+                                if (pub) {
+                                    this.variables.declare(member, { pub, mutable, ty });
+                                } else {
+                                    panic(`Cannot import private variable '${member}' from module '${module}'`);
+                                }
+                            },
+                            None: () => {
+                                mod.env.modules.lookup(member).match({
+                                    Some: ({ pub, env }) => {
+                                        if (pub) {
+                                            this.modules.declare(member, { pub, env });
+                                        } else {
+                                            panic(`Cannot import private module '${member}' from module '${module}'`);
+                                        }
+                                    },
+                                    None: () => {
+                                        panic(`Cannot find member '${member}' in module '${module}'`);
+                                    },
+                                });
+                            },
+                        });
+                    }
+                }
             },
             _Many: ({ decls }) => {
                 for (const decl of decls) {
@@ -111,8 +154,8 @@ export class TypeEnv {
             Expr: ({ expr }) => {
                 this.inferExpr(expr);
             },
-            Let: ({ mutable, name, ann, value }) => {
-                this.inferLet(mutable, name, ann, value);
+            Let: ({ pub, mutable, name, ann, value }) => {
+                this.inferLet(pub, mutable, name, ann, value);
             },
             Assign: ({ lhs, op, rhs }) => {
                 const alpha = Type.Var(TypeVar.Generic({ id: 0 }));
@@ -245,6 +288,7 @@ export class TypeEnv {
 
                 args.forEach(({ name }, i) => {
                     funEnv.variables.declare(name, {
+                        pub: false,
                         mutable: false,
                         ty: argTys[i],
                     });
@@ -286,14 +330,14 @@ export class TypeEnv {
             },
             UseIn: ({ name, ann, value, rhs }) => {
                 const rhsEnv = this.child();
-                rhsEnv.inferLet(false, name, ann, value);
+                rhsEnv.inferLet(false, false, name, ann, value);
                 return rhsEnv.inferExpr(rhs);
             },
             Path: ({ path, member }) => {
                 let mod: TypeEnv = this;
 
                 for (const name of path) {
-                    mod = mod.modules.lookup(name).unwrap();
+                    mod = mod.modules.lookup(name).unwrap().env;
                 }
 
                 return mod.variables.lookup(member).unwrap().ty;
@@ -309,7 +353,7 @@ export class TypeEnv {
             'Variables:',
             this.variables.show(({ ty }) => Type.show(ty)),
             'Modules:',
-            this.modules.show(env => env.show(indent + 1)),
+            this.modules.show(({ env }) => env.show(indent + 1)),
         ].map(str => '  '.repeat(indent) + str).join('\n');
     }
 }

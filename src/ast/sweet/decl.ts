@@ -12,18 +12,19 @@ export type Decl = DataType<{
 }>;
 
 export const Decl = {
-    ...genConstructors<Decl>(['Module', 'Import', '_Many']),
+    ...genConstructors<Decl>(['Module', 'Import', 'Type', '_Many']),
     Stmt: (stmt: Stmt) => ({ variant: 'Stmt', stmt }) satisfies Decl,
-    Type: (lhs: Type, rhs: Type) => ({ variant: 'Type', lhs, rhs }) satisfies Decl,
     Declare: (sig: Signature) => ({ variant: 'Declare', sig }) satisfies Decl,
 };
 
 export type TypeDecl = {
+    pub: boolean,
     lhs: Type,
     rhs: Type,
 };
 
 export type ModuleDecl = {
+    pub: boolean,
     name: string,
     decls: Decl[],
 };
