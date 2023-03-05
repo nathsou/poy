@@ -3,7 +3,7 @@ import { Decl } from "../ast/sweet/decl";
 import { Expr } from "../ast/sweet/expr";
 import { Stmt } from "../ast/sweet/stmt";
 import { Scope } from "../misc/scope";
-import { panic } from "../misc/utils";
+import { last, panic } from "../misc/utils";
 import { AssignmentOp, BinaryOp, UnaryOp } from "../parse/token";
 import { TRS } from "./rewrite";
 import { Type, TypeVar } from "./type";
@@ -13,12 +13,14 @@ export class TypeEnv {
     public modules: Scope<TypeEnv>;
     public typeRules: TRS;
     private letLevel: number;
+    private functionStack: Type[];
 
     constructor(parent?: TypeEnv) {
         this.variables = new Scope(parent?.variables);
         this.modules = new Scope(parent?.modules);
         this.typeRules = TRS.create(parent?.typeRules);
         this.letLevel = parent?.letLevel ?? 0;
+        this.functionStack = [...parent?.functionStack ?? []];
     }
 
     public child(): TypeEnv {
@@ -143,6 +145,15 @@ export class TypeEnv {
                     bodyEnv.inferStmt(stmt);
                 }
             },
+            Return: ({ expr }) => {
+                if (this.functionStack.length === 0) {
+                    panic('Return statement used outside of a function body');
+                }
+
+                const funReturnTy = last(this.functionStack);
+                const exprTy = this.inferExpr(expr);
+                this.unify(funReturnTy, exprTy);
+            },
             _Many: ({ stmts }) => {
                 for (const stmt of stmts) {
                     this.inferStmt(stmt);
@@ -226,6 +237,8 @@ export class TypeEnv {
             Fun: ({ args, ret, body }) => {
                 const funEnv = this.child();
                 const argTys = args.map(arg => arg.ann ?? this.freshType());
+                const returnTy = ret ?? this.freshType();
+                funEnv.functionStack.push(returnTy);
 
                 args.forEach(({ name }, i) => {
                     funEnv.variables.declare(name, {
@@ -237,9 +250,8 @@ export class TypeEnv {
                 });
 
                 const bodyTy = funEnv.inferExpr(body);
-                if (ret) {
-                    this.unify(bodyTy, ret);
-                }
+                this.unify(bodyTy, returnTy);
+                funEnv.functionStack.pop();
 
                 return Type.Function(argTys, bodyTy);
             },

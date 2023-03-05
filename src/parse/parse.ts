@@ -550,6 +550,9 @@ export const parse = (tokens: Token[], newlines: number[]) => {
                     case 'while':
                         next();
                         return whileStmt();
+                    case 'return':
+                        next();
+                        return returnStmt();
                     default:
                         return assignmentStmt();
                 }
@@ -598,6 +601,13 @@ export const parse = (tokens: Token[], newlines: number[]) => {
         consumeIfPresent(Token.Symbol(';'));
 
         return Stmt.While(cond, body);
+    }
+
+    function returnStmt(): Stmt {
+        const value = expr();
+        consumeIfPresent(Token.Symbol(';'));
+
+        return Stmt.Return(value);
     }
 
     const ASSIGNMENT_OPERATORS = new Set<AssignmentOp>(['=', '+=', '-=', '*=', '/=', '%=', '**=', '||=', '&&=', '&=', '|=']);

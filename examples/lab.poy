@@ -52,15 +52,8 @@ declare module Math {
     let cbrt: Num -> Num
 }
 
-print(use sum = A.a + A.B.b + A.B.C.c in Math.sqrt(fact(sum)))
-
-let x = { let x = 3; let y = 7; x * { let x = 11; let y = 17; x + y } - y } + 1
-
-print(x)
-
-mut val = 3
-if true { val = val + 1 } else { val = val - 1 }
-print(val)
+let y = use sum = A.a + A.B.b + A.B.C.c in Math.sqrt(fact(sum))
+let x = { let x = 3; let y = 7; x * { let x = 11; let y = 17; x + y } - y } + y
 
 fun euler1() {
     mut sum = 0
@@ -77,4 +70,36 @@ fun euler1() {
     sum
 }
 
-print(euler1())
+fun isPrime(n) {
+    if n == 2 { return true }
+    if n < 2 || n % 2 == 0 { return false }
+
+    mut i = 3
+
+    while i * i <= n {
+        if n % i == 0 {
+            return false
+        }
+
+        i += 2
+    }
+
+    true
+}
+
+fun countPrimes(upTo) {
+    mut count = if upTo >= 2 { 1 } else { 0 }
+    mut i = 3
+    
+    while i <= upTo {
+        if isPrime(i) {
+            count += 1
+        }
+
+        i += 2
+    }
+
+    count
+}
+
+print(countPrimes(10 ** 6))

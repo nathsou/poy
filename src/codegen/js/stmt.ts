@@ -31,5 +31,9 @@ export const jsStmtOf = (bitter: BitterStmt, scope: JSScope): JSStmt => {
             const jsBody = body.map(stmt => jsStmtOf(stmt, bodyScope));
             return JSStmt.While(jsCond, [...bodyScope.statements, ...jsBody]);
         },
+        Return: ({ expr }) => {
+            const jsExpr = jsExprOf(expr, scope);
+            return JSStmt.Return(jsExpr);
+        },
     });
 }

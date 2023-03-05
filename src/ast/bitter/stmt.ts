@@ -7,6 +7,7 @@ export type Stmt = DataType<{
     Let: { mutable: boolean, name: string, value: Expr },
     Assign: { lhs: Expr, op: AssignmentOp, rhs: Expr },
     While: { cond: Expr, body: Stmt[] },
+    Return: { expr: Expr },
 }>;
 
 export const Stmt = {
@@ -14,4 +15,5 @@ export const Stmt = {
     Expr: (expr: Expr) => ({ variant: 'Expr', expr }) satisfies Stmt,
     Assign: (lhs: Expr, op: AssignmentOp, rhs: Expr) => ({ variant: 'Assign', lhs, op, rhs }) satisfies Stmt,
     While: (cond: Expr, body: Stmt[]) => ({ variant: 'While', cond, body }) satisfies Stmt,
+    Return: (expr: Expr) => ({ variant: 'Return', expr }) satisfies Stmt,
 };
