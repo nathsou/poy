@@ -536,10 +536,10 @@ export const parse = (tokens: Token[], newlines: number[]) => {
                         next();
                         return funStmt();
                     default:
-                        return exprStmt();
+                        return assignmentStmt();
                 }
             },
-            _: () => exprStmt(),
+            _: () => assignmentStmt(),
         });
     }
 
@@ -565,10 +565,18 @@ export const parse = (tokens: Token[], newlines: number[]) => {
         });
     }
 
-    function exprStmt(): Stmt {
-        const exp = expr();
+    function assignmentStmt(): Stmt {
+        const lhs = expr();
+
+        if (matches(Token.Symbol('='))) {
+            const value = expr();
+            consumeIfPresent(Token.Symbol(';'));
+            return Stmt.Assign(lhs, value);
+        }
+
         consumeIfPresent(Token.Symbol(';'));
-        return Stmt.Expr(exp);
+
+        return Stmt.Expr(lhs);
     }
 
     // ------ declarations ------

@@ -1,4 +1,5 @@
 import { DataType, genConstructors, match } from "itsamatch";
+import { Name } from "../../codegen/js/jsScope";
 import { Impl, Show } from "../../misc/traits";
 import { proj } from "../../misc/utils";
 import { Literal } from "../../parse/token";
@@ -9,12 +10,12 @@ type Typed<T> = { [K in keyof T]: T[K] & { ty: TSType } };
 
 export type Expr = DataType<Typed<{
     Literal: { literal: Literal },
-    Variable: { name: string },
+    Variable: { name: Name },
     Unary: { op: string, expr: Expr },
     Binary: { lhs: Expr, op: string, rhs: Expr },
     Ternary: { cond: Expr, then: Expr, otherwise: Expr },
     Array: { elems: Expr[] },
-    Closure: { args: { name: string, ty: TSType }[], stmts: Stmt[] },
+    Closure: { args: { name: Name, ty: TSType }[], stmts: Stmt[] },
     Call: { fun: Expr, args: Expr[] },
     Paren: { expr: Expr },
     Object: { entries: { key: string, value: Expr }[] },
@@ -26,7 +27,7 @@ export const Expr = {
         'Literal', 'Unary', 'Binary', 'Ternary',
         'Array', 'Closure', 'Object',
     ]),
-    Variable: (name: string, ty: TSType): Expr => ({ variant: 'Variable', name, ty }) as const,
+    Variable: (name: Name, ty: TSType): Expr => ({ variant: 'Variable', name, ty }) as const,
     Paren: (expr: Expr): Expr => ({ variant: 'Paren', expr, ty: expr.ty }) as const,
     Call: (fun: Expr, args: Expr[]): Expr => ({
         variant: 'Call',
@@ -34,12 +35,12 @@ export const Expr = {
         args,
         ty: TSType.Ref({ name: 'ReturnType', args: [fun.ty] }),
     }) as const,
-    Dot: (lhs: Expr[], rhs: string): Expr => ({
+    Dot: (lhs: Expr[], rhs: string) => ({
         variant: 'Dot',
         lhs,
         rhs,
         ty: TSType.Access({ path: lhs.map(proj('ty')), member: rhs }),
-    }) as const,
+    }) satisfies Expr,
     show,
 } satisfies Impl<Show<Expr>>;
 
@@ -51,7 +52,7 @@ function show(expr: Expr): string {
             Num: x => x.toString(),
             Str: s => `"${s}"`,
         }),
-        Variable: ({ name }) => name,
+        Variable: ({ name }) => name.mangled,
         Unary: ({ op, expr }) => `${op}${show(expr)}`,
         Binary: ({ lhs, op, rhs }) => `(${show(lhs)} ${op} ${show(rhs)})`,
         Ternary: ({ cond, then, otherwise }) => `(${show(cond)} ? ${show(then)} : ${show(otherwise)})`,
@@ -67,7 +68,7 @@ function show(expr: Expr): string {
         Paren: ({ expr }) => `(${show(expr)})`,
         Object: ({ entries }) => {
             const entriesFmt = entries.map(({ key, value }) =>
-                value.variant === 'Variable' && value.name === key ?
+                value.variant === 'Variable' && value.name.mangled === key ?
                     key : `${key}: ${show(value)}`
             );
 

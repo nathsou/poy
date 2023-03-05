@@ -10,5 +10,6 @@ export const bitterStmtOf = (sweet: SweetStmt): BitterStmt[] => match(sweet, {
         value: bitterExprOf(value),
     })],
     Expr: ({ expr }) => [BitterStmt.Expr(bitterExprOf(expr))],
+    Assign: ({ lhs, rhs }) => [BitterStmt.Assign(bitterExprOf(lhs), bitterExprOf(rhs))],
     _Many: ({ stmts }) => stmts.flatMap(bitterStmtOf),
 });

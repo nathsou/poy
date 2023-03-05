@@ -12,7 +12,7 @@ export class Scope<T> {
 
     public declare(name: string, value: T): void {
         if (this.members.has(name)) {
-            panic(`Member ${name} already declared`);
+            panic(`Member '${name}' already declared`);
         }
 
         this.members.set(name, value);

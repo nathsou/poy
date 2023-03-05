@@ -109,6 +109,11 @@ export class TypeEnv {
             Let: ({ mutable, name, ann, value }) => {
                 this.inferLet(mutable, name, ann, value);
             },
+            Assign: ({ lhs, rhs }) => {
+                const lhsTy = this.inferExpr(lhs);
+                const rhsTy = this.inferExpr(rhs);
+                this.unify(lhsTy, rhsTy);
+            },
             _Many: ({ stmts }) => {
                 for (const stmt of stmts) {
                     this.inferStmt(stmt);

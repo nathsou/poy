@@ -34,7 +34,7 @@ let {
 declare let print: _ -> ()
 
 fun fact(n) {
-    if n == 0 { 1 } else { n * fact(n - 1) }
+    if n == 0 { 1 } else { use pred = n - 1 in n * fact(pred) }
 }
 
 module A {
@@ -53,3 +53,11 @@ declare module Math {
 }
 
 print(use sum = A.a + A.B.b + A.B.C.c in Math.sqrt(fact(sum)))
+
+let x = { let x = 3; let y = 7; x * { let x = 11; let y = 17; x + y } } + 1
+
+print(x)
+
+mut val = 3
+val = val + 1
+print(val)

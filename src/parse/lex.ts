@@ -165,7 +165,17 @@ export const lex = (source: string): Token[] => {
             case '+': return Token.Symbol('+');
             case '-': return Token.Symbol(matches('>') ? '->' : '-');
             case '*': return Token.Symbol(matches('*') ? '**' : '*');
-            case '/': return Token.Symbol('/');
+            case '/': {
+                if (matches('/')) {
+                    while (peek() !== '\n' && !isAtEnd()) {
+                        next();
+                    }
+
+                    return iter();
+                } else {
+                    return Token.Symbol('/');
+                }
+            }
             case '%': return Token.Symbol('%');
             case '**': return Token.Symbol('!');
             case '!': return Token.Symbol('!');
