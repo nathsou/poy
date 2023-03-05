@@ -1,5 +1,5 @@
 import { match, VariantOf } from "itsamatch";
-import { Decl, Signature, ModuleDecl } from "../ast/sweet/decl";
+import { Decl, ModuleDecl, Signature } from "../ast/sweet/decl";
 import { Expr, FunctionArgument } from "../ast/sweet/expr";
 import { Stmt } from "../ast/sweet/stmt";
 import { Type, TypeVar } from "../infer/type";
@@ -7,7 +7,7 @@ import { Context } from "../misc/context";
 import { Maybe, None, Some } from "../misc/maybe";
 import { isUpperCase } from "../misc/strings";
 import { assert, last, letIn, panic } from "../misc/utils";
-import { BinaryOp, Keyword, Literal, Symbol, Token, UnaryOp } from "./token";
+import { AssignmentOp, BinaryOp, Keyword, Literal, Symbol, Token, UnaryOp } from "./token";
 
 export const parse = (tokens: Token[], newlines: number[]) => {
     let index = 0;
@@ -338,7 +338,7 @@ export const parse = (tokens: Token[], newlines: number[]) => {
 
             const body = expr();
             return Expr.Fun({ args, ret, body });
-        })).orDefault(equalityExpr);
+        })).orDefault(logicalOrExpr);
     }
 
     function useInExpr(): Expr {
@@ -359,9 +359,21 @@ export const parse = (tokens: Token[], newlines: number[]) => {
     function ifExpr(): Expr {
         const cond = expr();
         const then = blockExpr();
-        consume(Token.Keyword('else'));
-        const otherwise = blockExpr();
-        return Expr.If({ cond, then, otherwise });
+
+        if (matches(Token.Keyword('else'))) {
+            const otherwise = blockExpr();
+            return Expr.If({ cond, then, otherwise });
+        }
+
+        return Expr.If({ cond, then });
+    }
+
+    function logicalOrExpr(): Expr {
+        return binaryExpr(logicalAndExpr, ['||']);
+    }
+
+    function logicalAndExpr(): Expr {
+        return binaryExpr(equalityExpr, ['&&']);
     }
 
     function equalityExpr(): Expr {
@@ -535,6 +547,9 @@ export const parse = (tokens: Token[], newlines: number[]) => {
                     case 'fun':
                         next();
                         return funStmt();
+                    case 'while':
+                        next();
+                        return whileStmt();
                     default:
                         return assignmentStmt();
                 }
@@ -565,13 +580,38 @@ export const parse = (tokens: Token[], newlines: number[]) => {
         });
     }
 
+    function statementList(): Stmt[] {
+        const stmts: Stmt[] = [];
+
+        consume(Token.Symbol('{'));
+
+        while (!matches(Token.Symbol('}'))) {
+            stmts.push(stmt());
+        }
+
+        return stmts;
+    }
+
+    function whileStmt(): Stmt {
+        const cond = expr();
+        const body = statementList();
+        consumeIfPresent(Token.Symbol(';'));
+
+        return Stmt.While(cond, body);
+    }
+
+    const ASSIGNMENT_OPERATORS = new Set<AssignmentOp>(['=', '+=', '-=', '*=', '/=', '%=', '**=', '||=', '&&=', '&=', '|=']);
+
     function assignmentStmt(): Stmt {
         const lhs = expr();
 
-        if (matches(Token.Symbol('='))) {
+        const token = peek();
+        if (token.variant === 'Symbol' && (ASSIGNMENT_OPERATORS as Set<string>).has(token.$value)) {
+            next();
+
             const value = expr();
             consumeIfPresent(Token.Symbol(';'));
-            return Stmt.Assign(lhs, value);
+            return Stmt.Assign(lhs, token.$value as AssignmentOp, value);
         }
 
         consumeIfPresent(Token.Symbol(';'));

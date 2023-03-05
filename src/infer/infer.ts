@@ -4,7 +4,7 @@ import { Expr } from "../ast/sweet/expr";
 import { Stmt } from "../ast/sweet/stmt";
 import { Scope } from "../misc/scope";
 import { panic } from "../misc/utils";
-import { BinaryOp, UnaryOp } from "../parse/token";
+import { AssignmentOp, BinaryOp, UnaryOp } from "../parse/token";
 import { TRS } from "./rewrite";
 import { Type, TypeVar } from "./type";
 
@@ -109,10 +109,39 @@ export class TypeEnv {
             Let: ({ mutable, name, ann, value }) => {
                 this.inferLet(mutable, name, ann, value);
             },
-            Assign: ({ lhs, rhs }) => {
+            Assign: ({ lhs, op, rhs }) => {
+                const alpha = Type.Var(TypeVar.Generic({ id: 0 }));
+                const ASSIGNMENT_OP_TYPE: Record<AssignmentOp, [Type, Type]> = {
+                    '=': [alpha, alpha],
+                    '+=': [Type.Num, Type.Num],
+                    '-=': [Type.Num, Type.Num],
+                    '*=': [Type.Num, Type.Num],
+                    '/=': [Type.Num, Type.Num],
+                    '%=': [Type.Num, Type.Num],
+                    '**=': [Type.Num, Type.Num],
+                    '||=': [Type.Num, Type.Num],
+                    '&&=': [Type.Num, Type.Num],
+                    '|=': [Type.Num, Type.Num],
+                    '&=': [Type.Num, Type.Num],
+                };
+
+                const [expectedLhsTy, expectedRhsTy] = ASSIGNMENT_OP_TYPE[op].map(Type.instantiate);
+
                 const lhsTy = this.inferExpr(lhs);
                 const rhsTy = this.inferExpr(rhs);
+
+                this.unify(lhsTy, expectedLhsTy);
+                this.unify(rhsTy, expectedRhsTy);
+
                 this.unify(lhsTy, rhsTy);
+            },
+            While: ({ cond, body }) => {
+                this.unify(this.inferExpr(cond), Type.Bool);
+
+                const bodyEnv = this.child();
+                for (const stmt of body) {
+                    bodyEnv.inferStmt(stmt);
+                }
             },
             _Many: ({ stmts }) => {
                 for (const stmt of stmts) {
@@ -226,8 +255,13 @@ export class TypeEnv {
             If: ({ cond, then, otherwise }) => {
                 this.unify(this.inferExpr(cond), Type.Bool);
                 const thenTy = this.inferExpr(then);
-                const elseTy = this.inferExpr(otherwise);
-                this.unify(thenTy, elseTy);
+
+                if (otherwise) {
+                    const elseTy = this.inferExpr(otherwise);
+                    this.unify(thenTy, elseTy);
+                } else {
+                    this.unify(thenTy, Type.Unit);
+                }
 
                 return thenTy;
             },

@@ -20,10 +20,16 @@ export const jsStmtOf = (bitter: BitterStmt, scope: JSScope): JSStmt => {
             const jsExpr = jsExprOf(expr, scope);
             return JSStmt.Expr(jsExpr);
         },
-        Assign: ({ lhs, rhs }) => {
+        Assign: ({ lhs, op, rhs }) => {
             const jsLhs = jsExprOf(lhs, scope);
             const jsRhs = jsExprOf(rhs, scope);
-            return JSStmt.Assign(jsLhs, jsRhs);
+            return JSStmt.Assign(jsLhs, op, jsRhs);
+        },
+        While: ({ cond, body }) => {
+            const jsCond = jsExprOf(cond, scope);
+            const bodyScope = scope.realChild();
+            const jsBody = body.map(stmt => jsStmtOf(stmt, bodyScope));
+            return JSStmt.While(jsCond, [...bodyScope.statements, ...jsBody]);
         },
     });
 }

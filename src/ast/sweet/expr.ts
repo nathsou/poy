@@ -9,7 +9,7 @@ export type Expr = DataType<{
     Unary: { op: UnaryOp, expr: Expr },
     Binary: { lhs: Expr, op: BinaryOp, rhs: Expr },
     Block: { stmts: Stmt[], ret?: Expr },
-    If: { cond: Expr, then: Expr, otherwise: Expr },
+    If: { cond: Expr, then: Expr, otherwise?: Expr },
     Tuple: { elems: Expr[] },
     Array: { elems: Expr[] },
     UseIn: { name: string, ann?: Type, value: Expr, rhs: Expr },

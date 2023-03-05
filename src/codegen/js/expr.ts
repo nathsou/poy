@@ -4,7 +4,9 @@ import { Stmt as BitterStmt } from '../../ast/bitter/stmt';
 import { Expr as JSExpr } from '../../ast/js/expr';
 import { Stmt as JSStmt } from '../../ast/js/stmt';
 import { TSType } from '../../ast/js/tsType';
+import { Type } from '../../infer/type';
 import { assert } from '../../misc/utils';
+import { Literal } from '../../parse/token';
 import { JSScope } from './jsScope';
 import { jsStmtOf } from './stmt';
 
@@ -20,14 +22,22 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
         Block: ({ stmts, ret }) => {
             const blockScope = scope.virtualChild();
             blockScope.add(...stmts.map(stmt => jsStmtOf(stmt, blockScope)));
-            assert(ret != null);
-
-            return jsExprOf(ret, blockScope);
+            return ret ? jsExprOf(ret, blockScope) : JSExpr.Literal({ literal: Literal.Unit, ty });
         },
         If: ({ cond, then, otherwise }) => {
             const condVal = jsExprOf(cond, scope);
             const thenScope = scope.realChild();
             const thenVal = jsExprOf(then, thenScope);
+
+            if (otherwise === undefined) {
+                scope.add(JSStmt.If({
+                    cond: condVal,
+                    then: [...thenScope.statements, JSStmt.Expr(thenVal)],
+                }));
+
+                return JSExpr.Literal({ literal: Literal.Unit, ty });
+            }
+
             const elseScope = scope.realChild();
             const elseVal = jsExprOf(otherwise, elseScope);
 
@@ -39,17 +49,27 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
                     ty,
                 });
             } else {
-                const resultName = scope.declareUnused('result');
-                const resultVar = JSExpr.Variable(resultName, ty);
+                if (Type.unify(bitter.ty, Type.Unit)) {
+                    scope.add(JSStmt.If({
+                        cond: condVal,
+                        then: [...thenScope.statements, JSStmt.Expr(thenVal)],
+                        otherwise: [...elseScope.statements, JSStmt.Expr(elseVal)],
+                    }));
 
-                scope.add(JSStmt.Let({ name: resultName }));
-                scope.add(JSStmt.If({
-                    cond: condVal,
-                    then: [...thenScope.statements, JSStmt.Assign(resultVar, thenVal)],
-                    otherwise: [...elseScope.statements, JSStmt.Assign(resultVar, elseVal)],
-                }));
+                    return JSExpr.Literal({ literal: Literal.Unit, ty });
+                } else {
+                    const resultName = scope.declareUnused('result');
+                    const resultVar = JSExpr.Variable(resultName, ty);
 
-                return resultVar;
+                    scope.add(JSStmt.Let({ name: resultName }));
+                    scope.add(JSStmt.If({
+                        cond: condVal,
+                        then: [...thenScope.statements, JSStmt.Assign(resultVar, '=', thenVal)],
+                        otherwise: [...elseScope.statements, JSStmt.Assign(resultVar, '=', elseVal)],
+                    }));
+
+                    return resultVar;
+                }
             }
         },
         Tuple: ({ elems }) => JSExpr.Array({ elems: elems.map(expr => jsExprOf(expr, scope)), ty }),

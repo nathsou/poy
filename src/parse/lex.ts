@@ -162,9 +162,9 @@ export const lex = (source: string): Token[] => {
             case ']': return Token.Symbol(']');
             case ',': return Token.Symbol(',');
             case ';': return Token.Symbol(';');
-            case '+': return Token.Symbol('+');
-            case '-': return Token.Symbol(matches('>') ? '->' : '-');
-            case '*': return Token.Symbol(matches('*') ? '**' : '*');
+            case '+': return Token.Symbol(matches('=') ? '+=' : '+');
+            case '-': return Token.Symbol(matches('>') ? '->' : matches('=') ? '-=' : '-');
+            case '*': return Token.Symbol(matches('*') ? matches('=') ? '**=' : '**' : matches('=') ? '*=' : '*');
             case '/': {
                 if (matches('/')) {
                     while (peek() !== '\n' && !isAtEnd()) {
@@ -173,17 +173,16 @@ export const lex = (source: string): Token[] => {
 
                     return iter();
                 } else {
-                    return Token.Symbol('/');
+                    return Token.Symbol(matches('=') ? '/=' : '/');
                 }
             }
-            case '%': return Token.Symbol('%');
-            case '**': return Token.Symbol('!');
+            case '%': return Token.Symbol(matches('=') ? '%=' : '%');
             case '!': return Token.Symbol('!');
             case '=': return Token.Symbol(matches('=') ? '==' : matches('>') ? '=>' : '=');
             case '<': return Token.Symbol(matches('=') ? '<=' : '<');
             case '>': return Token.Symbol(matches('=') ? '>=' : '>');
-            case '&': return Token.Symbol(matches('&') ? '&&' : '&');
-            case '|': return Token.Symbol(matches('|') ? '||' : '|');
+            case '&': return Token.Symbol(matches('&') ? matches('=') ? '&&=' : '&&' : matches('=') ? '&=' : '&');
+            case '|': return Token.Symbol(matches('|') ? matches('=') ? '||=' : '||' : matches('=') ? '|=' : '|');
             case ':': return Token.Symbol(matches(':') ? '::' : ':');
             case '_': return Token.Symbol('_');
             case '.': return Token.Symbol('.');

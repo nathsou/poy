@@ -54,10 +54,27 @@ declare module Math {
 
 print(use sum = A.a + A.B.b + A.B.C.c in Math.sqrt(fact(sum)))
 
-let x = { let x = 3; let y = 7; x * { let x = 11; let y = 17; x + y } } + 1
+let x = { let x = 3; let y = 7; x * { let x = 11; let y = 17; x + y } - y } + 1
 
 print(x)
 
 mut val = 3
-val = val + 1
+if true { val = val + 1 } else { val = val - 1 }
 print(val)
+
+fun euler1() {
+    mut sum = 0
+    mut i = 0
+
+    while i < 1000 {
+        if i % 3 == 0 || i % 5 == 0 {
+            sum += i
+        }
+
+        i += 1
+    }
+
+    sum
+}
+
+print(euler1())

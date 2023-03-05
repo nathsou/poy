@@ -57,7 +57,7 @@ function show(expr: Expr): string {
         Binary: ({ lhs, op, rhs }) => `(${show(lhs)} ${op} ${show(rhs)})`,
         Ternary: ({ cond, then, otherwise }) => `(${show(cond)} ? ${show(then)} : ${show(otherwise)})`,
         Array: ({ elems }) => `[${elems.map(show).join(', ')}]`,
-        Closure: ({ args, stmts }) => `(${args.map(({ name }) => name).join(', ')}) => {\n${stmts.map(Stmt.show).join('\n')}\n}`,
+        Closure: ({ args, stmts }) => `(${args.map(({ name }) => name).join(', ')}) => {\n${Stmt.showStmts(stmts)}\n}`,
         Call: ({ fun, args }) => {
             if (fun.variant === 'Closure') {
                 fun = Expr.Paren(fun);
