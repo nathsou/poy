@@ -4,26 +4,31 @@ type {
     ReturnType<Function<_, ret>> = ret
     Parameters<Function<args, _>> = args
 
-    Fields<Record<fields>> = fields
+    IsEmpty<[]> = True
+    IsEmpty<_> = False
 
-    Keys<Record<fields>> = KeysAux<fields>
-    KeysAux<[]> = []
-    KeysAux<(k, _)::tail> = k::KeysAux<tail>
+    Not<True> = False
+    Not<False> = True
 
-    Values<Record<fields>> = ValuesAux<fields>
-    ValuesAux<[]> = []
-    ValuesAux<(_, v)::tail> = v::ValuesAux<tail>
+    Filter<_, []> = []
+    Filter<pred, h::tl> = @let<rem, Filter<pred, tl>, @if<@app<pred, h>, h::rem, rem>>
+    
+    Map<_, []> = []
+    Map<pred, h::tl> = @app<pred, h>::Map<pred, tl>
 
-    Reverse<lst> = ReverseAux<lst, []>
-    ReverseAux<[], rev> = rev
-    ReverseAux<h::tl, rev> = ReverseAux<tl, h::rev>
+    If<True, @thunk<a>, _> = a
+    If<False, _, @thunk<b>> = b
+    If<True, a, _> = a
+    If<False, _, b> = b
 
-    Unzip<pairs> = UnzipAux<pairs, [], []>
-    UnzipAux<[], as, bs> = (Reverse<as>, Reverse<bs>)
-    UnzipAux<(a, b)::tail, as, bs> = UnzipAux<tail, a::as, b::bs>
+    Force<@thunk<x>> = x
 
-    R = Record<[(Name, Str), (Age, Num), (Pets, Bool)]>
-    Query = Unzip<Fields<R>>
+    Loop = Loop
+
+    Inf<x> = x::@thunk<Inf<S<x>>>
+
+    // Query = @if<IsEmpty<[A, B]>, Loop, Yo>
+    Query = Filter<@fun<lst, Not<IsEmpty<lst>>>, [[], [A, B], [], [], [C], [D, E], []]>
 }
 
 let {

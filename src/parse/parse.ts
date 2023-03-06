@@ -244,13 +244,29 @@ export const parse = (tokens: Token[], newlines: number[]) => {
             }
         }
 
-        if (token.variant === 'Symbol' && token.$value === '_') {
-            next();
-            return Type.Var(
-                TypeVar.Unbound({
-                    id: Context.freshTypeVarId(),
-                    level: letLevel,
-                }));
+        if (token.variant === 'Symbol') {
+            if (token.$value === '_') {
+                next();
+                return Type.Var(
+                    TypeVar.Unbound({
+                        id: Context.freshTypeVarId(),
+                        level: letLevel,
+                    }));
+            } else if (token.$value === '@') {
+                next();
+                const token = peek();
+                if (token.variant === 'Identifier') {
+                    next();
+                    return constructorType('@' + token.$value);
+                } else if (token.variant === 'Keyword' && (
+                    token.$value === 'if' ||
+                    token.$value === 'let' ||
+                    token.$value === 'fun'
+                )) {
+                    next();
+                    return constructorType('@' + token.$value);
+                }
+            }
         }
 
         return panic('Expected type');
