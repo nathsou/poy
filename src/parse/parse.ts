@@ -706,9 +706,11 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
 
         while (!matches(Token.Symbol('}'))) {
             decls.push(declParser());
+            consumeIfPresent(Token.Symbol(','));
         }
 
         consumeIfPresent(Token.Symbol(';'));
+        consumeIfPresent(Token.Symbol(','));
 
         return Decl._Many({ decls });
     }

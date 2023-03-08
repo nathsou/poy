@@ -1,5 +1,6 @@
 import Euler
 import List
+import Peano
 
 type {
     ReturnType<Function<_, ret>> = ret
@@ -9,9 +10,9 @@ type {
     Not<False> = True
 
     // Query = List.Len<List.Filter<@fun<lst, Not<List.IsEmpty<lst>>>, [[], [A, B], [], [], [C], [D, E], []]>>
-    // Query = Peano.Pow<Peano.N3, Peano.N2>
+    Query = Peano.Pow<Peano.N3, Peano.N2>
     L = [[], [A, B], [], [], [C], [D, E, F], []]
-    Query = List.Sum<List.Map<List.Len, L>>
+    // Query = List.Sum<List.Map<List.Len, L>>
 }
 
 let {

@@ -24,40 +24,42 @@ export const Stmt = {
     showStmts,
 } satisfies Impl<Show<Stmt>>;
 
-function showStmts(stmts: Stmt[]): string {
-    return stmts.map(show).filter(line => line.length > 0).join('\n');
+function showStmts(stmts: Stmt[], indentLevel: number = 0): string {
+    return stmts
+        .map(stmt => show(stmt, indentLevel))
+        .filter(line => line.length > 0)
+        .join('\n');
 }
 
-function show(stmt: Stmt): string {
+function show(stmt: Stmt, indentLevel: number = 0): string {
+    const indent = '  '.repeat(indentLevel);
     return match(stmt, {
         Expr: ({ expr }) => {
             if (expr.variant === 'Literal' && expr.literal.variant === 'Unit') {
                 return '';
             }
-
-            return `${Expr.show(expr)};`;
+            return `${indent}${Expr.show(expr)};`;
         },
         Const: ({ name, value }) => {
             if (value.variant === 'Closure') {
-                return `function ${name.mangled}(${value.args.map(arg => arg.name.mangled).join(', ')}) {\n${showStmts(value.stmts)}\n}`;
+                return `${indent}function ${name.mangled}(${value.args.map(arg => arg.name.mangled).join(', ')}) {\n${showStmts(value.stmts, indentLevel + 1)}\n${indent}}`;
             }
-
-            return `const ${name.mangled} = ${Expr.show(value)};`;
+            return `${indent}const ${name.mangled} = ${Expr.show(value)};`;
         },
-        Let: ({ name, value }) => `let ${name.mangled}${value ? ` = ${Expr.show(value)}` : ''};`,
+        Let: ({ name, value }) => `${indent}let ${name.mangled}${value ? ` = ${Expr.show(value)}` : ''};`,
         If: ({ cond, then, otherwise }) => {
-            const then_ = showStmts(then);
+            const then_ = showStmts(then, indentLevel + 1);
             if (!otherwise) {
-                return `if (${Expr.show(cond)}) {\n${then_}\n}`;
+                return `${indent}if (${Expr.show(cond)}) {\n${then_}\n${indent}}`;
             }
-            const otherwise_ = showStmts(otherwise);
-            return `if (${Expr.show(cond)}) {\n${then_}\n} else {\n${otherwise_}\n}`;
+            const otherwise_ = showStmts(otherwise, indentLevel + 1);
+            return `${indent}if (${Expr.show(cond)}) {\n${then_}\n${indent}} else {\n${otherwise_}\n${indent}}`;
         },
-        Assign: ({ lhs, op, rhs }) => `${Expr.show(lhs)} ${op} ${Expr.show(rhs)};`,
-        Return: ({ value }) => `return ${Expr.show(value)};`,
+        Assign: ({ lhs, op, rhs }) => `${indent}${Expr.show(lhs)} ${op} ${Expr.show(rhs)};`,
+        Return: ({ value }) => `${indent}return ${Expr.show(value)};`,
         While: ({ cond, body }) => {
-            const body_ = showStmts(body);
-            return `while (${Expr.show(cond)}) {\n${body_}\n}`;
+            const body_ = showStmts(body, indentLevel + 1);
+            return `${indent}while (${Expr.show(cond)}) {\n${body_}\n${indent}}`;
         },
     });
 }

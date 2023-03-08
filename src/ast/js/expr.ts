@@ -44,35 +44,47 @@ export const Expr = {
     show,
 } satisfies Impl<Show<Expr>>;
 
-function show(expr: Expr): string {
+function show(expr: Expr, indentLevel: number = 0): string {
+    const indent = ' '.repeat(indentLevel * 2);
+
     return match(expr, {
-        Literal: ({ literal }) => match(literal, {
-            Unit: () => 'undefined',
-            Bool: q => q ? 'true' : 'false',
-            Num: x => x.toString(),
-            Str: s => `"${s}"`,
-        }),
+        Literal: ({ literal }) =>
+            match(literal, {
+                Unit: () => 'undefined',
+                Bool: q => q ? 'true' : 'false',
+                Num: x => x.toString(),
+                Str: s => `"${s}"`,
+            }),
         Variable: ({ name }) => name.mangled,
-        Unary: ({ op, expr }) => `${op}${show(expr)}`,
-        Binary: ({ lhs, op, rhs }) => `(${show(lhs)} ${op} ${show(rhs)})`,
-        Ternary: ({ cond, then, otherwise }) => `(${show(cond)} ? ${show(then)} : ${show(otherwise)})`,
-        Array: ({ elems }) => `[${elems.map(show).join(', ')}]`,
-        Closure: ({ args, stmts }) => `(${args.map(({ name }) => name).join(', ')}) => {\n${Stmt.showStmts(stmts)}\n}`,
+        Unary: ({ op, expr }) => `${op}${show(expr, indentLevel)}`,
+        Binary: ({ lhs, op, rhs }) => `(${show(lhs, indentLevel)} ${op === '==' ? '===' : op} ${show(rhs, indentLevel)})`,
+        Ternary: ({ cond, then, otherwise }) => `(${show(cond, indentLevel)} ? ${show(then, indentLevel)} : ${show(otherwise, indentLevel)})`,
+        Array: ({ elems }) => `[${elems.map(e => show(e, indentLevel)).join(', ')}]`,
+        Closure: ({ args, stmts }) =>
+            `(${args.map(({ name }) => name).join(', ')}) => {\n${indent}${Stmt.showStmts(stmts, indentLevel + 1)}\n${indent}}`,
         Call: ({ fun, args }) => {
             if (fun.variant === 'Closure') {
                 fun = Expr.Paren(fun);
             }
 
-            return `${show(fun)}(${args.map(show).join(', ')})`;
+            return `${show(fun, indentLevel)}(${args.map(e => show(e, indentLevel)).join(', ')})`;
         },
-        Paren: ({ expr }) => `(${show(expr)})`,
+        Paren: ({ expr }) => `(${show(expr, indentLevel)})`,
         Object: ({ entries }) => {
+            if (entries.length === 0) {
+                return '{}';
+            }
+
             const entriesFmt = entries.map(({ key, value }) =>
                 value.variant === 'Variable' && value.name.mangled === key ?
-                    key : `${key}: ${show(value)}`
+                    key : `${key}: ${show(value, indentLevel)}`
             );
 
-            return `{ ${entriesFmt.join(', ')} }`;
+            if (entries.length <= 5) {
+                return `{ ${entriesFmt.join(', ')} }`;
+            } else {
+                return `{\n${entriesFmt.map(e => `${indent}    ${e}`).join(',\n')}\n${indent}  }`;
+            }
         },
         Dot: ({ lhs, rhs }) => `${lhs.map(show).join('.')}.${rhs}`,
     });
