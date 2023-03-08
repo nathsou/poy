@@ -1,0 +1,33 @@
+
+pub type {
+    N0 = Zero
+    N1 = S<Zero>
+    N2 = S<N1>
+    N3 = S<N2>
+    N4 = S<N3>
+    N5 = S<N4>
+    N6 = S<N5>
+    N7 = S<N6>
+    N8 = S<N7>
+    N9 = S<N8>
+    N10 = S<N9>
+
+    P<S<n>> = n
+
+    Add<a, Zero> = a
+    Add<Zero, b> = b
+    Add<a, S<b>> = S<Add<a, b>>
+    Add<S<a>, b> = S<Add<a, b>>
+
+    Sub<a, Zero> = a
+    Sub<S<a>, S<b>> = Sub<a, b>
+
+    Mul<_, Zero> = Zero
+    Mul<Zero, _> = Zero
+    Mul<a, S<b>> = Add<a, Mul<a, b>>
+    Mul<S<a>, b> = Add<b, Mul<a, b>>
+
+    Pow<Zero, Zero> = Error<ZeroPowZero>
+    Pow<_, Zero> = N1
+    Pow<a, S<b>> = Mul<a, Pow<a, b>>
+}

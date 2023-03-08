@@ -1,34 +1,17 @@
 import Euler
+import List
 
 type {
     ReturnType<Function<_, ret>> = ret
     Parameters<Function<args, _>> = args
 
-    IsEmpty<[]> = True
-    IsEmpty<_> = False
-
     Not<True> = False
     Not<False> = True
 
-    Filter<_, []> = []
-    Filter<pred, h::tl> = @let<rem, Filter<pred, tl>, @if<@app<pred, h>, h::rem, rem>>
-    
-    Map<_, []> = []
-    Map<pred, h::tl> = @app<pred, h>::Map<pred, tl>
-
-    If<True, @thunk<a>, _> = a
-    If<False, _, @thunk<b>> = b
-    If<True, a, _> = a
-    If<False, _, b> = b
-
-    Force<@thunk<x>> = x
-
-    Loop = Loop
-
-    Inf<x> = x::@thunk<Inf<S<x>>>
-
-    // Query = @if<IsEmpty<[A, B]>, Loop, Yo>
-    Query = Filter<@fun<lst, Not<IsEmpty<lst>>>, [[], [A, B], [], [], [C], [D, E], []]>
+    // Query = List.Len<List.Filter<@fun<lst, Not<List.IsEmpty<lst>>>, [[], [A, B], [], [], [C], [D, E], []]>>
+    // Query = Peano.Pow<Peano.N3, Peano.N2>
+    L = [[], [A, B], [], [], [C], [D, E, F], []]
+    Query = List.Sum<List.Map<List.Len, L>>
 }
 
 let {

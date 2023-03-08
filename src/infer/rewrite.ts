@@ -2,6 +2,7 @@ import { match } from "itsamatch";
 import { config } from "../config";
 import { Impl, Show } from "../misc/traits";
 import { assert, panic, zip } from "../misc/utils";
+import { TypeEnv } from "./infer";
 import { Subst, Type } from "./type";
 
 export type Rule = [lhs: Type, rhs: Type];
@@ -30,24 +31,24 @@ function show(trs: TRS): string {
 
 type StepCounter = { steps: number };
 
-const externals: Record<string, (args: Type[], trs: TRS, counter: StepCounter) => Type | null> = {
-    '@eq': (args, trs, counter) => {
+const externals: Record<string, (args: Type[], env: TypeEnv, counter: StepCounter) => Type | null> = {
+    '@eq': (args, env, counter) => {
         assert(args.length === 2, '@equ expects exactly two arguments');
         const [lhs, rhs] = args;
-        const lhsTy = normalize(trs, lhs, counter);
-        const rhsTy = normalize(trs, rhs, counter);
+        const lhsTy = normalize(env, lhs, counter);
+        const rhsTy = normalize(env, rhs, counter);
         return Type.Fun(Type.eq(lhsTy, rhsTy) ? 'True' : 'False', []);
     },
-    '@if': (args, trs, counter) => {
+    '@if': (args, env, counter) => {
         assert(args.length === 3, '@if expects exactly three arguments');
         const [cond, then, else_] = args;
-        const condTy = normalize(trs, cond, counter);
+        const condTy = normalize(env, cond, counter);
 
         if (condTy.variant === 'Fun') {
             if (condTy.name === 'True') {
-                return normalize(trs, then, counter);
+                return then;
             } else if (condTy.name === 'False') {
-                return normalize(trs, else_, counter);
+                return else_;
             }
         }
 
@@ -57,7 +58,7 @@ const externals: Record<string, (args: Type[], trs: TRS, counter: StepCounter) =
         assert(args.length >= 2, '@fun expects at least two arguments');
         return null;
     },
-    '@app': args => {
+    '@app': (args, env) => {
         assert(args.length > 0, '@app expects at least one argument');
         const [symb, ...callArgs] = args;
         assert(symb.variant === 'Fun', '@app expects a symbol as first argument');
@@ -73,7 +74,8 @@ const externals: Record<string, (args: Type[], trs: TRS, counter: StepCounter) =
             return Type.substitute(body, subst);
         }
 
-        return Type.Fun(symb.name, callArgs);
+
+        return Type.Fun(symb.name, callArgs, symb.path);
     },
     '@thunk': args => {
         assert(args.length === 1, '@thunk expects exactly one argument');
@@ -82,48 +84,54 @@ const externals: Record<string, (args: Type[], trs: TRS, counter: StepCounter) =
     '@symb': args => {
         assert(args.length === 1, '@symb expects exactly one argument');
         assert(args[0].variant === 'Fun', '@symb expects a symbol as first argument');
-        return Type.Fun(args[0].name, []);
+        return Type.Fun(args[0].name, [], args[0].path);
     },
     '@args': args => {
         assert(args.length === 1, '@args expects exactly one argument');
         assert(args[0].variant === 'Fun', '@args expects a symbol as first argument');
         return Type.utils.list(args[0].args);
     },
-    '@let': (args, trs, counter) => {
+    '@let': (args, env, counter) => {
         assert(args.length === 3, '@let expects exactly three arguments');
         const [name, value, body] = args;
         assert(name.variant === 'Var' && name.ref.variant === 'Unbound', '@let expects a variable as first argument');
-        const subst = new Map([[name.ref.id, normalize(trs, value, counter)]]);
+        const subst = new Map([[name.ref.id, normalize(env, value, counter)]]);
         return Type.substitute(body, subst);
     },
 };
 
-function reduce(ty: Type, trs: TRS, counter: StepCounter, trace: boolean): { term: Type, matched: boolean } {
+function reduce(env: TypeEnv, ty: Type, counter: StepCounter): { term: Type, matched: boolean } {
     counter.steps += 1;
 
     return match(ty, {
         Var: () => ({ term: ty, matched: false }),
-        Fun: ({ name, args }) => {
+        Fun: ({ name, args, path }) => {
             if (name[0] === '@') {
                 const external = externals[name];
 
                 if (external) {
-                    const result = external(args, trs, counter);
+                    const result = external(args, env, counter);
                     return { term: result ?? ty, matched: result != null };
                 }
 
                 panic(`Unknown external function '${name}'`);
             }
 
-            const rules = trs.get(name) ?? [];
-            const newTy = Type.Fun(name, args.map(arg => normalize(trs, arg, counter)));
+            let moduleEnv: TypeEnv = env;
+
+            if (path) {
+                moduleEnv = env.resolveModuleEnv(path.file, path.subpath);
+            }
+
+            const newTy = Type.Fun(name, args.map(arg => normalize(env, arg, counter)));
+            const rules = moduleEnv.typeRules.get(name) ?? [];
 
             for (const [lhs, rhs] of rules) {
                 const subst = Type.unifyPure(lhs, newTy);
 
                 if (subst) {
                     const substituted = Type.substitute(rhs, subst);
-                    const reduced = reduce(substituted, trs, counter, trace);
+                    const reduced = reduce(moduleEnv, substituted, counter);
                     return { term: reduced.term, matched: true };
                 }
             }
@@ -134,14 +142,14 @@ function reduce(ty: Type, trs: TRS, counter: StepCounter, trace: boolean): { ter
 }
 
 export function normalize(
-    trs: TRS,
+    env: TypeEnv,
     ty: Type,
     counter: StepCounter = { steps: 0 },
 ): Type {
     let term = ty;
 
     while (counter.steps < config.maxReductionSteps) {
-        const { term: reduced, matched } = reduce(term, trs, counter, true);
+        const { term: reduced, matched } = reduce(env, term, counter);
         term = reduced;
 
         if (!matched) {

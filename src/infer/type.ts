@@ -3,52 +3,17 @@ import { config } from "../config";
 import { Context } from "../misc/context";
 import { Eq, Impl, Rewrite, Show } from "../misc/traits";
 import { assert, panic } from "../misc/utils";
+import { ModulePath } from "../resolve/resolve";
 import { normalize } from './rewrite';
-
-export type TypeVar = DataType<{
-    Unbound: { id: number, name?: string, level: number },
-    Generic: { id: number, name?: string },
-    Link: { type: Type },
-}>;
-
-const showTypeVarId = (id: number): string => {
-    return String.fromCharCode(97 + (id % 26)) + (id >= 26 ? String(Math.floor(id / 26)) : '');
-};
-
-export const TypeVar = {
-    ...genConstructors<TypeVar>(['Unbound', 'Generic']),
-    Link: (type: Type): TypeVar => ({ variant: 'Link', type }),
-    eq: (a, b) => matchMany([a, b], {
-        'Unbound Unbound': (a, b) => a.id === b.id,
-        'Generic Generic': (a, b) => a.id === b.id,
-        'Link Link': (a, b) => Type.eq(a.type, b.type),
-        _: () => false,
-    }),
-    show: self => match(self, {
-        Unbound: ({ id, name }) => name ?? showTypeVarId(id),
-        Generic: ({ id, name }) => name ?? showTypeVarId(id),
-        Link: ({ type }) => Type.show(type),
-    }),
-    linkTo: (self: { ref: TypeVar }, type: Type, subst?: Subst): void => {
-        if (self.ref.variant === 'Unbound') {
-            if (subst != null) {
-                subst.set(self.ref.id, type);
-            } else {
-                self.ref = TypeVar.Link(type);
-            }
-        }
-    },
-    fresh: (level: number, name?: string): TypeVar => TypeVar.Unbound({ id: Context.freshTypeVarId(), name, level }),
-} satisfies Impl<Eq<TypeVar> & Show<TypeVar>>;
 
 export type Type = DataType<{
     Var: { ref: TypeVar },
-    Fun: { name: string, args: Type[] },
+    Fun: { name: string, args: Type[], path?: ModulePath },
 }>;
 
 export const Type = {
     Var: (ref: TypeVar): Type => ({ variant: 'Var', ref }),
-    Fun: (name: string, args: Type[]): Type => ({ variant: 'Fun', name, args }),
+    Fun: (name: string, args: Type[], path?: ModulePath): Type => ({ variant: 'Fun', name, args, path }),
     Array: (elem: Type): Type => Type.Fun('Array', [elem]),
     Tuple: (elems: Type[]): Type => {
         switch (elems.length) {
@@ -93,6 +58,42 @@ export const Type = {
         isList,
     },
 } satisfies Impl<Show<Type> & Eq<Type> & Rewrite<Type>>;
+
+export type TypeVar = DataType<{
+    Unbound: { id: number, name?: string, level: number },
+    Generic: { id: number, name?: string },
+    Link: { type: Type },
+}>;
+
+const showTypeVarId = (id: number): string => {
+    return String.fromCharCode(97 + (id % 26)) + (id >= 26 ? String(Math.floor(id / 26)) : '');
+};
+
+export const TypeVar = {
+    ...genConstructors<TypeVar>(['Unbound', 'Generic']),
+    Link: (type: Type): TypeVar => ({ variant: 'Link', type }),
+    eq: (a, b) => matchMany([a, b], {
+        'Unbound Unbound': (a, b) => a.id === b.id,
+        'Generic Generic': (a, b) => a.id === b.id,
+        'Link Link': (a, b) => Type.eq(a.type, b.type),
+        _: () => false,
+    }),
+    show: self => match(self, {
+        Unbound: ({ id, name }) => name ?? showTypeVarId(id),
+        Generic: ({ id, name }) => name ?? showTypeVarId(id),
+        Link: ({ type }) => Type.show(type),
+    }),
+    linkTo: (self: { ref: TypeVar }, type: Type, subst?: Subst): void => {
+        if (self.ref.variant === 'Unbound') {
+            if (subst != null) {
+                subst.set(self.ref.id, type);
+            } else {
+                self.ref = TypeVar.Link(type);
+            }
+        }
+    },
+    fresh: (level: number, name?: string): TypeVar => TypeVar.Unbound({ id: Context.freshTypeVarId(), name, level }),
+} satisfies Impl<Eq<TypeVar> & Show<TypeVar>>;
 
 function isList(ty: Type): boolean {
     return match(ty, {
@@ -169,10 +170,14 @@ function show(ty: Type): string {
         });
     };
 
-    const rhs = show(ty);
+    let rhs = show(ty);
+
+    if (ty.variant === 'Fun' && ty.path != null) {
+        rhs = `${ty.path.subpath.join('.')}.${rhs}`;
+    }
 
     if (genericTyVars.size > 0) {
-        return `forall ${Array.from(genericTyVars).join(', ')}. ${rhs}`;
+        rhs = `forall ${Array.from(genericTyVars).join(', ')}. ${rhs}`;
     }
 
     return rhs;
@@ -181,7 +186,7 @@ function show(ty: Type): string {
 function rewrite(ty: Type, f: (ty: Type) => Type): Type {
     return f(match(ty, {
         Var: ({ ref }) => Type.Var(ref),
-        Fun: ({ name, args }) => Type.Fun(name, args.map(f)),
+        Fun: ({ name, args, path }) => Type.Fun(name, args.map(f), path),
     }));
 }
 
@@ -308,7 +313,7 @@ function substitute(ty: Type, subst: Subst): Type {
             Generic: ({ id }) => subst.get(id) ?? ty,
             Link: ({ type }) => substitute(type, subst),
         }),
-        Fun: ({ name, args }) => Type.Fun(name, args.map(arg => substitute(arg, subst))),
+        Fun: ({ name, args, path }) => Type.Fun(name, args.map(arg => substitute(arg, subst)), path),
     });
 }
 
@@ -325,7 +330,7 @@ function generalize(ty: Type, level: number): Type {
             Generic: () => ty,
             Link: ({ type }) => generalize(type, level),
         }),
-        Fun: ({ name, args }) => Type.Fun(name, args.map(arg => generalize(arg, level))),
+        Fun: ({ name, args, path }) => Type.Fun(name, args.map(arg => generalize(arg, level)), path),
     });
 }
 
@@ -348,7 +353,7 @@ function instantiate(ty: Type, level: number): Type {
                 },
                 Link: ({ type }) => aux(type),
             }),
-            Fun: ({ name, args }) => Type.Fun(name, args.map(arg => aux(arg))),
+            Fun: ({ name, args, path }) => Type.Fun(name, args.map(arg => aux(arg)), path),
         });
     };
 

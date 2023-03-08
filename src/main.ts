@@ -16,9 +16,9 @@ async function main() {
     const resolver = new Resolver(fs);
     await resolver.resolve(sourceFile);
     const mod = [...resolver.modules.values()].find(m => m.name === 'Lab')!;
-    const trs = mod.env.typeRules;
     console.log(bundle(resolver.modules));
-    console.log('// ' + Type.show(Type.normalize(trs, Type.Fun('Query', []))));
+    // const trs = mod.env.typeRules;
+    // console.log('// ' + Type.show(Type.normalize(mod.env, Type.Fun('Query', []))));
 }
 
 main();

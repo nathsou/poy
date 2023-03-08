@@ -9,7 +9,7 @@ import { isUpperCase } from "../misc/strings";
 import { assert, last, letIn, panic } from "../misc/utils";
 import { AssignmentOp, BinaryOp, Keyword, Literal, Symbol, Token, UnaryOp } from "./token";
 
-export const parse = (tokens: Token[], newlines: number[]) => {
+export const parse = (tokens: Token[], newlines: number[], filePath: string) => {
     let index = 0;
     let letLevel = 0;
     const typeScopes: Map<string, number>[] = [];
@@ -274,6 +274,16 @@ export const parse = (tokens: Token[], newlines: number[]) => {
 
     function constructorType(name: string): Type {
         const args: Type[] = [];
+        const path: string[] = [];
+
+        while (matches(Token.Symbol('.'))) {
+            const moduleName = identifier();
+            if (!isUpperCase(moduleName[0])) {
+                reportError('Expected a module name in Type path');
+            }
+
+            path.push(moduleName);
+        }
 
         if (matches(Token.Symbol('<'))) {
             do {
@@ -281,6 +291,11 @@ export const parse = (tokens: Token[], newlines: number[]) => {
             } while (matches(Token.Symbol(',')));
 
             consume(Token.Symbol('>'));
+        }
+
+        if (path.length > 0) {
+            const typeName = path.pop()!;
+            return Type.Fun(typeName, args, { file: filePath, subpath: [name, ...path] });
         }
 
         return Type.Fun(name, args);

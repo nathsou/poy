@@ -5,12 +5,12 @@ import { Stmt } from "../ast/sweet/stmt";
 import { Scope } from "../misc/scope";
 import { last, panic } from "../misc/utils";
 import { AssignmentOp, BinaryOp, UnaryOp } from "../parse/token";
-import { Resolver } from "../resolve/resolve";
+import { Module, Resolver } from "../resolve/resolve";
 import { TRS } from "./rewrite";
 import { Type, TypeVar } from "./type";
 
 type VarInfo = { pub: boolean, mutable: boolean, ty: Type };
-type ModuleInfo = { pub: boolean, local: boolean, env: TypeEnv };
+type ModuleInfo = Module & { local: boolean };
 
 export class TypeEnv {
     public variables: Scope<VarInfo>;
@@ -20,8 +20,9 @@ export class TypeEnv {
     private functionStack: Type[];
     private resolver: Resolver;
     private modulePath: string;
+    private moduleName: string;
 
-    constructor(resolver: Resolver, modulePath: string, parent?: TypeEnv) {
+    constructor(resolver: Resolver, modulePath: string, moduleName: string, parent?: TypeEnv) {
         this.resolver = resolver;
         this.variables = new Scope(parent?.variables);
         this.modules = new Scope(parent?.modules);
@@ -29,21 +30,23 @@ export class TypeEnv {
         this.letLevel = parent?.letLevel ?? 0;
         this.functionStack = [...parent?.functionStack ?? []];
         this.modulePath = modulePath;
+        this.moduleName = moduleName;
     }
 
     public child(): TypeEnv {
-        return new TypeEnv(this.resolver, this.modulePath, this);
+        return new TypeEnv(this.resolver, this.modulePath, this.modulePath, this);
     }
 
     public freshType(): Type {
         return Type.fresh(this.letLevel);
     }
 
+    public normalize(ty: Type): Type {
+        return TRS.normalize(this, ty);
+    }
+
     private unify(s: Type, t: Type): void {
-        const unifiable = Type.unify(
-            TRS.normalize(this.typeRules, s),
-            TRS.normalize(this.typeRules, t),
-        );
+        const unifiable = Type.unify(this.normalize(s), this.normalize(t));
 
         if (!unifiable) {
             panic(`Cannot unify '${Type.show(s)}' with '${Type.show(t)}'`);
@@ -91,10 +94,17 @@ export class TypeEnv {
                 },
                 Module: ({ name, signatures }) => {
                     const moduleEnv = this.child();
-                    this.modules.declare(name, { pub: true, local: true, env: moduleEnv });
+                    const decls = signatures.map(sig => Decl.Declare(sig));
+                    this.modules.declare(name, {
+                        pub: true,
+                        local: true,
+                        name,
+                        env: moduleEnv,
+                        decls
+                    });
 
-                    for (const sig of signatures) {
-                        moduleEnv.inferDecl(Decl.Declare(sig));
+                    for (const decl of decls) {
+                        moduleEnv.inferDecl(decl);
                     }
                 },
                 Type: ({ lhs, rhs }) => {
@@ -103,7 +113,7 @@ export class TypeEnv {
             }),
             Module: ({ pub, name, decls }) => {
                 const moduleEnv = this.child();
-                this.modules.declare(name, { pub, local: true, env: moduleEnv });
+                this.modules.declare(name, { pub, local: true, name, env: moduleEnv, decls });
 
                 for (const decl of decls) {
                     moduleEnv.inferDecl(decl);
@@ -114,7 +124,7 @@ export class TypeEnv {
                 const fullPath = this.resolver.fs.join(moduleDir, ...path, `${module}.poy`);
                 const mod = await this.resolver.resolve(fullPath);
 
-                this.modules.declare(module, { pub: true, local: false, env: mod.env });
+                this.modules.declare(module, { ...mod, local: false });
 
                 if (members) {
                     for (const member of members) {
@@ -128,9 +138,9 @@ export class TypeEnv {
                             },
                             None: () => {
                                 mod.env.modules.lookup(member).match({
-                                    Some: ({ pub, env }) => {
-                                        if (pub) {
-                                            this.modules.declare(member, { pub, local: false, env });
+                                    Some: (module) => {
+                                        if (module.pub) {
+                                            this.modules.declare(member, { ...module, local: false });
                                         } else {
                                             panic(`Cannot import private module '${member}' from module '${module}'`);
                                         }
@@ -337,7 +347,13 @@ export class TypeEnv {
                 return rhsEnv.inferExpr(rhs);
             },
             Path: ({ path, member }) => {
-                let mod: ModuleInfo = { env: this, local: true, pub: true };
+                let mod: ModuleInfo = {
+                    pub: true,
+                    local: true,
+                    name: this.moduleName,
+                    env: this,
+                    decls: [],
+                };
 
                 path.forEach((name, index) => {
                     mod = mod.env.modules.lookup(name).unwrap();
@@ -368,5 +384,17 @@ export class TypeEnv {
             'Modules:',
             this.modules.show(({ env }) => env.show(indent + 1)),
         ].map(str => '  '.repeat(indent) + str).join('\n');
+    }
+
+    public resolveModuleEnv(file: string, subpath?: string[]): TypeEnv {
+        let env = file === this.modulePath ? this : this.resolver.modules.get(file)!.env;
+
+        if (subpath) {
+            subpath.forEach(name => {
+                env = env.modules.lookup(name).unwrap(`Module ${name} not found`).env;
+            });
+        }
+
+        return env;
     }
 }

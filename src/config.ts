@@ -1,6 +1,6 @@
 
 export const config = {
-    maxReductionSteps: 10_000,
+    maxReductionSteps: 1_000_000,
     debug: {
         unification: false,
     },
