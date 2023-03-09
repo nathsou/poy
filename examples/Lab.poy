@@ -1,6 +1,5 @@
-import Euler
-import List
-import Peano
+import Euler { euler1 }
+import List { Filter, IsEmpty }
 
 type {
     ReturnType<Function<_, ret>> = ret
@@ -8,11 +7,9 @@ type {
 
     Not<True> = False
     Not<False> = True
-
-    // Query = List.Len<List.Filter<@fun<lst, Not<List.IsEmpty<lst>>>, [[], [A, B], [], [], [C], [D, E], []]>>
-    Query = Peano.Pow<Peano.N3, Peano.N2>
+    
     L = [[], [A, B], [], [], [C], [D, E, F], []]
-    // Query = List.Sum<List.Map<List.Len, L>>
+    Query = Filter<@fun<lst, Not<IsEmpty<lst>>>, L>
 }
 
 let {
@@ -78,4 +75,4 @@ fun countPrimes(upTo) {
 }
 
 print(countPrimes(10 ** 6))
-print(Euler.euler1())
+print(euler1())

@@ -1,6 +1,6 @@
 import { DataType, genConstructors } from 'itsamatch';
 import { Type } from '../../infer/type';
-import { Signature } from '../sweet/decl';
+import { ImportMemberKind, Signature } from '../sweet/decl';
 import { Stmt } from './stmt';
 
 export type Decl = DataType<{
@@ -8,7 +8,11 @@ export type Decl = DataType<{
     Type: { lhs: Type, rhs: Type },
     Declare: { sig: Signature },
     Module: { name: string, decls: Decl[] },
-    Import: { path: string[], module: string, members?: string[] },
+    Import: {
+        path: string[],
+        module: string,
+        members?: { name: string, kind?: ImportMemberKind }[],
+    },
 }>;
 
 export type FunctionArgument = {

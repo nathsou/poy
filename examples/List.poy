@@ -1,4 +1,4 @@
-import Peano
+import Peano { Add, Mul }
 
 pub type {
     IsEmpty<[]> = True
@@ -16,6 +16,6 @@ pub type {
     Fold<_, [], acc> = acc
     Fold<f, h::tl, acc> = Fold<f, tl, @app<f, h, acc>>
 
-    Sum<lst> = Fold<@fun<n, acc, Peano.Add<n, acc>>, lst, Zero>
-    Prod<lst> = Fold<@fun<n, acc, Peano.Mul<n, acc>>, lst, Peano.N1>
+    Sum<lst> = Fold<@fun<n, acc, Add<n, acc>>, lst, Zero>
+    Prod<lst> = Fold<@fun<n, acc, Mul<n, acc>>, lst, Peano.N1>
 }

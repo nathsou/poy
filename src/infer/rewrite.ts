@@ -5,18 +5,18 @@ import { assert, panic, zip } from "../misc/utils";
 import { TypeEnv } from "./infer";
 import { Subst, Type } from "./type";
 
-export type Rule = [lhs: Type, rhs: Type];
+export type Rule = { lhs: Type, rhs: Type, pub: boolean };
 export type TRS = Map<string, Rule[]>;
 
 export const TRS = {
     create: (parent?: TRS): TRS => new Map(parent ?? []),
-    add: (trs: TRS, lhs: Type, rhs: Type): void => {
+    add: (trs: TRS, lhs: Type, rhs: Type, pub: boolean): void => {
         assert(lhs.variant === 'Fun');
 
         if (trs.has(lhs.name)) {
-            trs.get(lhs.name)!.push([lhs, rhs]);
+            trs.get(lhs.name)!.push({ lhs, rhs, pub });
         } else {
-            trs.set(lhs.name, [[lhs, rhs]]);
+            trs.set(lhs.name, [{ lhs, rhs, pub }]);
         }
     },
     normalize,
@@ -25,7 +25,7 @@ export const TRS = {
 
 function show(trs: TRS): string {
     return [...trs.values()].map((rules) => {
-        return rules.map(([lhs, rhs]) => `${Type.show(lhs)} -> ${Type.show(rhs)}`).join('\n');
+        return rules.map(({ lhs, rhs }) => `${Type.show(lhs)} -> ${Type.show(rhs)}`).join('\n');
     }).join('\n');
 }
 
@@ -126,7 +126,7 @@ function reduce(env: TypeEnv, ty: Type, counter: StepCounter): { term: Type, mat
             const newTy = Type.Fun(name, args.map(arg => normalize(env, arg, counter)));
             const rules = moduleEnv.typeRules.get(name) ?? [];
 
-            for (const [lhs, rhs] of rules) {
+            for (const { lhs, rhs } of rules) {
                 const subst = Type.unifyPure(lhs, newTy);
 
                 if (subst) {

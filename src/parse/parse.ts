@@ -766,7 +766,11 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
 
         consumeIfPresent(Token.Symbol(';'));
 
-        return Decl.Import({ path: path.slice(0, -1), module: last(path), members });
+        return Decl.Import({
+            path: path.slice(0, -1),
+            module: last(path),
+            members: members?.map(name => ({ name })),
+        });
     }
 
     function typeDecl(): VariantOf<Decl, 'Type'> {

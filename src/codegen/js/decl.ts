@@ -50,15 +50,17 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSDecl {
                                 const moduleName = moduleScope.declare(module);
 
                                 if (members) {
-                                    for (const member of members) {
-                                        const memberName = moduleScope.declare(member);
-                                        moduleScope.add(JSStmt.Const({
-                                            name: memberName,
-                                            value: JSExpr.Dot(
-                                                [JSExpr.Variable(moduleName, TSType.Any())],
-                                                member,
-                                            ),
-                                        }));
+                                    for (const { name, kind } of members) {
+                                        if (kind === 'value' || kind === 'module') {
+                                            const memberName = moduleScope.declare(name);
+                                            moduleScope.add(JSStmt.Const({
+                                                name: memberName,
+                                                value: JSExpr.Dot(
+                                                    [JSExpr.Variable(moduleName, TSType.Any())],
+                                                    name,
+                                                ),
+                                            }));
+                                        }
                                     }
                                 }
                             },

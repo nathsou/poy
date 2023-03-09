@@ -2,10 +2,11 @@ import { match } from "itsamatch";
 import { Decl } from "../ast/sweet/decl";
 import { Expr } from "../ast/sweet/expr";
 import { Stmt } from "../ast/sweet/stmt";
+import { Maybe } from "../misc/maybe";
 import { Scope } from "../misc/scope";
 import { last, panic } from "../misc/utils";
 import { AssignmentOp, BinaryOp, UnaryOp } from "../parse/token";
-import { Module, Resolver } from "../resolve/resolve";
+import { Module, ModulePath, Resolver } from "../resolve/resolve";
 import { TRS } from "./rewrite";
 import { Type, TypeVar } from "./type";
 
@@ -16,6 +17,7 @@ export class TypeEnv {
     public variables: Scope<VarInfo>;
     public modules: Scope<ModuleInfo>;
     public typeRules: TRS;
+    private typeImports: Map<string, ModulePath>;
     private letLevel: number;
     private functionStack: Type[];
     private resolver: Resolver;
@@ -27,6 +29,7 @@ export class TypeEnv {
         this.variables = new Scope(parent?.variables);
         this.modules = new Scope(parent?.modules);
         this.typeRules = TRS.create(parent?.typeRules);
+        this.typeImports = new Map(parent?.typeImports);
         this.letLevel = parent?.letLevel ?? 0;
         this.functionStack = [...parent?.functionStack ?? []];
         this.modulePath = modulePath;
@@ -84,8 +87,13 @@ export class TypeEnv {
             Stmt: ({ stmt }) => {
                 this.inferStmt(stmt);
             },
-            Type: ({ lhs, rhs }) => {
-                TRS.add(this.typeRules, lhs, rhs);
+            Type: ({ pub, lhs, rhs }) => {
+                TRS.add(
+                    this.typeRules,
+                    this.resolveType(lhs),
+                    this.resolveType(rhs),
+                    pub
+                );
             },
             Declare: ({ sig }) => match(sig, {
                 Variable: ({ mutable, name, ty }) => {
@@ -107,8 +115,13 @@ export class TypeEnv {
                         moduleEnv.inferDecl(decl);
                     }
                 },
-                Type: ({ lhs, rhs }) => {
-                    TRS.add(this.typeRules, lhs, rhs);
+                Type: ({ pub, lhs, rhs }) => {
+                    TRS.add(
+                        this.typeRules,
+                        this.resolveType(lhs),
+                        this.resolveType(rhs),
+                        pub
+                    );
                 },
             }),
             Module: ({ pub, name, decls }) => {
@@ -128,25 +141,47 @@ export class TypeEnv {
 
                 if (members) {
                     for (const member of members) {
-                        mod.env.variables.lookup(member).match({
+                        const name = member.name;
+                        mod.env.variables.lookup(name).match({
                             Some: ({ pub, mutable, ty }) => {
+                                member.kind = 'value';
+
                                 if (pub) {
-                                    this.variables.declare(member, { pub, mutable, ty });
+                                    this.variables.declare(name, { pub, mutable, ty });
                                 } else {
-                                    panic(`Cannot import private variable '${member}' from module '${module}'`);
+                                    panic(`Cannot import private variable '${name}' from module '${module}'`);
                                 }
                             },
                             None: () => {
-                                mod.env.modules.lookup(member).match({
+                                mod.env.modules.lookup(name).match({
                                     Some: (module) => {
+                                        member.kind = 'module';
+
                                         if (module.pub) {
-                                            this.modules.declare(member, { ...module, local: false });
+                                            this.modules.declare(name, { ...module, local: false });
                                         } else {
-                                            panic(`Cannot import private module '${member}' from module '${module}'`);
+                                            panic(`Cannot import private module '${name}' from module '${module}'`);
                                         }
                                     },
                                     None: () => {
-                                        panic(`Cannot find member '${member}' in module '${module}'`);
+                                        Maybe.wrap(mod.env.typeRules.get(name)).match({
+                                            Some: rules => {
+                                                member.kind = 'type';
+
+                                                const somePubRules = rules.some(rule => rule.pub);
+                                                const somePrivateRules = rules.some(rule => !rule.pub);
+                                                if (somePubRules && somePrivateRules) {
+                                                    panic(`Cannot import partially public type '${name}' from module '${module}'`);
+                                                }
+
+                                                if (somePrivateRules) {
+                                                    panic(`Cannot import private type '${name}' from module '${module}'`);
+                                                }
+
+                                                this.typeImports.set(name, { file: fullPath, subpath: path });
+                                            },
+                                            None: () => panic(`Cannot find member '${name}' in module '${module}'`),
+                                        });
                                     },
                                 });
                             },
@@ -396,5 +431,16 @@ export class TypeEnv {
         }
 
         return env;
+    }
+
+    public resolveType(ty: Type): Type {
+        return Type.rewrite(ty, t => match(t, {
+            Var: v => v,
+            Fun: ({ name, args, path }) => Type.Fun(
+                name,
+                args.map(arg => this.resolveType(arg)),
+                this.typeRules.has(name) ? path : this.typeImports.get(name) ?? path,
+            ),
+        }));
     }
 }

@@ -2,12 +2,18 @@ import { DataType, genConstructors } from 'itsamatch';
 import { Type } from '../../infer/type';
 import { Stmt } from './stmt';
 
+export type ImportMemberKind = 'value' | 'module' | 'type';
+
 export type Decl = DataType<{
     Stmt: { stmt: Stmt },
     Type: TypeDecl,
     Module: ModuleDecl,
     Declare: { sig: Signature },
-    Import: { path: string[], module: string, members?: string[] },
+    Import: {
+        path: string[],
+        module: string,
+        members?: { name: string, kind?: ImportMemberKind }[],
+    },
     _Many: { decls: Decl[] },
 }>;
 

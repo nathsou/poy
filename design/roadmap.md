@@ -3,25 +3,24 @@
 
 ## Pinciples
 - Design a language that I would enjoy using.
-- Features are split in small sub-tasks, each task should be rewarding on its own.
+- Features are split into small sub-tasks, each task should be rewarding on its own.
 - Be pragmatic, add complex features only when absolutely necessary.
 - Favor code simplicity and readability over performance.
-- Take time to appreciate the progress made in between features to remain motivated.
-- Alternate between long / tedious features and short / fun ones.
+- Take time to appreciate the progress made in between tasks to remain motivated.
+- Alternate between long / tedious tasks and short / fun ones.
 
 ## Stage 1 - Must have features
 
 ### 1. Modules
 - [x] Primitive expressions (literals, arithmetic) 
 - [x] Compound expressions (tuples, arrays, blocks, closures, function calls)
-- [x] Functions, let declarations and while loops
-- [ ] Modules (Support nested modules and imports)
+- [x] Functions, let declarations, while loops
+- [x] Modules (Support nested modules and imports)
 
-### 2. Structs & Type Aliases
+### 2. Structs
 - [ ] Struct definitions
 - [ ] Struct instantiation
 - [ ] Member access
-- [ ] Type aliases
 
 ### 3. Extensions
 - [ ] Resolve matching extensions for method calls
@@ -55,9 +54,9 @@ a[1].d += 1 // ok
 - [ ] Rewrite match expressions to decision trees
 - [ ] Resolve enums with the shorthand `.Member` syntax instead of `Struct.Member`
 
-### 8. String template literals
+### 8. Iterators
 
-### 9. Iterators
+### 9. String template literals
 
 ### 10. Checkpoint I
 - [ ] Improve error messages
