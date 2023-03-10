@@ -14,7 +14,7 @@ export type Module = {
 };
 
 export type FilePath = string;
-export type ModulePath = { file: FilePath, subpath: string[] }
+export type ModulePath = { file: FilePath, subpath: string[], env?: TypeEnv };
 
 export class Resolver {
     public modules = new Map<FilePath, Module>();

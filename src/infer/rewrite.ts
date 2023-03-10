@@ -58,7 +58,7 @@ const externals: Record<string, (args: Type[], env: TypeEnv, counter: StepCounte
         assert(args.length >= 2, '@fun expects at least two arguments');
         return null;
     },
-    '@app': (args, env) => {
+    '@app': args => {
         assert(args.length > 0, '@app expects at least one argument');
         const [symb, ...callArgs] = args;
         assert(symb.variant === 'Fun', '@app expects a symbol as first argument');
@@ -73,7 +73,6 @@ const externals: Record<string, (args: Type[], env: TypeEnv, counter: StepCounte
 
             return Type.substitute(body, subst);
         }
-
 
         return Type.Fun(symb.name, callArgs, symb.path);
     },
@@ -117,12 +116,7 @@ function reduce(env: TypeEnv, ty: Type, counter: StepCounter): { term: Type, mat
                 panic(`Unknown external function '${name}'`);
             }
 
-            let moduleEnv: TypeEnv = env;
-
-            if (path) {
-                moduleEnv = env.resolveModuleEnv(path.file, path.subpath);
-            }
-
+            const moduleEnv: TypeEnv = path?.env ?? env;
             const newTy = Type.Fun(name, args.map(arg => normalize(env, arg, counter)));
             const rules = moduleEnv.typeRules.get(name) ?? [];
 
@@ -131,8 +125,8 @@ function reduce(env: TypeEnv, ty: Type, counter: StepCounter): { term: Type, mat
 
                 if (subst) {
                     const substituted = Type.substitute(rhs, subst);
-                    const reduced = reduce(moduleEnv, substituted, counter);
-                    return { term: reduced.term, matched: true };
+                    const nf = reduce(moduleEnv, substituted, counter);
+                    return { term: nf.term, matched: true };
                 }
             }
 

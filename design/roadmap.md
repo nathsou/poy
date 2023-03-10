@@ -64,6 +64,7 @@ a[1].d += 1 // ok
 - [ ] Optimize pattern matching (+ eliminate `Option` type overhead)
 - [ ] Improve emitted JS readability
 - [ ] Create an interactive web playground
+- [ ] Create a test runner for ```test { ... }``` blocks
 
 ## Stage 2 - Nice to have features
 At this point, Poy should be as expressive as OCaml and perfectly usable as is.

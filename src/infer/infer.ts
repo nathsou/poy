@@ -436,11 +436,17 @@ export class TypeEnv {
     public resolveType(ty: Type): Type {
         return Type.rewrite(ty, t => match(t, {
             Var: v => v,
-            Fun: ({ name, args, path }) => Type.Fun(
-                name,
-                args.map(arg => this.resolveType(arg)),
-                this.typeRules.has(name) ? path : this.typeImports.get(name) ?? path,
-            ),
+            Fun: ({ name, args, path }) => {
+                let modulePath: ModulePath | undefined = this.typeRules.has(name) ? path : this.typeImports.get(name) ?? path;
+                modulePath ??= { file: this.modulePath, subpath: [] };
+                modulePath.env = path?.env ?? this.resolveModuleEnv(modulePath.file, modulePath.subpath);
+
+                return Type.Fun(
+                    name,
+                    args.map(arg => this.resolveType(arg)),
+                    modulePath,
+                );
+            },
         }));
     }
 }
