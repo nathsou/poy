@@ -15,13 +15,7 @@ export const Type = {
     Var: (ref: TypeVar): Type => ({ variant: 'Var', ref }),
     Fun: (name: string, args: Type[], path?: ModulePath): Type => ({ variant: 'Fun', name, args, path }),
     Array: (elem: Type): Type => Type.Fun('Array', [elem]),
-    Tuple: (elems: Type[]): Type => {
-        switch (elems.length) {
-            case 0: return Type.Fun('Unit', []);
-            case 1: return elems[0];
-            default: return Type.Fun('Tuple', [list(elems)]);
-        }
-    },
+    Tuple: (elems: Type[]): Type => elems.length === 1 ? elems[0] : Type.Fun('Tuple', [list(elems)]),
     Function: (args: Type[], ret: Type): Type => Type.Fun('Function', [list(args), ret]),
     Bool: Object.freeze<Type>({ variant: 'Fun', name: 'Bool', args: [] }),
     Num: Object.freeze<Type>({ variant: 'Fun', name: 'Num', args: [] }),
@@ -122,8 +116,6 @@ function show(ty: Type): string {
             },
             Fun: ({ name, args }) => {
                 switch (name) {
-                    case 'Unit':
-                        return '()';
                     case 'Nil':
                         return '[]';
                     case 'Cons':

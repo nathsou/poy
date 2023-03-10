@@ -1,10 +1,11 @@
 import { match } from "itsamatch";
-import { Decl } from "../ast/sweet/decl";
+import { Decl, StructDecl } from "../ast/sweet/decl";
 import { Expr } from "../ast/sweet/expr";
 import { Stmt } from "../ast/sweet/stmt";
 import { Maybe } from "../misc/maybe";
 import { Scope } from "../misc/scope";
-import { last, panic } from "../misc/utils";
+import { setDifference } from "../misc/sets";
+import { last, panic, proj } from "../misc/utils";
 import { AssignmentOp, BinaryOp, UnaryOp } from "../parse/token";
 import { Module, ModulePath, Resolver } from "../resolve/resolve";
 import { TRS } from "./rewrite";
@@ -18,6 +19,7 @@ export class TypeEnv {
     public modules: Scope<ModuleInfo>;
     public typeRules: TRS;
     private typeImports: Map<string, ModulePath>;
+    private structs: Scope<StructDecl>;
     private letLevel: number;
     private functionStack: Type[];
     private resolver: Resolver;
@@ -30,6 +32,7 @@ export class TypeEnv {
         this.modules = new Scope(parent?.modules);
         this.typeRules = TRS.create(parent?.typeRules);
         this.typeImports = new Map(parent?.typeImports);
+        this.structs = new Scope(parent?.structs);
         this.letLevel = parent?.letLevel ?? 0;
         this.functionStack = [...parent?.functionStack ?? []];
         this.modulePath = modulePath;
@@ -94,6 +97,13 @@ export class TypeEnv {
                     this.resolveType(rhs),
                     pub
                 );
+            },
+            Struct: struct => {
+                for (const field of struct.fields) {
+                    field.ty = Type.generalize(field.ty, this.letLevel);
+                }
+
+                this.structs.declare(struct.name, struct);
             },
             Declare: ({ sig }) => match(sig, {
                 Variable: ({ mutable, name, ty }) => {
@@ -180,7 +190,22 @@ export class TypeEnv {
 
                                                 this.typeImports.set(name, { file: fullPath, subpath: path });
                                             },
-                                            None: () => panic(`Cannot find member '${name}' in module '${module}'`),
+                                            None: () => {
+                                                mod.env.structs.lookup(name).match({
+                                                    Some: struct => {
+                                                        member.kind = 'type';
+
+                                                        if (struct.pub) {
+                                                            this.structs.declare(name, struct);
+                                                        } else {
+                                                            panic(`Cannot import private struct '${name}' from module '${module}'`);
+                                                        }
+                                                    },
+                                                    None: () => {
+                                                        panic(`Cannot find member '${name}' in module '${module}'`)
+                                                    }
+                                                });
+                                            },
                                         });
                                     },
                                 });
@@ -405,6 +430,44 @@ export class TypeEnv {
                 }
 
                 return ty;
+            },
+            Struct: ({ name, fields }) => {
+                const decl = this.structs.lookup(name).unwrap(`Struct '${name}' not found`);
+                const fieldTys = new Map(fields.map(({ name, value }) => [name, this.inferExpr(value)]));
+                const expectedFields = new Set(decl.fields.map(proj('name')));
+                const actualFields = new Set(fieldTys.keys());
+
+                const missingFields = setDifference(expectedFields, actualFields);
+                if (missingFields.size > 0) {
+                    panic(`Missing field(s) in '${name}' struct expression: ${[...missingFields].join(', ')}`);
+                }
+
+                const extraFields = setDifference(actualFields, expectedFields);
+                if (extraFields.size > 0) {
+                    panic(`Extra field(s) in '${name}' struct expression: ${[...extraFields].join(', ')}`);
+                }
+
+                for (const { name, ty } of decl.fields) {
+                    this.unify(fieldTys.get(name)!, Type.instantiate(ty, this.letLevel));
+                }
+
+                return Type.Fun(name, [], { file: this.modulePath, subpath: [], env: this });
+            },
+            Dot: ({ lhs, field }) => {
+                const lhsTy = this.inferExpr(lhs);
+
+                if (lhsTy.variant === 'Fun' && lhsTy.args.length === 0 && this.structs.has(lhsTy.name)) {
+                    const decl = this.structs.lookup(lhsTy.name).unwrap();
+                    const fieldInfo = decl.fields.find(({ name }) => name === field);
+
+                    if (fieldInfo == null) {
+                        return panic(`Struct '${lhsTy.name}' has no field '${field}'`);
+                    }
+
+                    return Type.instantiate(fieldInfo.ty, this.letLevel);
+                } else {
+                    return panic(`Cannot access field '${field}' of non-struct type ${Type.show(lhsTy)}`);
+                }
             },
         });
 

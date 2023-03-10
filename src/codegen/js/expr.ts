@@ -93,6 +93,19 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
             });
         },
         Call: ({ fun, args }) => JSExpr.Call(jsExprOf(fun, scope), args.map(arg => jsExprOf(arg, scope))),
-        Path: ({ path, member }) => JSExpr.Dot(path.map(name => JSExpr.Variable(scope.lookup(name), TSType.Any())), member),
+        Path: ({ path, member }) => {
+            assert(path.length > 0);
+            const pathExpr = path.slice(1).reduce(
+                (lhs, name) => JSExpr.Dot(lhs, name),
+                JSExpr.Variable(scope.lookup(path[0]), ty),
+            );
+
+            return JSExpr.Dot(pathExpr, member);
+        },
+        Struct: ({ fields }) => JSExpr.Object({
+            entries: fields.map(({ name, value }) => ({ key: name, value: jsExprOf(value, scope) })),
+            ty
+        }),
+        Dot: ({ lhs, field }) => JSExpr.Dot(jsExprOf(lhs, scope), field),
     });
 };

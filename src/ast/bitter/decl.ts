@@ -13,6 +13,11 @@ export type Decl = DataType<{
         module: string,
         members?: { name: string, kind?: ImportMemberKind }[],
     },
+    Struct: {
+        pub: boolean,
+        name: string,
+        fields: { mut: boolean, name: string, ty: Type }[],
+    },
 }>;
 
 export type FunctionArgument = {
@@ -21,7 +26,7 @@ export type FunctionArgument = {
 };
 
 export const Decl = {
-    ...genConstructors<Decl>(['Module', 'Declare', 'Import']),
+    ...genConstructors<Decl>(['Module', 'Declare', 'Import', 'Struct']),
     Stmt: (stmt: Stmt): Decl => ({ variant: 'Stmt', stmt }),
     Type: (lhs: Type, rhs: Type): Decl => ({ variant: 'Type', lhs, rhs }),
 };

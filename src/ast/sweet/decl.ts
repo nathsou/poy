@@ -14,11 +14,12 @@ export type Decl = DataType<{
         module: string,
         members?: { name: string, kind?: ImportMemberKind }[],
     },
+    Struct: StructDecl,
     _Many: { decls: Decl[] },
 }>;
 
 export const Decl = {
-    ...genConstructors<Decl>(['Module', 'Import', 'Type', '_Many']),
+    ...genConstructors<Decl>(['Module', 'Import', 'Type', 'Struct', '_Many']),
     Stmt: (stmt: Stmt) => ({ variant: 'Stmt', stmt }) satisfies Decl,
     Declare: (sig: Signature) => ({ variant: 'Declare', sig }) satisfies Decl,
 };
@@ -40,3 +41,9 @@ export type Signature = DataType<{
     Module: { name: string, signatures: Signature[] },
     Type: TypeDecl,
 }>;
+
+export type StructDecl = {
+    pub: boolean,
+    name: string,
+    fields: { mut: boolean, name: string, ty: Type }[],
+};

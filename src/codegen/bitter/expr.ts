@@ -44,5 +44,12 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
         }),
         Call: ({ fun, args }) => BitterExpr.Call({ fun: bitterExprOf(fun), args: args.map(bitterExprOf), ty }),
         Path: ({ path, member }) => BitterExpr.Path(path, member, ty),
+        Struct: ({ path, name, fields }) => BitterExpr.Struct({
+            path,
+            name,
+            fields: fields.map(field => ({ name: field.name, value: bitterExprOf(field.value) })),
+            ty
+        }),
+        Dot: ({ lhs, field }) => BitterExpr.Dot(bitterExprOf(lhs), field, ty),
     });
 }

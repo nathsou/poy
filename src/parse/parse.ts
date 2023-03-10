@@ -1,5 +1,5 @@
 import { match, VariantOf } from "itsamatch";
-import { Decl, ModuleDecl, Signature } from "../ast/sweet/decl";
+import { Decl, ModuleDecl, Signature, StructDecl } from "../ast/sweet/decl";
 import { Expr, FunctionArgument } from "../ast/sweet/expr";
 import { Stmt } from "../ast/sweet/stmt";
 import { Type, TypeVar } from "../infer/type";
@@ -400,6 +400,23 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         return Expr.If({ cond, then });
     }
 
+    function structExpr(path: string[], name: string): Expr {
+        consumeIfPresent(Token.Symbol('{'));
+        const fields: { name: string, value: Expr }[] = [];
+
+        while (!matches(Token.Symbol('}'))) {
+            const name = identifier();
+            consume(Token.Symbol(':'));
+            const value = expr();
+            fields.push({ name, value });
+
+            consumeIfPresent(Token.Symbol(','));
+            consumeIfPresent(Token.Symbol(';'));
+        }
+
+        return Expr.Struct({ path, name, fields });
+    }
+
     function logicalOrExpr(): Expr {
         return binaryExpr(logicalAndExpr, ['||']);
     }
@@ -442,6 +459,11 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
 
     function callExpr(): Expr {
         let lhs = primaryExpr();
+
+        while (matches(Token.Symbol('.'))) {
+            const name = identifier();
+            lhs = Expr.Dot(lhs, name);
+        }
 
         while (matches(Token.Symbol('('))) {
             const args = commas(expr);
@@ -507,8 +529,14 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
 
     function pathExpr(prefix: string): Expr {
         const parts = path(prefix);
-        assert(parts.length > 1);
-        return Expr.Path(parts.slice(0, -1), last(parts));
+        const components = parts.slice(0, -1);
+        const member = last(parts);
+
+        if (matches(Token.Symbol('{'))) {
+            return structExpr(components, member);
+        }
+
+        return Expr.Path(components, member);
     }
 
     function tupleExpr(): Expr {
@@ -672,6 +700,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         module: moduleDecl,
         declare: declareDecl,
         import: importDecl,
+        struct: structDecl,
     };
 
     function decl(): Decl {
@@ -781,6 +810,29 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             consumeIfPresent(Token.Symbol(';'));
 
             return Decl.Type({ pub: modifiers.pub, lhs, rhs });
+        });
+    }
+
+    function structDecl(): VariantOf<Decl, 'Struct'> {
+        return typeScoped(() => {
+            letLevel += 1;
+            const name = identifier();
+            const fields: StructDecl['fields'] = [];
+
+            consume(Token.Symbol('{'));
+
+            while (!matches(Token.Symbol('}'))) {
+                const mut = matches(Token.Keyword('mut'));
+                const name = identifier();
+                const ty = typeAnnotationRequired();
+                fields.push({ mut, name, ty });
+                consumeIfPresent(Token.Symbol(','));
+            }
+
+            consumeIfPresent(Token.Symbol(';'));
+            letLevel -= 1;
+
+            return Decl.Struct({ pub: modifiers.pub, name, fields });
         });
     }
 

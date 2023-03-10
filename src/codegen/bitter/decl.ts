@@ -16,5 +16,6 @@ export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] => match(sweet, {
     Declare: ({ sig }) => [BitterDecl.Declare({ sig })],
     Module: mod => [bitterModuleOf(mod)],
     Import: ({ path, module, members }) => [BitterDecl.Import({ path, module, members })],
+    Struct: ({ pub, name, fields }) => [BitterDecl.Struct({ pub, name, fields })],
     _Many: ({ decls }) => decls.flatMap(bitterDeclsOf),
 });

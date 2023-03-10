@@ -12,13 +12,24 @@ type {
     Query = Filter<@fun<lst, Not<IsEmpty<lst>>>, L>
 }
 
+declare let print: _ -> ()
+
+struct Person {
+    name: Str,
+    age: Num,
+    city: Str,
+}
+
+let nath = Person { name: "Nathalie", age: 25, city: "Paris" }
+let city = nath.city
+
+print(city)
+
 let {
     a = 3 * 7 + 2
     f = n -> n * n
     id = x -> x
 }
-
-declare let print: _ -> ()
 
 fun fact(n) {
     if n == 0 { 1 } else { use pred = n - 1 in n * fact(pred) }

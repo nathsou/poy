@@ -35,6 +35,7 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSDecl {
                                 members.push({ name, ty });
                             },
                             Type: () => { },
+                            Struct: () => { },
                             Declare: ({ sig }) => {
                                 match(sig, {
                                     Variable: ({ name }) => {
@@ -56,7 +57,7 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSDecl {
                                             moduleScope.add(JSStmt.Const({
                                                 name: memberName,
                                                 value: JSExpr.Dot(
-                                                    [JSExpr.Variable(moduleName, TSType.Any())],
+                                                    JSExpr.Variable(moduleName, TSType.Any()),
                                                     name,
                                                 ),
                                             }));

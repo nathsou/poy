@@ -18,9 +18,9 @@
 - [x] Modules (Support nested modules and imports)
 
 ### 2. Structs
-- [ ] Struct definitions
-- [ ] Struct instantiation
-- [ ] Member access
+- [x] Struct definitions
+- [x] Struct instantiation
+- [x] Member access
 
 ### 3. Extensions
 - [ ] Resolve matching extensions for method calls

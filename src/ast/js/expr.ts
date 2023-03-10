@@ -1,7 +1,6 @@
 import { DataType, genConstructors, match } from "itsamatch";
 import { Name } from "../../codegen/js/jsScope";
 import { Impl, Show } from "../../misc/traits";
-import { proj } from "../../misc/utils";
 import { Literal } from "../../parse/token";
 import { Stmt } from "./stmt";
 import { TSType } from "./tsType";
@@ -19,7 +18,7 @@ export type Expr = DataType<Typed<{
     Call: { fun: Expr, args: Expr[] },
     Paren: { expr: Expr },
     Object: { entries: { key: string, value: Expr }[] },
-    Dot: { lhs: Expr[], rhs: string },
+    Dot: { lhs: Expr, field: string },
 }>>;
 
 export const Expr = {
@@ -35,11 +34,11 @@ export const Expr = {
         args,
         ty: TSType.Ref({ name: 'ReturnType', args: [fun.ty] }),
     }) as const,
-    Dot: (lhs: Expr[], rhs: string) => ({
+    Dot: (lhs: Expr, field: string) => ({
         variant: 'Dot',
         lhs,
-        rhs,
-        ty: TSType.Access({ path: lhs.map(proj('ty')), member: rhs }),
+        field,
+        ty: TSType.Access({ path: [lhs.ty], member: field }),
     }) satisfies Expr,
     show,
 } satisfies Impl<Show<Expr>>;
@@ -61,7 +60,7 @@ function show(expr: Expr, indentLevel: number = 0): string {
         Ternary: ({ cond, then, otherwise }) => `(${show(cond, indentLevel)} ? ${show(then, indentLevel)} : ${show(otherwise, indentLevel)})`,
         Array: ({ elems }) => `[${elems.map(e => show(e, indentLevel)).join(', ')}]`,
         Closure: ({ args, stmts }) =>
-            `(${args.map(({ name }) => name).join(', ')}) => {\n${indent}${Stmt.showStmts(stmts, indentLevel + 1)}\n${indent}}`,
+            `(${args.map(({ name }) => name.mangled).join(', ')}) => {\n${indent}${Stmt.showStmts(stmts, indentLevel + 1)}\n${indent}}`,
         Call: ({ fun, args }) => {
             if (fun.variant === 'Closure') {
                 fun = Expr.Paren(fun);
@@ -86,6 +85,6 @@ function show(expr: Expr, indentLevel: number = 0): string {
                 return `{\n${entriesFmt.map(e => `${indent}    ${e}`).join(',\n')}\n${indent}  }`;
             }
         },
-        Dot: ({ lhs, rhs }) => `${lhs.map(show).join('.')}.${rhs}`,
+        Dot: ({ lhs, field }) => `${show(lhs)}.${field}`,
     });
 }
