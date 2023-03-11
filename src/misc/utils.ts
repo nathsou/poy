@@ -70,3 +70,12 @@ export const pushMap = <K, V>(map: Map<K, V[]>, key: K, value: V): void => {
     values.push(value);
     map.set(key, values);
 };
+
+export function* indexed<T>(elems: Iterable<T>): Iterable<[T, number]> {
+    let i = 0;
+
+    for (const elem of elems) {
+        yield [elem, i];
+        i += 1;
+    }
+}

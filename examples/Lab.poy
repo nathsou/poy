@@ -172,6 +172,22 @@ extend Num[] {
 
         rev
     }
+
+    fun index(n: Num) {
+        self.at(n)
+    }
+
+    fun sum() {
+        mut total = 0
+        mut i = 0
+
+        while i < self.length {
+            total += self.at(i)
+            i += 1
+        }
+
+        total
+    }
 }
 
 fun range(start: Num, end: Num): Num[] {
@@ -187,4 +203,7 @@ fun range(start: Num, end: Num): Num[] {
 }
 
 print(use tuple = (4, true) in (tuple.kind, tuple.length))
-print(range(0, 100).map(n -> n * n).reverse())
+print((index @ Num[])([1, 2, 3], 1))
+print(range(0, 100).sum())
+print((sum @ _[])(range(0, 100)))
+print(range(0, 1000).filter(isPrime @ Num))

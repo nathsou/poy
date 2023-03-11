@@ -44,7 +44,7 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
             ty,
         }),
         Call: ({ fun, args, ty }) => {
-            if (fun.variant === 'Dot' && fun.extensionUuid != null && !fun.isNative) {
+            if (fun.variant === 'VariableAccess' && fun.extensionUuid != null && !fun.isNative) {
                 const { lhs, field, extensionUuid } = fun;
                 return BitterExpr.Call({
                     fun: BitterExpr.Variable({
@@ -58,16 +58,29 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
 
             return BitterExpr.Call({ fun: bitterExprOf(fun), args: args.map(bitterExprOf), ty: ty! });
         },
-        Path: ({ path, member }) => BitterExpr.Path(path, member, ty),
+        ModuleAccess: ({ path, member, extensionUuid }) => {
+            if (extensionUuid != null) {
+                if (path.length > 1) {
+                    return BitterExpr.ModuleAccess(path.slice(0, -1), `${member}_${extensionUuid}`, ty);
+                }
+
+                return BitterExpr.Variable({
+                    name: `${member}_${extensionUuid}`,
+                    ty: ty,
+                });
+            }
+
+            return BitterExpr.ModuleAccess(path, member, ty);
+        },
         Struct: ({ path, name, fields }) => BitterExpr.Struct({
             path,
             name,
             fields: fields.map(field => ({ name: field.name, value: bitterExprOf(field.value) })),
             ty
         }),
-        Dot: ({ lhs, field, extensionUuid, isCalled, isNative }) => {
+        VariableAccess: ({ lhs, field, extensionUuid, isCalled, isNative }) => {
             if (isNative) {
-                return BitterExpr.Dot({
+                return BitterExpr.VariableAccess({
                     lhs: bitterExprOf(lhs),
                     field,
                     isCalled,
@@ -82,11 +95,18 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
                 });
             }
 
-            return BitterExpr.Dot({
+            return BitterExpr.VariableAccess({
                 lhs: bitterExprOf(lhs),
                 field: extensionUuid ? `${field}_${extensionUuid}` : field,
                 isCalled,
                 ty,
+            });
+        },
+        ExtensionAccess: ({ subject, member, extensionUuid, ty: extTy }) => {
+            assert(extensionUuid != null, 'Extension uuid must be present in extension access');
+            return BitterExpr.Variable({
+                name: `${member}_${extensionUuid}`,
+                ty: Type.Function([subject, ...Type.utils.functionParameters(extTy!)], ty),
             });
         },
     });

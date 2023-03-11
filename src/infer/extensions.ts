@@ -1,4 +1,5 @@
-import { panic, pushMap } from "../misc/utils";
+import { Err, Ok, Result } from "../misc/result";
+import { pushMap } from "../misc/utils";
 import { Subst, Type } from "./type";
 
 export type ExtensionMembers = Map<string, { ty: Type, declared: boolean }>;
@@ -38,15 +39,15 @@ export class ExtensionScope {
         return candidates;
     }
 
-    public lookup(subject: Type, member: string): ExtensionInfo {
+    public lookup(subject: Type, member: string): Result<ExtensionInfo, string> {
         const candidates = this.matchingCandidates(subject, member);
 
         if (candidates.length === 0) {
-            return panic(`No extension found for '${Type.show(subject)}.${member}'`);
+            return Err(`No extension found for '${Type.show(subject)}.${member}'`);
         }
 
         if (candidates.length === 1) {
-            return candidates[0].ext;
+            return Ok(candidates[0].ext);
         }
 
         const bySpecificity = candidates.map(({ ext, subst }) => ({
@@ -62,9 +63,9 @@ export class ExtensionScope {
                 .map(({ ext }) => Type.show(ext.subject))
                 .join('\n');
 
-            return panic(`Ambiguous extension for '${Type.show(subject)}.${member}', candidates:\n${fmt}`);
+            return Err(`Ambiguous extension for '${Type.show(subject)}.${member}', candidates:\n${fmt}`);
         }
 
-        return allBest[0].ext;
+        return Ok(allBest[0].ext);
     }
 }

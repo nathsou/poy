@@ -437,7 +437,8 @@ export class TypeEnv {
                 rhsEnv.inferLet(false, false, name, ann, value);
                 return rhsEnv.inferExpr(rhs);
             },
-            Path: ({ path, member }) => {
+            ModuleAccess: moduleAccessExpr => {
+                const { path, member } = moduleAccessExpr;
                 let mod: ModuleInfo = {
                     pub: true,
                     local: true,
@@ -484,7 +485,7 @@ export class TypeEnv {
 
                 return Type.Fun(name, [], { file: this.modulePath, subpath: [], env: this });
             },
-            Dot: dotExpr => {
+            VariableAccess: dotExpr => {
                 const { lhs, field, isCalled } = dotExpr;
                 const lhsTy = this.inferExpr(lhs);
 
@@ -501,9 +502,9 @@ export class TypeEnv {
 
                 const ext = this.extensions.lookup(lhsTy, field);
 
-                if (ext) {
-                    const { ty: memberTy, declared: isNative } = ext;
-                    dotExpr.extensionUuid = ext.uuid;
+                if (ext.isOk()) {
+                    const { ty: memberTy, declared: isNative, uuid } = ext.unwrap();
+                    dotExpr.extensionUuid = uuid;
                     dotExpr.isNative = isNative;
 
                     if (Type.utils.isFunction(memberTy) && !isCalled) {
@@ -511,9 +512,31 @@ export class TypeEnv {
                     }
 
                     return Type.instantiate(memberTy, this.letLevel);
+                } else {
+                    return panic(ext.unwrapError());
                 }
+            },
+            ExtensionAccess: extensionAccessExpr => {
+                const { subject, member } = extensionAccessExpr;
+                extensionAccessExpr.subject = this.resolveType(subject);
+                const ext = this.extensions.lookup(subject, member);
 
-                return panic(`Type ${Type.show(lhsTy)} has no field '${field}'`);
+                return ext.match({
+                    Ok: ({ ty, uuid, declared }) => {
+                        if (declared) {
+                            return panic(`Cannot access a declared extension member with an extension access expression: '${member} @ ${Type.show(subject)}'`);
+                        }
+
+                        if (Type.utils.isFunction(ty)) {
+                            ty = Type.Function([subject, ...Type.utils.unlist(ty.args[0])], ty.args[1]);
+                        }
+
+                        extensionAccessExpr.extensionUuid = uuid;
+
+                        return Type.instantiate(ty, this.letLevel);
+                    },
+                    Error: panic,
+                });
             },
         });
 

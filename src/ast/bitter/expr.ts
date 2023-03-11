@@ -18,16 +18,16 @@ export type Expr = DataType<Typed<{
     UseIn: { name: string, value: Expr, rhs: Expr },
     Fun: { args: FunctionArgument[], body: Expr },
     Call: { fun: Expr, args: Expr[] },
-    Path: { path: string[], member: string },
     Struct: { path: string[], name: string, fields: { name: string, value: Expr }[] },
-    Dot: { lhs: Expr, field: string, isCalled: boolean },
+    VariableAccess: { lhs: Expr, field: string, isCalled: boolean },
+    ModuleAccess: { path: string[], member: string },
 }>>;
 
 export const Expr = {
     ...genConstructors<Expr>([
         'Variable', 'Unary', 'Binary', 'Block', 'If', 'Tuple', 'Array',
-        'UseIn', 'Fun', 'Call', 'Struct', 'Dot',
+        'UseIn', 'Fun', 'Call', 'Struct', 'VariableAccess',
     ]),
     Literal: (literal: Literal, ty: Type): Expr => ({ variant: 'Literal', literal, ty }) as const,
-    Path: (path: string[], member: string, ty: Type): Expr => ({ variant: 'Path', path, member, ty }) as const,
+    ModuleAccess: (path: string[], member: string, ty: Type): Expr => ({ variant: 'ModuleAccess', path, member, ty }) as const,
 };

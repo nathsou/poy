@@ -15,9 +15,10 @@ export type Expr = DataType<{
     UseIn: { name: string, ann?: Type, value: Expr, rhs: Expr },
     Fun: { args: FunctionArgument[], ret?: Type, body: Expr },
     Call: { fun: Expr, args: Expr[] },
-    Path: { path: string[], member: string },
     Struct: { path: string[], name: string, fields: { name: string, value: Expr }[] },
-    Dot: { lhs: Expr, field: string, extensionUuid?: string, isCalled: boolean, isNative: boolean },
+    VariableAccess: { lhs: Expr, field: string, extensionUuid?: string, isCalled: boolean, isNative: boolean },
+    ModuleAccess: { path: string[], member: string, extensionUuid?: string },
+    ExtensionAccess: { subject: Type, member: string, extensionUuid?: string },
 }> & { ty?: Type };
 
 export type FunctionArgument = { name: string, ann?: Type };
@@ -25,8 +26,7 @@ export type FunctionArgument = { name: string, ann?: Type };
 export const Expr = {
     ...genConstructors<Expr>([
         'Variable', 'Unary', 'Binary', 'Block', 'If', 'Tuple', 'Array',
-        'UseIn', 'Fun', 'Call', 'Struct', 'Dot',
+        'UseIn', 'Fun', 'Call', 'Struct', 'VariableAccess', 'ExtensionAccess', 'ModuleAccess',
     ]),
     Literal: (literal: Literal): Expr => ({ variant: 'Literal', literal }) as const,
-    Path: (path: string[], member: string): Expr => ({ variant: 'Path', path, member }) as const,
 };

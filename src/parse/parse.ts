@@ -1,4 +1,5 @@
 import { match, VariantOf } from "itsamatch";
+import { v4 as uuidv4 } from 'uuid';
 import { Decl, ModuleDecl, Signature, StructDecl } from "../ast/sweet/decl";
 import { Expr, FunctionArgument } from "../ast/sweet/expr";
 import { Stmt } from "../ast/sweet/stmt";
@@ -8,7 +9,6 @@ import { Maybe, None, Some } from "../misc/maybe";
 import { isUpperCase } from "../misc/strings";
 import { assert, last, letIn, panic } from "../misc/utils";
 import { AssignmentOp, BinaryOp, Keyword, Literal, Symbol, Token, UnaryOp } from "./token";
-import { v4 as uuidv4 } from 'uuid';
 
 export const parse = (tokens: Token[], newlines: number[], filePath: string) => {
     let index = 0;
@@ -464,12 +464,12 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         while (true) {
             if (matches(Token.Symbol('.'))) {
                 const field = identifier();
-                lhs = Expr.Dot({ lhs, field, isCalled: false, isNative: false });
+                lhs = Expr.VariableAccess({ lhs, field, isCalled: false, isNative: false });
             } else if (matches(Token.Symbol('('))) {
                 const args = commas(expr);
                 consume(Token.Symbol(')'));
 
-                if (lhs.variant === 'Dot') {
+                if (lhs.variant === 'VariableAccess') {
                     lhs.isCalled = true;
                 }
 
@@ -492,7 +492,12 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
                 next();
 
                 if (isUpperCase(name[0])) {
-                    return pathExpr(name);
+                    return moduleAccessExpr(name);
+                }
+
+                if (matches(Token.Symbol('@'))) {
+                    const subject = type();
+                    return Expr.ExtensionAccess({ member: name, subject });
                 }
 
                 return Expr.Variable(name);
@@ -534,7 +539,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         return parts;
     }
 
-    function pathExpr(prefix: string): Expr {
+    function moduleAccessExpr(prefix: string): Expr {
         const parts = path(prefix);
         const components = parts.slice(0, -1);
         const member = last(parts);
@@ -543,7 +548,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             return structExpr(components, member);
         }
 
-        return Expr.Path(components, member);
+        return Expr.ModuleAccess({ path: components, member });
     }
 
     function tupleExpr(): Expr {

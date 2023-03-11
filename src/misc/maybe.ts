@@ -93,8 +93,12 @@ export class Maybe<T> {
         return panic('Tried to unwrap a None value');
     }
 
-    static from<T>(val: T | undefined): Maybe<T> {
-        return val === undefined ? None : Some(val);
+    flat(): T | undefined {
+        if (this.raw.type === 'some') {
+            return this.raw.data;
+        }
+
+        return undefined;
     }
 
     static firstSomeBy<T, U>(elems: T[], f: (elem: T) => Maybe<U>): Maybe<[U, number]> {
