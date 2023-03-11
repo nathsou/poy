@@ -38,7 +38,7 @@ export type ModuleDecl = {
 };
 
 export type Signature = DataType<{
-    Variable: { mutable: boolean, name: string, ty: Type },
+    Variable: { static: boolean, mutable: boolean, name: string, ty: Type },
     Module: { name: string, signatures: Signature[] },
     Type: TypeDecl,
 }>;

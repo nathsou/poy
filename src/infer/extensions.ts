@@ -3,7 +3,14 @@ import { pushMap } from "../misc/utils";
 import { Subst, Type } from "./type";
 
 export type ExtensionMembers = Map<string, { ty: Type, declared: boolean }>;
-export type ExtensionInfo = { subject: Type, member: string, ty: Type, declared: boolean, uuid: string };
+export type ExtensionInfo = {
+    subject: Type,
+    member: string,
+    ty: Type,
+    declared: boolean,
+    static: boolean,
+    uuid: string
+};
 export type MatchingExtension = { ext: ExtensionInfo, subst: Subst };
 
 export class ExtensionScope {
@@ -43,7 +50,7 @@ export class ExtensionScope {
         const candidates = this.matchingCandidates(subject, member);
 
         if (candidates.length === 0) {
-            return Err(`No extension found for '${Type.show(subject)}.${member}'`);
+            return Err(`No extension found for ${Type.show(subject)}::${member}`);
         }
 
         if (candidates.length === 1) {
@@ -63,7 +70,7 @@ export class ExtensionScope {
                 .map(({ ext }) => Type.show(ext.subject))
                 .join('\n');
 
-            return Err(`Ambiguous extension for '${Type.show(subject)}.${member}', candidates:\n${fmt}`);
+            return Err(`Ambiguous extension for ${Type.show(subject)}::${member}, candidates:\n${fmt}`);
         }
 
         return Ok(allBest[0].ext);

@@ -14,7 +14,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     let index = 0;
     let letLevel = 0;
     const typeScopes: Map<string, number>[] = [];
-    const modifiers = { pub: false };
+    const modifiers = { pub: false, static: false };
 
     // ------ meta ------
 
@@ -179,7 +179,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     function consType(): Type {
         const lhs = funType();
 
-        if (matches(Token.Symbol('::'))) {
+        if (matches(Token.Symbol(':'))) {
             const rhs = type();
             return Type.Cons(lhs, rhs);
         }
@@ -459,7 +459,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     }
 
     function callExpr(): Expr {
-        let lhs = primaryExpr();
+        let lhs = extensionAccessExpr();
 
         while (true) {
             if (matches(Token.Symbol('.'))) {
@@ -482,6 +482,29 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         return lhs;
     }
 
+    function extensionAccessExpr() {
+        return attempt<Expr>(() => {
+            const subject = type();
+            assert(subject.variant === 'Fun');
+
+            if (matches(Token.Symbol('('))) {
+                const args = commas(expr);
+                consume(Token.Symbol(')'));
+                return Expr.Call({
+                    fun: Expr.ExtensionAccess({
+                        member: 'init',
+                        subject,
+                    }),
+                    args
+                });
+            }
+
+            consume(Token.Symbol('::'));
+            const member = identifier();
+            return Expr.ExtensionAccess({ member, subject });
+        }).orDefault(primaryExpr);
+    }
+
     function primaryExpr(): Expr {
         return match(peek(), {
             Literal: ({ value }) => {
@@ -493,11 +516,6 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
 
                 if (isUpperCase(name[0])) {
                     return moduleAccessExpr(name);
-                }
-
-                if (matches(Token.Symbol('@'))) {
-                    const subject = type();
-                    return Expr.ExtensionAccess({ member: name, subject });
                 }
 
                 return Expr.Variable(name);
@@ -599,10 +617,20 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         return match(peek(), {
             Keyword: keyword => {
                 switch (keyword) {
-                    case 'pub':
+                    case 'pub': {
                         next();
                         modifiers.pub = true;
-                        return stmt();
+                        const ret = stmt();
+                        modifiers.pub = false;
+                        return ret;
+                    }
+                    case 'static': {
+                        next();
+                        modifiers.static = true;
+                        const ret = stmt();
+                        modifiers.static = false;
+                        return ret;
+                    }
                     case 'let':
                     case 'mut':
                         next();
@@ -642,7 +670,12 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         const value = funExpr(false);
         consumeIfPresent(Token.Symbol(';'));
 
-        return Stmt.Let({ pub: modifiers.pub, mutable: false, name, value });
+        return Stmt.Let({
+            pub: modifiers.pub,
+            static: modifiers.static,
+            mutable: false,
+            name, value
+        });
     }
 
     function letStmt(mutable: boolean): Stmt {
@@ -655,7 +688,14 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             consumeIfPresent(Token.Symbol(';'));
             letLevel -= 1;
 
-            return Stmt.Let({ pub: modifiers.pub, mutable, name, ann, value });
+            return Stmt.Let({
+                pub: modifiers.pub,
+                static: modifiers.static,
+                mutable,
+                name,
+                ann,
+                value
+            });
         });
     }
 
@@ -875,7 +915,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             consumeIfPresent(Token.Symbol(';'));
             letLevel -= 1;
 
-            return { variant: 'Variable', mutable, name, ty };
+            return { variant: 'Variable', static: modifiers.static, mutable, name, ty };
         });
     }
 
@@ -896,7 +936,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
 
             const funTy = Type.Function(args.map(arg => arg.ann!), ret);
 
-            return { variant: 'Variable', mutable: false, name, ty: funTy };
+            return { variant: 'Variable', mutable: false, static: modifiers.static, name, ty: funTy };
         });
     }
 

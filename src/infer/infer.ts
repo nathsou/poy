@@ -229,13 +229,27 @@ export class TypeEnv {
 
                 const extend = (decl: Decl): void => {
                     if (decl.variant === 'Stmt' && decl.stmt.variant === 'Let') {
-                        const { pub, mutable, name, ann, value } = decl.stmt;
+                        const { pub, mutable, static: isStatic, name, ann, value } = decl.stmt;
                         const ty = extEnv.inferLet(pub, mutable, name, ann, value);
-                        this.extensions.declare({ subject, member: name, ty, declared: false, uuid });
+                        this.extensions.declare({
+                            subject,
+                            member: name,
+                            ty,
+                            declared: false,
+                            static: isStatic,
+                            uuid,
+                        });
                     } else if (decl.variant === 'Declare' && decl.sig.variant === 'Variable') {
-                        const { mutable, name, ty } = decl.sig;
+                        const { mutable, name, ty, static: isStatic } = decl.sig;
                         const genTy = mutable ? ty : Type.generalize(ty, this.letLevel);
-                        this.extensions.declare({ subject, member: name, ty: genTy, declared: true, uuid });
+                        this.extensions.declare({
+                            subject,
+                            member: name,
+                            ty: genTy,
+                            declared: true,
+                            static: isStatic,
+                            uuid,
+                        });
                     } else if (decl.variant === '_Many') {
                         decl.decls.forEach(extend);
                     } else {
@@ -522,13 +536,17 @@ export class TypeEnv {
                 const ext = this.extensions.lookup(subject, member);
 
                 return ext.match({
-                    Ok: ({ ty, uuid, declared }) => {
+                    Ok: ({ ty, uuid, declared, static: isStatic }) => {
                         if (declared) {
                             return panic(`Cannot access a declared extension member with an extension access expression: '${member} @ ${Type.show(subject)}'`);
                         }
 
-                        if (Type.utils.isFunction(ty)) {
-                            ty = Type.Function([subject, ...Type.utils.unlist(ty.args[0])], ty.args[1]);
+                        if (!isStatic && Type.utils.isFunction(ty)) {
+                            // prepend 'self' to the function's type
+                            ty = Type.Function(
+                                [subject, ...Type.utils.unlist(ty.args[0])],
+                                ty.args[1]
+                            );
                         }
 
                         extensionAccessExpr.extensionUuid = uuid;

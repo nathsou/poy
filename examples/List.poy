@@ -5,16 +5,16 @@ pub type {
     IsEmpty<_> = False
 
     Len<[]> = Zero
-    Len<_::tl> = S<Len<tl>>
+    Len<_:tl> = S<Len<tl>>
 
     Filter<_, []> = []
-    Filter<pred, h::tl> = @let<rem, Filter<pred, tl>, @if<@app<pred, h>, h::rem, rem>>
+    Filter<pred, h:tl> = @let<rem, Filter<pred, tl>, @if<@app<pred, h>, h:rem, rem>>
     
     Map<_, []> = []
-    Map<f, h::tl> = @app<f, h>::Map<f, tl>
+    Map<f, h:tl> = @app<f, h>:Map<f, tl>
 
     Fold<_, [], acc> = acc
-    Fold<f, h::tl, acc> = Fold<f, tl, @app<f, h, acc>>
+    Fold<f, h:tl, acc> = Fold<f, tl, @app<f, h, acc>>
 
     Sum<lst> = Fold<@fun<n, acc, Add<n, acc>>, lst, Zero>
     Prod<lst> = Fold<@fun<n, acc, Mul<n, acc>>, lst, Peano.N1>

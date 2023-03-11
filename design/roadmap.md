@@ -24,7 +24,7 @@
 
 ### 3. Extensions
 - [x] Resolve matching extensions for method calls
-- [ ] Support static functions and initializers
+- [x] Support static functions and initializers
 
 ### 4. Generics
 - [ ] Support generic functions

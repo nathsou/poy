@@ -25,11 +25,17 @@ struct Person {
     city: Str,
 }
 
+extend Person {
+    static fun init(name, age, city) {
+        Person { name: name, age: age, city: city }
+    }
+}
+
 extend Tuple<[]> {
     let isUnit = true
 }
 
-extend Tuple<_::_> {
+extend Tuple<_:_> {
     let isUnit = false
 }
 
@@ -39,11 +45,8 @@ extend Person {
     }
 }
 
-let nath = Person { name: "Nathalie", age: 25, city: "Paris" }
-let city = nath.city
-print(nath.canDrive())
-print(().isUnit)
-print((3, "hello").isUnit)
+let nathalie = Person { name: "Nathalie", age: 25, city: "Paris" }
+let nathan = Person("Nathan", 24, "Paris")
 
 let {
     a = 3 * 7 + 2
@@ -144,11 +147,13 @@ extend () {
     let length = 0
 }
 
-extend Tuple<_::_> {
+extend Tuple<_:_> {
     declare let length: Num
 }
 
 extend Num[] {
+    static fun init(): Self { [] }
+    
     declare {
         let length: Num
         fun at(index: Num): Num
@@ -159,6 +164,10 @@ extend Num[] {
         fun flatMap(f: Num -> a[]): a[]
         fun find(predicate: Num -> Bool): Option<Num>
         fun forEach(f: Num -> ()): ()
+        fun slice(start: Num, end: Num): Num[]
+        fun includes(value: Num): Bool
+        fun some(predicate: Num -> Bool): Bool
+        fun every(predicate: Num -> Bool): Bool
     }
 
     fun reverse(): Num[] {
@@ -173,10 +182,6 @@ extend Num[] {
         rev
     }
 
-    fun index(n: Num) {
-        self.at(n)
-    }
-
     fun sum() {
         mut total = 0
         mut i = 0
@@ -187,6 +192,10 @@ extend Num[] {
         }
 
         total
+    }
+
+    fun isEmpty(): Bool {
+        self.length == 0
     }
 }
 
@@ -202,8 +211,6 @@ fun range(start: Num, end: Num): Num[] {
     rng
 }
 
-print(use tuple = (4, true) in (tuple.kind, tuple.length))
-print((index @ Num[])([1, 2, 3], 1))
-print(range(0, 100).sum())
-print((sum @ _[])(range(0, 100)))
-print(range(0, 1000).filter(isPrime @ Num))
+print(range(0, 1000).filter(Num::isPrime))
+print(Num[]())
+print(Num[]::sum([1, 2, 3]))
