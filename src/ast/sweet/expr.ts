@@ -17,7 +17,7 @@ export type Expr = DataType<{
     Call: { fun: Expr, args: Expr[] },
     Path: { path: string[], member: string },
     Struct: { path: string[], name: string, fields: { name: string, value: Expr }[] },
-    Dot: { lhs: Expr, field: string },
+    Dot: { lhs: Expr, field: string, extensionUuid?: string, isCalled: boolean },
 }> & { ty?: Type };
 
 export type FunctionArgument = { name: string, ann?: Type };
@@ -25,9 +25,8 @@ export type FunctionArgument = { name: string, ann?: Type };
 export const Expr = {
     ...genConstructors<Expr>([
         'Variable', 'Unary', 'Binary', 'Block', 'If', 'Tuple', 'Array',
-        'UseIn', 'Fun', 'Call', 'Struct',
+        'UseIn', 'Fun', 'Call', 'Struct', 'Dot',
     ]),
     Literal: (literal: Literal): Expr => ({ variant: 'Literal', literal }) as const,
     Path: (path: string[], member: string): Expr => ({ variant: 'Path', path, member }) as const,
-    Dot: (lhs: Expr, field: string): Expr => ({ variant: 'Dot', lhs, field }) as const,
 };

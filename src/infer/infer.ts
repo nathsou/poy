@@ -5,14 +5,16 @@ import { Stmt } from "../ast/sweet/stmt";
 import { Maybe } from "../misc/maybe";
 import { Scope } from "../misc/scope";
 import { setDifference } from "../misc/sets";
-import { last, panic, proj } from "../misc/utils";
+import { assert, last, panic, proj } from "../misc/utils";
 import { AssignmentOp, BinaryOp, UnaryOp } from "../parse/token";
 import { Module, ModulePath, Resolver } from "../resolve/resolve";
 import { TRS } from "./rewrite";
-import { Type, TypeVar } from "./type";
+import { Subst, Type, TypeVar } from "./type";
 
 type VarInfo = { pub: boolean, mutable: boolean, ty: Type };
 type ModuleInfo = Module & { local: boolean };
+type ExtensionInfo = { subject: Type, members: Map<string, Type>, uuid: string };
+type Extensions = { local: ExtensionInfo[], parent?: Extensions };
 
 export class TypeEnv {
     public variables: Scope<VarInfo>;
@@ -20,6 +22,7 @@ export class TypeEnv {
     public typeRules: TRS;
     private typeImports: Map<string, ModulePath>;
     private structs: Scope<StructDecl>;
+    private extensions: Extensions;
     private letLevel: number;
     private functionStack: Type[];
     private resolver: Resolver;
@@ -33,6 +36,7 @@ export class TypeEnv {
         this.typeRules = TRS.create(parent?.typeRules);
         this.typeImports = new Map(parent?.typeImports);
         this.structs = new Scope(parent?.structs);
+        this.extensions = { local: [], parent: parent?.extensions };
         this.letLevel = parent?.letLevel ?? 0;
         this.functionStack = [...parent?.functionStack ?? []];
         this.modulePath = modulePath;
@@ -213,6 +217,29 @@ export class TypeEnv {
                         });
                     }
                 }
+            },
+            Extend: ({ subject, decls, uuid }) => {
+                const subjectTy = this.resolveType(subject);
+                const members = new Map<string, Type>();
+                const extEnv = this.child();
+                extEnv.variables.declare('self', { pub: false, mutable: false, ty: subjectTy });
+                extEnv.typeRules.set('Self', [{
+                    pub: false,
+                    lhs: Type.Fun('Self', [], { file: this.modulePath, subpath: [], env: extEnv }),
+                    rhs: subjectTy,
+                }]);
+
+                for (const decl of decls) {
+                    if (decl.variant === 'Stmt' && decl.stmt.variant === 'Let') {
+                        const { pub, mutable, name, ann, value } = decl.stmt;
+                        const ty = extEnv.inferLet(pub, mutable, name, ann, value);
+                        members.set(name, extEnv.resolveType(ty));
+                    } else {
+                        panic(`Cannot extend type with a '${decl.variant}' declaration`);
+                    }
+                }
+
+                this.extensions.local.push({ subject: subjectTy, members, uuid });
             },
             _Many: ({ decls }) => {
                 for (const decl of decls) {
@@ -453,21 +480,33 @@ export class TypeEnv {
 
                 return Type.Fun(name, [], { file: this.modulePath, subpath: [], env: this });
             },
-            Dot: ({ lhs, field }) => {
+            Dot: dotExpr => {
+                const { lhs, field, isCalled } = dotExpr;
                 const lhsTy = this.inferExpr(lhs);
 
                 if (lhsTy.variant === 'Fun' && lhsTy.args.length === 0 && this.structs.has(lhsTy.name)) {
-                    const decl = this.structs.lookup(lhsTy.name).unwrap();
-                    const fieldInfo = decl.fields.find(({ name }) => name === field);
+                    const decl = this.structs.lookup(lhsTy.name);
+                    if (decl.isSome()) {
+                        const fieldInfo = decl.unwrap().fields.find(({ name }) => name === field);
 
-                    if (fieldInfo == null) {
-                        return panic(`Struct '${lhsTy.name}' has no field '${field}'`);
+                        if (fieldInfo) {
+                            return Type.instantiate(fieldInfo.ty, this.letLevel);
+                        }
+                    }
+                }
+
+                const ext = this.findMatchingExtension(lhsTy, field);
+                if (ext) {
+                    dotExpr.extensionUuid = ext.uuid;
+
+                    if (Type.utils.isFunction(ext.ty) && ext.ty.name === 'Function' && !isCalled) {
+                        return panic(`member '${field}' from extension of '${Type.show(lhsTy)}' must be called`);
                     }
 
-                    return Type.instantiate(fieldInfo.ty, this.letLevel);
-                } else {
-                    return panic(`Cannot access field '${field}' of non-struct type ${Type.show(lhsTy)}`);
+                    return ext.ty;
                 }
+
+                return panic(`Type ${Type.show(lhsTy)} has no field '${field}'`);
             },
         });
 
@@ -511,5 +550,41 @@ export class TypeEnv {
                 );
             },
         }));
+    }
+
+    public findMatchingExtension(ty: Type, member: string): { ty: Type, uuid: string } | undefined {
+        const candidates: { ext: ExtensionInfo, subst: Subst }[] = [];
+        const traverse = (extensions: Extensions) => {
+            for (const ext of extensions.local) {
+                if (ext.members.has(member)) {
+                    const subst = Type.unifyPure(ext.subject, ty);
+                    if (subst) {
+                        candidates.push({ ext, subst });
+                    }
+                }
+            }
+
+            if (extensions.parent) {
+                traverse(extensions.parent);
+            }
+        };
+
+        traverse(this.extensions);
+
+        if (candidates.length === 1) {
+            return {
+                ty: Type.instantiate(
+                    candidates[0].ext.members.get(member)!,
+                    this.letLevel
+                ),
+                uuid: candidates[0].ext.uuid,
+            };
+        }
+
+        if (candidates.length > 1) {
+            panic(`Ambiguous extension match for ${Type.show(ty)}.${member}`);
+        }
+
+        return undefined;
     }
 }

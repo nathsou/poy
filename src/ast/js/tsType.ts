@@ -28,7 +28,7 @@ export const TSType = {
     ...genConstructors<TSType>([
         'Any', 'Void', 'Never', 'Null', 'Undefined', 'Boolean', 'Number',
         'String', 'Variable', 'Array', 'Tuple', 'Union', 'Intersection',
-        'Function', 'Record', 'Literal', 'Ref', 'Access',
+        'Function', 'Record', 'Literal', 'Ref', 'Access', 'Spread',
     ]),
     show,
     from,

@@ -17,5 +17,26 @@ export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] => match(sweet, {
     Module: mod => [bitterModuleOf(mod)],
     Import: ({ path, module, members }) => [BitterDecl.Import({ path, module, members })],
     Struct: ({ pub, name, fields }) => [BitterDecl.Struct({ pub, name, fields })],
+    Extend: ({ subject, decls, uuid }) => {
+        const letDecls: BitterDecl[] = [];
+
+        for (const decl of decls) {
+            if (decl.variant === 'Stmt' && decl.stmt.variant === 'Let') {
+                const letStmt = { ...decl.stmt };
+                letStmt.name = `${letStmt.name}_${uuid}`;
+
+                if (letStmt.value.variant === 'Fun') {
+                    letStmt.value.args.unshift({
+                        name: 'self',
+                        ann: subject,
+                    });
+                }
+
+                letDecls.push(...bitterDeclsOf(SweetDecl.Stmt(letStmt)));
+            }
+        }
+
+        return letDecls;
+    },
     _Many: ({ decls }) => decls.flatMap(bitterDeclsOf),
 });

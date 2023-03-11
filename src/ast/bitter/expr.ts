@@ -20,15 +20,14 @@ export type Expr = DataType<Typed<{
     Call: { fun: Expr, args: Expr[] },
     Path: { path: string[], member: string },
     Struct: { path: string[], name: string, fields: { name: string, value: Expr }[] },
-    Dot: { lhs: Expr, field: string },
+    Dot: { lhs: Expr, field: string, isCalled: boolean },
 }>>;
 
 export const Expr = {
     ...genConstructors<Expr>([
         'Variable', 'Unary', 'Binary', 'Block', 'If', 'Tuple', 'Array',
-        'UseIn', 'Fun', 'Call', 'Struct',
+        'UseIn', 'Fun', 'Call', 'Struct', 'Dot',
     ]),
     Literal: (literal: Literal, ty: Type): Expr => ({ variant: 'Literal', literal, ty }) as const,
     Path: (path: string[], member: string, ty: Type): Expr => ({ variant: 'Path', path, member, ty }) as const,
-    Dot: (lhs: Expr, field: string, ty: Type): Expr => ({ variant: 'Dot', lhs, field, ty }) as const,
 };

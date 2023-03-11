@@ -1,6 +1,13 @@
 import Euler { euler1 }
 import List { Filter, IsEmpty }
 
+struct Console {
+    log: _ -> (),
+}
+
+declare let console: Console
+let print = console.log
+
 type {
     ReturnType<Function<_, ret>> = ret
     Parameters<Function<args, _>> = args
@@ -12,18 +19,31 @@ type {
     Query = Filter<@fun<lst, Not<IsEmpty<lst>>>, L>
 }
 
-declare let print: _ -> ()
-
 struct Person {
     name: Str,
     age: Num,
     city: Str,
 }
 
+extend Tuple<[]> {
+    let isUnit = true
+}
+
+extend Tuple<_::_> {
+    let isUnit = false
+}
+
+extend Person {
+    fun canDrive() {
+        self.age >= 18
+    }
+}
+
 let nath = Person { name: "Nathalie", age: 25, city: "Paris" }
 let city = nath.city
-
-print(city)
+print(nath.canDrive())
+print(().isUnit)
+print((3, "hello").isUnit)
 
 let {
     a = 3 * 7 + 2
@@ -53,21 +73,26 @@ declare module Math {
 let y = use sum = A.a + A.B.b + A.B.C.c in Math.sqrt(fact(sum))
 let x = { let x = 3; let y = 7; x * { let x = 11; let y = 17; x + y } - y } + y
 
-fun isPrime(n) {
-    if n == 2 { return true }
-    if n < 2 || n % 2 == 0 { return false }
+extend Num {
+    fun isPrime() {
+        if self == 2 { return true }
+        if self < 2 || self % 2 == 0 { return false }
+        mut i = 3
 
-    mut i = 3
+        while i * i <= self {
+            if self % i == 0 {
+                return false
+            }
 
-    while i * i <= n {
-        if n % i == 0 {
-            return false
+            i += 2
         }
 
-        i += 2
+        true
     }
 
-    true
+    fun sqrt() {
+        Math.sqrt(self)
+    }
 }
 
 fun countPrimes(upTo) {
@@ -75,7 +100,7 @@ fun countPrimes(upTo) {
     mut i = 3
     
     while i <= upTo {
-        if isPrime(i) {
+        if i.isPrime() {
             count += 1
         }
 
@@ -85,5 +110,4 @@ fun countPrimes(upTo) {
     count
 }
 
-print(countPrimes(10 ** 6))
-print(euler1())
+print(3.sqrt())

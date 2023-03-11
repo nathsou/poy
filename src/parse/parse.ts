@@ -8,6 +8,7 @@ import { Maybe, None, Some } from "../misc/maybe";
 import { isUpperCase } from "../misc/strings";
 import { assert, last, letIn, panic } from "../misc/utils";
 import { AssignmentOp, BinaryOp, Keyword, Literal, Symbol, Token, UnaryOp } from "./token";
+import { v4 as uuidv4 } from 'uuid';
 
 export const parse = (tokens: Token[], newlines: number[], filePath: string) => {
     let index = 0;
@@ -461,13 +462,17 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         let lhs = primaryExpr();
 
         while (matches(Token.Symbol('.'))) {
-            const name = identifier();
-            lhs = Expr.Dot(lhs, name);
+            const field = identifier();
+            lhs = Expr.Dot({ lhs, field, isCalled: false });
         }
 
         while (matches(Token.Symbol('('))) {
             const args = commas(expr);
             consume(Token.Symbol(')'));
+
+            if (lhs.variant === 'Dot') {
+                lhs.isCalled = true;
+            }
 
             lhs = Expr.Call({ fun: lhs, args });
         }
@@ -701,6 +706,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         declare: declareDecl,
         import: importDecl,
         struct: structDecl,
+        extend: extendDecl,
     };
 
     function decl(): Decl {
@@ -833,6 +839,24 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             letLevel -= 1;
 
             return Decl.Struct({ pub: modifiers.pub, name, fields });
+        });
+    }
+
+    function extendDecl(): VariantOf<Decl, 'Extend'> {
+        return typeScoped(() => {
+            const subject = type();
+            consume(Token.Symbol('{'));
+
+            const decls: Decl[] = [];
+
+            while (!matches(Token.Symbol('}'))) {
+                decls.push(decl());
+                consumeIfPresent(Token.Symbol(','));
+            }
+
+            consumeIfPresent(Token.Symbol(';'));
+
+            return Decl.Extend({ subject, decls, uuid: uuidv4().replace(/-/g, '_') });
         });
     }
 

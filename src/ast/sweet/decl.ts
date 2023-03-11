@@ -15,11 +15,12 @@ export type Decl = DataType<{
         members?: { name: string, kind?: ImportMemberKind }[],
     },
     Struct: StructDecl,
+    Extend: ExtendDecl,
     _Many: { decls: Decl[] },
 }>;
 
 export const Decl = {
-    ...genConstructors<Decl>(['Module', 'Import', 'Type', 'Struct', '_Many']),
+    ...genConstructors<Decl>(['Module', 'Import', 'Type', 'Struct', 'Extend', '_Many']),
     Stmt: (stmt: Stmt) => ({ variant: 'Stmt', stmt }) satisfies Decl,
     Declare: (sig: Signature) => ({ variant: 'Declare', sig }) satisfies Decl,
 };
@@ -46,4 +47,10 @@ export type StructDecl = {
     pub: boolean,
     name: string,
     fields: { mut: boolean, name: string, ty: Type }[],
+};
+
+export type ExtendDecl = {
+    subject: Type,
+    decls: Decl[],
+    uuid: string,
 };

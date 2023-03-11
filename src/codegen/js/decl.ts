@@ -36,6 +36,21 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSDecl {
                             },
                             Type: () => { },
                             Struct: () => { },
+                            Extend: ({ decls }) => {
+                                for (const decl of decls) {
+                                    if (decl.variant === 'Stmt') {
+                                        const stmt = decl.stmt;
+                                        moduleScope.add(jsStmtOf(stmt, moduleScope));
+
+                                        if (stmt.variant === 'Let') {
+                                            members.push({
+                                                name: stmt.name,
+                                                ty: TSType.from(stmt.value.ty)
+                                            });
+                                        }
+                                    }
+                                }
+                            },
                             Declare: ({ sig }) => {
                                 match(sig, {
                                     Variable: ({ name }) => {

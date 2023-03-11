@@ -5,15 +5,10 @@ import { Module } from "../resolve/resolve";
 import { Decl as JSDecl } from '../ast/js/decl';
 
 export function bundle(modules: Map<string, Module>): string {
-    const loweredModules = [...modules.values()].map(module => {
+    return [...modules.values()].map(module => {
         const bitterModule = bitterModuleOf(module);
         const topLevelScope = new JSScope(false);
         const jsModule = jsOfDecl(bitterModule, topLevelScope);
         return JSDecl.show(jsModule);
-    });
-
-    return [
-        'const print = console.log;',
-        ...loweredModules,
-    ].join('\n');
+    }).join('\n');
 }

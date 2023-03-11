@@ -1,6 +1,7 @@
 import { match } from 'itsamatch';
 import { Expr as BitterExpr } from '../../ast/bitter/expr';
 import { Expr as SweetExpr } from '../../ast/sweet/expr';
+import { Type } from '../../infer/type';
 import { assert } from '../../misc/utils';
 import { bitterStmtOf } from './stmt';
 
@@ -42,7 +43,21 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
             body: bitterExprOf(body),
             ty,
         }),
-        Call: ({ fun, args }) => BitterExpr.Call({ fun: bitterExprOf(fun), args: args.map(bitterExprOf), ty }),
+        Call: ({ fun, args, ty }) => {
+            if (fun.variant === 'Dot' && fun.extensionUuid != null) {
+                const { lhs, field, extensionUuid } = fun;
+                return BitterExpr.Call({
+                    fun: BitterExpr.Variable({
+                        name: `${field}_${extensionUuid}`,
+                        ty: Type.Function([lhs.ty!, ...args.map(arg => arg.ty!)], ty!),
+                    }),
+                    args: [lhs, ...args].map(bitterExprOf),
+                    ty: ty!,
+                });
+            }
+
+            return BitterExpr.Call({ fun: bitterExprOf(fun), args: args.map(bitterExprOf), ty: ty! });
+        },
         Path: ({ path, member }) => BitterExpr.Path(path, member, ty),
         Struct: ({ path, name, fields }) => BitterExpr.Struct({
             path,
@@ -50,6 +65,20 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
             fields: fields.map(field => ({ name: field.name, value: bitterExprOf(field.value) })),
             ty
         }),
-        Dot: ({ lhs, field }) => BitterExpr.Dot(bitterExprOf(lhs), field, ty),
+        Dot: ({ lhs, field, extensionUuid, isCalled }) => {
+            if (extensionUuid != null && !isCalled) {
+                return BitterExpr.Variable({
+                    name: extensionUuid ? `${field}_${extensionUuid}` : field,
+                    ty: Type.Function([lhs.ty!], ty),
+                });
+            }
+
+            return BitterExpr.Dot({
+                lhs: bitterExprOf(lhs),
+                field: extensionUuid ? `${field}_${extensionUuid}` : field,
+                isCalled,
+                ty,
+            });
+        },
     });
 }

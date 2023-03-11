@@ -164,7 +164,7 @@ function show(ty: Type): string {
 
     let rhs = show(ty);
 
-    if (ty.variant === 'Fun' && ty.path != null) {
+    if (ty.variant === 'Fun' && ty.path != null && ty.path.subpath.length > 0) {
         rhs = `${ty.path.subpath.join('.')}.${rhs}`;
     }
 
