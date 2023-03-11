@@ -64,3 +64,9 @@ export const indices = <T>(vals: T[], pred: (val: T) => boolean): number[] => {
 
     return indices;
 };
+
+export const pushMap = <K, V>(map: Map<K, V[]>, key: K, value: V): void => {
+    const values = map.get(key) ?? [];
+    values.push(value);
+    map.set(key, values);
+};

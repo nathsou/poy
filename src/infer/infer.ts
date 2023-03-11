@@ -8,13 +8,12 @@ import { setDifference } from "../misc/sets";
 import { assert, last, panic, proj } from "../misc/utils";
 import { AssignmentOp, BinaryOp, UnaryOp } from "../parse/token";
 import { Module, ModulePath, Resolver } from "../resolve/resolve";
+import { ExtensionScope } from "./extensions";
 import { TRS } from "./rewrite";
-import { Subst, Type, TypeVar } from "./type";
+import { Type, TypeVar } from "./type";
 
 type VarInfo = { pub: boolean, mutable: boolean, ty: Type };
 type ModuleInfo = Module & { local: boolean };
-type ExtensionInfo = { subject: Type, members: Map<string, Type>, uuid: string };
-type Extensions = { local: ExtensionInfo[], parent?: Extensions };
 
 export class TypeEnv {
     public variables: Scope<VarInfo>;
@@ -22,7 +21,7 @@ export class TypeEnv {
     public typeRules: TRS;
     private typeImports: Map<string, ModulePath>;
     private structs: Scope<StructDecl>;
-    private extensions: Extensions;
+    private extensions: ExtensionScope;
     private letLevel: number;
     private functionStack: Type[];
     private resolver: Resolver;
@@ -36,7 +35,7 @@ export class TypeEnv {
         this.typeRules = TRS.create(parent?.typeRules);
         this.typeImports = new Map(parent?.typeImports);
         this.structs = new Scope(parent?.structs);
-        this.extensions = { local: [], parent: parent?.extensions };
+        this.extensions = new ExtensionScope(parent?.extensions);
         this.letLevel = parent?.letLevel ?? 0;
         this.functionStack = [...parent?.functionStack ?? []];
         this.modulePath = modulePath;
@@ -235,11 +234,11 @@ export class TypeEnv {
                         const ty = extEnv.inferLet(pub, mutable, name, ann, value);
                         members.set(name, extEnv.resolveType(ty));
                     } else {
-                        panic(`Cannot extend type with a '${decl.variant}' declaration`);
+                        panic(`Cannot extend a type with a '${decl.variant}' declaration`);
                     }
                 }
 
-                this.extensions.local.push({ subject: subjectTy, members, uuid });
+                this.extensions.declare(subjectTy, members, uuid);
             },
             _Many: ({ decls }) => {
                 for (const decl of decls) {
@@ -495,15 +494,17 @@ export class TypeEnv {
                     }
                 }
 
-                const ext = this.findMatchingExtension(lhsTy, field);
+                const ext = this.extensions.lookup(lhsTy, field);
+
                 if (ext) {
                     dotExpr.extensionUuid = ext.uuid;
+                    const memberTy = ext.members.get(field)!;
 
-                    if (Type.utils.isFunction(ext.ty) && ext.ty.name === 'Function' && !isCalled) {
+                    if (Type.utils.isFunction(memberTy) && memberTy.name === 'Function' && !isCalled) {
                         return panic(`member '${field}' from extension of '${Type.show(lhsTy)}' must be called`);
                     }
 
-                    return ext.ty;
+                    return memberTy;
                 }
 
                 return panic(`Type ${Type.show(lhsTy)} has no field '${field}'`);
@@ -550,41 +551,5 @@ export class TypeEnv {
                 );
             },
         }));
-    }
-
-    public findMatchingExtension(ty: Type, member: string): { ty: Type, uuid: string } | undefined {
-        const candidates: { ext: ExtensionInfo, subst: Subst }[] = [];
-        const traverse = (extensions: Extensions) => {
-            for (const ext of extensions.local) {
-                if (ext.members.has(member)) {
-                    const subst = Type.unifyPure(ext.subject, ty);
-                    if (subst) {
-                        candidates.push({ ext, subst });
-                    }
-                }
-            }
-
-            if (extensions.parent) {
-                traverse(extensions.parent);
-            }
-        };
-
-        traverse(this.extensions);
-
-        if (candidates.length === 1) {
-            return {
-                ty: Type.instantiate(
-                    candidates[0].ext.members.get(member)!,
-                    this.letLevel
-                ),
-                uuid: candidates[0].ext.uuid,
-            };
-        }
-
-        if (candidates.length > 1) {
-            panic(`Ambiguous extension match for ${Type.show(ty)}.${member}`);
-        }
-
-        return undefined;
     }
 }

@@ -34,6 +34,7 @@ export const Type = {
     rewrite,
     generalize,
     instantiate,
+    specificity,
     utils: {
         vars,
         isFunction(ty: Type): ty is Type & { variant: 'Fun', name: 'Function', args: [Type, Type] } {
@@ -211,7 +212,26 @@ function eq(a: Type, b: Type): boolean {
     });
 }
 
+function specificity(ty: Type): number {
+    return match(ty, {
+        Var: () => 1,
+        Fun: ({ args }) => 1000 + args.reduce((acc, arg) => acc + specificity(arg), 0),
+    });
+}
+
 export type Subst = Map<number, Type>;
+
+export const Subst = {
+    specificity: (subst: Subst): number => {
+        let specificity = 0;
+
+        for (const type of subst.values()) {
+            specificity += Type.specificity(type);
+        }
+
+        return specificity;
+    },
+};
 
 function occursCheckAdjustLevels(id: number, level: number, ty: Type): void {
     const go = (t: Type): void => {

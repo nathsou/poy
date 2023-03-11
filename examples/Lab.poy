@@ -110,4 +110,32 @@ fun countPrimes(upTo) {
     count
 }
 
-print(3.sqrt())
+extend a[] {
+    let kind = "any"
+}
+
+extend Num[] {
+    let kind = "num"
+}
+
+extend (_, _) {
+    let kind = "any_any"
+}
+
+extend (Num, _) {
+    let kind = "num_any"
+}
+
+extend (_, Num) {
+    let kind = "any_num"
+}
+
+extend (Str, Num) {
+    let kind = "str_num"
+}
+
+extend (Bool, Num) {
+    let kind = "bool_num"
+}
+
+print((4, true).kind)
