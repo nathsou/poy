@@ -44,7 +44,7 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
             ty,
         }),
         Call: ({ fun, args, ty }) => {
-            if (fun.variant === 'Dot' && fun.extensionUuid != null) {
+            if (fun.variant === 'Dot' && fun.extensionUuid != null && !fun.isNative) {
                 const { lhs, field, extensionUuid } = fun;
                 return BitterExpr.Call({
                     fun: BitterExpr.Variable({
@@ -65,7 +65,16 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
             fields: fields.map(field => ({ name: field.name, value: bitterExprOf(field.value) })),
             ty
         }),
-        Dot: ({ lhs, field, extensionUuid, isCalled }) => {
+        Dot: ({ lhs, field, extensionUuid, isCalled, isNative }) => {
+            if (isNative) {
+                return BitterExpr.Dot({
+                    lhs: bitterExprOf(lhs),
+                    field,
+                    isCalled,
+                    ty,
+                });
+            }
+
             if (extensionUuid != null && !isCalled) {
                 return BitterExpr.Variable({
                     name: extensionUuid ? `${field}_${extensionUuid}` : field,

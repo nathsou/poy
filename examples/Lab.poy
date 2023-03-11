@@ -67,7 +67,9 @@ module A {
 
 declare module Math {
     fun sqrt(x: Num): Num
-    let cbrt: Num -> Num
+    fun cbrt(x: Num): Num
+    fun min(a: Num, b: Num): Num
+    fun max(a: Num, b: Num): Num
 }
 
 let y = use sum = A.a + A.B.b + A.B.C.c in Math.sqrt(fact(sum))
@@ -138,4 +140,51 @@ extend (Bool, Num) {
     let kind = "bool_num"
 }
 
-print((4, true).kind)
+extend () {
+    let length = 0
+}
+
+extend Tuple<_::_> {
+    declare let length: Num
+}
+
+extend Num[] {
+    declare {
+        let length: Num
+        fun at(index: Num): Num
+        fun push(elem: Num): ()
+        fun pop(): Option<Num>
+        fun filter(predicate: Num -> Bool): Num[]
+        fun map(f: Num -> a): a[]
+        fun flatMap(f: Num -> a[]): a[]
+        fun find(predicate: Num -> Bool): Option<Num>
+        fun forEach(f: Num -> ()): ()
+    }
+
+    fun reverse(): Num[] {
+        mut rev = []
+        mut i = self.length - 1
+
+        while i >= 0 {
+            rev.push(self.at(i))
+            i -= 1
+        }
+
+        rev
+    }
+}
+
+fun range(start: Num, end: Num): Num[] {
+    mut rng = []
+    mut i = start
+
+    while i < end {
+        rng.push(i)
+        i += 1
+    }
+
+    rng
+}
+
+print(use tuple = (4, true) in (tuple.kind, tuple.length))
+print(range(0, 100).map(n -> n * n).reverse())

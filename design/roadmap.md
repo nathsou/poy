@@ -23,10 +23,13 @@
 - [x] Member access
 
 ### 3. Extensions
-- [ ] Resolve matching extensions for method calls
+- [x] Resolve matching extensions for method calls
 - [ ] Support static functions and initializers
 
-### 4. Mutability
+### 4. Generics
+- [ ] Support generic functions
+
+### 5. Mutability
 - [ ] Require `mut` keyword for any mutable function argument / variable / struct member 
 - [ ] Prevent mutation of immutable structures and nested elements
 
@@ -44,9 +47,6 @@ mut a = [d1, d2]
 a[0].a += 1 // error
 a[1].d += 1 // ok
 ```
-
-### 5. Generics
-- [ ] Support generic functions
 
 ### 6. Enums and Pattern Matching
 - [ ] Enum declarations

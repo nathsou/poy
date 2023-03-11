@@ -17,7 +17,7 @@ export type Expr = DataType<{
     Call: { fun: Expr, args: Expr[] },
     Path: { path: string[], member: string },
     Struct: { path: string[], name: string, fields: { name: string, value: Expr }[] },
-    Dot: { lhs: Expr, field: string, extensionUuid?: string, isCalled: boolean },
+    Dot: { lhs: Expr, field: string, extensionUuid?: string, isCalled: boolean, isNative: boolean },
 }> & { ty?: Type };
 
 export type FunctionArgument = { name: string, ann?: Type };

@@ -5,7 +5,7 @@ import { Stmt } from "../ast/sweet/stmt";
 import { Maybe } from "../misc/maybe";
 import { Scope } from "../misc/scope";
 import { setDifference } from "../misc/sets";
-import { assert, last, panic, proj } from "../misc/utils";
+import { last, panic, proj } from "../misc/utils";
 import { AssignmentOp, BinaryOp, UnaryOp } from "../parse/token";
 import { Module, ModulePath, Resolver } from "../resolve/resolve";
 import { ExtensionScope } from "./extensions";
@@ -218,27 +218,32 @@ export class TypeEnv {
                 }
             },
             Extend: ({ subject, decls, uuid }) => {
-                const subjectTy = this.resolveType(subject);
-                const members = new Map<string, Type>();
+                subject = this.resolveType(subject);
                 const extEnv = this.child();
-                extEnv.variables.declare('self', { pub: false, mutable: false, ty: subjectTy });
+                extEnv.variables.declare('self', { pub: false, mutable: false, ty: subject });
                 extEnv.typeRules.set('Self', [{
                     pub: false,
                     lhs: Type.Fun('Self', [], { file: this.modulePath, subpath: [], env: extEnv }),
-                    rhs: subjectTy,
+                    rhs: subject,
                 }]);
 
-                for (const decl of decls) {
+                const extend = (decl: Decl): void => {
                     if (decl.variant === 'Stmt' && decl.stmt.variant === 'Let') {
                         const { pub, mutable, name, ann, value } = decl.stmt;
                         const ty = extEnv.inferLet(pub, mutable, name, ann, value);
-                        members.set(name, extEnv.resolveType(ty));
+                        this.extensions.declare({ subject, member: name, ty, declared: false, uuid });
+                    } else if (decl.variant === 'Declare' && decl.sig.variant === 'Variable') {
+                        const { mutable, name, ty } = decl.sig;
+                        const genTy = mutable ? ty : Type.generalize(ty, this.letLevel);
+                        this.extensions.declare({ subject, member: name, ty: genTy, declared: true, uuid });
+                    } else if (decl.variant === '_Many') {
+                        decl.decls.forEach(extend);
                     } else {
                         panic(`Cannot extend a type with a '${decl.variant}' declaration`);
                     }
-                }
+                };
 
-                this.extensions.declare(subjectTy, members, uuid);
+                decls.forEach(extend);
             },
             _Many: ({ decls }) => {
                 for (const decl of decls) {
@@ -497,14 +502,15 @@ export class TypeEnv {
                 const ext = this.extensions.lookup(lhsTy, field);
 
                 if (ext) {
+                    const { ty: memberTy, declared: isNative } = ext;
                     dotExpr.extensionUuid = ext.uuid;
-                    const memberTy = ext.members.get(field)!;
+                    dotExpr.isNative = isNative;
 
-                    if (Type.utils.isFunction(memberTy) && memberTy.name === 'Function' && !isCalled) {
+                    if (Type.utils.isFunction(memberTy) && !isCalled) {
                         return panic(`member '${field}' from extension of '${Type.show(lhsTy)}' must be called`);
                     }
 
-                    return memberTy;
+                    return Type.instantiate(memberTy, this.letLevel);
                 }
 
                 return panic(`Type ${Type.show(lhsTy)} has no field '${field}'`);

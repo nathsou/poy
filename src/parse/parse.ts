@@ -461,20 +461,22 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     function callExpr(): Expr {
         let lhs = primaryExpr();
 
-        while (matches(Token.Symbol('.'))) {
-            const field = identifier();
-            lhs = Expr.Dot({ lhs, field, isCalled: false });
-        }
+        while (true) {
+            if (matches(Token.Symbol('.'))) {
+                const field = identifier();
+                lhs = Expr.Dot({ lhs, field, isCalled: false, isNative: false });
+            } else if (matches(Token.Symbol('('))) {
+                const args = commas(expr);
+                consume(Token.Symbol(')'));
 
-        while (matches(Token.Symbol('('))) {
-            const args = commas(expr);
-            consume(Token.Symbol(')'));
+                if (lhs.variant === 'Dot') {
+                    lhs.isCalled = true;
+                }
 
-            if (lhs.variant === 'Dot') {
-                lhs.isCalled = true;
+                lhs = Expr.Call({ fun: lhs, args });
+            } else {
+                break;
             }
-
-            lhs = Expr.Call({ fun: lhs, args });
         }
 
         return lhs;

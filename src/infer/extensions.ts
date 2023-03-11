@@ -1,38 +1,30 @@
 import { panic, pushMap } from "../misc/utils";
 import { Subst, Type } from "./type";
 
-type ExtensionInfo = { subject: Type, members: Map<string, Type>, uuid: string };
-type MatchingExtension = { ext: ExtensionInfo, subst: Subst };
+export type ExtensionMembers = Map<string, { ty: Type, declared: boolean }>;
+export type ExtensionInfo = { subject: Type, member: string, ty: Type, declared: boolean, uuid: string };
+export type MatchingExtension = { ext: ExtensionInfo, subst: Subst };
 
 export class ExtensionScope {
-    private extensions: ExtensionInfo[];
-    private extensionsByMember: Map<string, ExtensionInfo[]>;
+    private extensions: Map<string, ExtensionInfo[]>;
     private parent?: ExtensionScope;
 
     constructor(parent?: ExtensionScope) {
-        this.extensions = [];
-        this.extensionsByMember = new Map();
+        this.extensions = new Map();
         this.parent = parent;
     }
 
-    public declare(subject: Type, members: Map<string, Type>, uuid: string) {
-        const info: ExtensionInfo = { subject, members, uuid };
-        this.extensions.push(info);
-
-        for (const member of members.keys()) {
-            pushMap(this.extensionsByMember, member, info);
-        }
+    public declare(info: ExtensionInfo) {
+        pushMap(this.extensions, info.member, info);
     }
 
     public matchingCandidates(subject: Type, member: string): MatchingExtension[] {
         const candidates: MatchingExtension[] = [];
         const traverse = (scope: ExtensionScope) => {
-            for (const ext of scope.extensionsByMember.get(member) ?? []) {
+            for (const ext of scope.extensions.get(member) ?? []) {
                 const subst = Type.unifyPure(subject, ext.subject);
                 if (subst) {
-                    if (ext.members.has(member)) {
-                        candidates.push({ ext, subst });
-                    }
+                    candidates.push({ ext, subst });
                 }
             }
 
