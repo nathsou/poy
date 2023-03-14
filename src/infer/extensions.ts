@@ -23,16 +23,19 @@ export class ExtensionScope {
     }
 
     public declare(info: ExtensionInfo) {
+        console.log(`// Declaring extension ${Type.show(info.subject)}::${info.member} = ${Type.show(info.ty)}`);
         pushMap(this.extensions, info.member, info);
     }
 
-    public matchingCandidates(subject: Type, member: string): MatchingExtension[] {
+    public matchingCandidates(subject: Type, member: string, letLevel: number): MatchingExtension[] {
+        const subjectInst = Type.instantiate(subject, letLevel);
         const candidates: MatchingExtension[] = [];
-        const traverse = (scope: ExtensionScope) => {
+        const traverse = (scope: ExtensionScope): void => {
             for (const ext of scope.extensions.get(member) ?? []) {
-                const subst = Type.unifyPure(subject, ext.subject);
+                const extSubjectInst = Type.instantiate(ext.subject, letLevel);
+                const subst = Type.unifyPure(subjectInst.ty, extSubjectInst.ty);
                 if (subst) {
-                    candidates.push({ ext, subst });
+                    candidates.push({ ext, subst: new Map([...subjectInst.subst, ...extSubjectInst.subst, ...subst]) });
                 }
             }
 
@@ -46,19 +49,20 @@ export class ExtensionScope {
         return candidates;
     }
 
-    public lookup(subject: Type, member: string): Result<ExtensionInfo, string> {
-        const candidates = this.matchingCandidates(subject, member);
+    public lookup(subject: Type, member: string, letLevel: number): Result<MatchingExtension, string> {
+        const candidates = this.matchingCandidates(subject, member, letLevel);
 
         if (candidates.length === 0) {
             return Err(`No extension found for ${Type.show(subject)}::${member}`);
         }
 
         if (candidates.length === 1) {
-            return Ok(candidates[0].ext);
+            return Ok(candidates[0]);
         }
 
         const bySpecificity = candidates.map(({ ext, subst }) => ({
             ext,
+            subst,
             specificity: Subst.specificity(subst),
         }));
 
@@ -73,6 +77,6 @@ export class ExtensionScope {
             return Err(`Ambiguous extension for ${Type.show(subject)}::${member}, candidates:\n${fmt}`);
         }
 
-        return Ok(allBest[0].ext);
+        return Ok(allBest[0]);
     }
 }

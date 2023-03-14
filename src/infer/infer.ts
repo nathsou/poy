@@ -218,46 +218,56 @@ export class TypeEnv {
                 }
             },
             Extend: ({ subject, decls, uuid }) => {
-                subject = this.resolveType(subject);
-                const extEnv = this.child();
-                extEnv.variables.declare('self', { pub: false, mutable: false, ty: subject });
-                extEnv.typeRules.set('Self', [{
-                    pub: false,
-                    lhs: Type.Fun('Self', [], { file: this.modulePath, subpath: [], env: extEnv }),
-                    rhs: subject,
-                }]);
+                TypeVar.recordSubstitutions(globalSubst => {
+                    subject = Type.generalize(this.resolveType(subject), this.letLevel + 1);
 
-                const extend = (decl: Decl): void => {
-                    if (decl.variant === 'Stmt' && decl.stmt.variant === 'Let') {
-                        const { pub, mutable, static: isStatic, name, ann, value } = decl.stmt;
-                        const ty = extEnv.inferLet(pub, mutable, name, ann, value);
-                        this.extensions.declare({
-                            subject,
-                            member: name,
-                            ty,
-                            declared: false,
-                            static: isStatic,
-                            uuid,
-                        });
-                    } else if (decl.variant === 'Declare' && decl.sig.variant === 'Variable') {
-                        const { mutable, name, ty, static: isStatic } = decl.sig;
-                        const genTy = mutable ? ty : Type.generalize(ty, this.letLevel);
-                        this.extensions.declare({
-                            subject,
-                            member: name,
-                            ty: genTy,
-                            declared: true,
-                            static: isStatic,
-                            uuid,
-                        });
-                    } else if (decl.variant === '_Many') {
-                        decl.decls.forEach(extend);
-                    } else {
-                        panic(`Cannot extend a type with a '${decl.variant}' declaration`);
-                    }
-                };
+                    const extend = (decl: Decl): void => {
+                        const subjectInst = Type.instantiate(subject, this.letLevel + 1);
+                        const extEnv = this.child();
+                        extEnv.variables.declare('self', { pub: false, mutable: false, ty: subjectInst.ty });
+                        extEnv.typeRules.set('Self', [{
+                            pub: false,
+                            lhs: Type.Fun('Self', [], { file: this.modulePath, subpath: [], env: extEnv }),
+                            rhs: subjectInst.ty,
+                        }]);
 
-                decls.forEach(extend);
+                        if (decl.variant === 'Stmt' && decl.stmt.variant === 'Let') {
+                            const { pub, mutable, static: isStatic, name, ann, value } = decl.stmt;
+                            const ty = extEnv.inferLet(pub, mutable, name, ann, value);
+                            let substTy = Type.substitute(ty, subjectInst.subst);
+                            substTy = Type.substitute(ty, globalSubst);
+                            const genTy = mutable ? substTy : Type.generalize(substTy, this.letLevel);
+                            this.extensions.declare({
+                                subject: Type.substitute(subjectInst.ty, globalSubst),
+                                member: name,
+                                ty: genTy,
+                                declared: false,
+                                static: isStatic,
+                                uuid,
+                            });
+                        } else if (decl.variant === 'Declare' && decl.sig.variant === 'Variable') {
+                            let { mutable, name, ty, static: isStatic } = decl.sig;
+                            ty = Type.substitute(ty, subjectInst.subst);
+                            ty = Type.substitute(ty, globalSubst);
+                            const genTy = mutable ? ty : Type.generalize(ty, this.letLevel);
+
+                            this.extensions.declare({
+                                subject: Type.substitute(subjectInst.ty, globalSubst),
+                                member: name,
+                                ty: genTy,
+                                declared: true,
+                                static: isStatic,
+                                uuid,
+                            });
+                        } else if (decl.variant === '_Many') {
+                            decl.decls.forEach(extend);
+                        } else {
+                            panic(`Cannot extend a type with a '${decl.variant}' declaration`);
+                        }
+                    };
+
+                    decls.forEach(extend);
+                });
             },
             _Many: ({ decls }) => {
                 for (const decl of decls) {
@@ -296,8 +306,8 @@ export class TypeEnv {
                 const lhsTy = this.inferExpr(lhs);
                 const rhsTy = this.inferExpr(rhs);
 
-                this.unify(lhsTy, expectedLhsTy);
-                this.unify(rhsTy, expectedRhsTy);
+                this.unify(lhsTy, expectedLhsTy.ty);
+                this.unify(rhsTy, expectedRhsTy.ty);
 
                 this.unify(lhsTy, rhsTy);
             },
@@ -332,7 +342,7 @@ export class TypeEnv {
         const ty = match(expr, {
             Literal: ({ literal }) => Type[literal.variant],
             Variable: name => this.variables.lookup(name).match({
-                Some: ({ ty }) => Type.instantiate(ty, this.letLevel),
+                Some: ({ ty }) => Type.instantiate(ty, this.letLevel).ty,
                 None: () => panic(`Variable ${name} not found`),
             }),
             Unary: ({ op, expr }) => {
@@ -371,10 +381,10 @@ export class TypeEnv {
                 };
 
                 const [lhsExpected, rhsExpected, retTy] = BINARY_OP_TYPE[op].map(Type.instantiate);
-                this.unify(lhsTy, lhsExpected);
-                this.unify(rhsTy, rhsExpected);
+                this.unify(lhsTy, lhsExpected.ty);
+                this.unify(rhsTy, rhsExpected.ty);
 
-                return retTy;
+                return retTy.ty;
             },
             Block: ({ stmts, ret }) => {
                 const blockEnv = this.child();
@@ -494,7 +504,7 @@ export class TypeEnv {
                 }
 
                 for (const { name, ty } of decl.fields) {
-                    this.unify(fieldTys.get(name)!, Type.instantiate(ty, this.letLevel));
+                    this.unify(fieldTys.get(name)!, Type.instantiate(ty, this.letLevel).ty);
                 }
 
                 return Type.Fun(name, [], { file: this.modulePath, subpath: [], env: this });
@@ -509,23 +519,23 @@ export class TypeEnv {
                         const fieldInfo = decl.unwrap().fields.find(({ name }) => name === field);
 
                         if (fieldInfo) {
-                            return Type.instantiate(fieldInfo.ty, this.letLevel);
+                            return Type.instantiate(fieldInfo.ty, this.letLevel).ty;
                         }
                     }
                 }
 
-                const ext = this.extensions.lookup(lhsTy, field);
+                const ext = this.extensions.lookup(lhsTy, field, this.letLevel);
 
                 if (ext.isOk()) {
-                    const { ty: memberTy, declared: isNative, uuid } = ext.unwrap();
+                    const { ext: { ty: memberTy, declared: isNative, uuid, subject }, subst } = ext.unwrap();
                     dotExpr.extensionUuid = uuid;
                     dotExpr.isNative = isNative;
 
-                    if (Type.utils.isFunction(memberTy) && !isCalled) {
-                        return panic(`member '${field}' from extension of '${Type.show(lhsTy)}' must be called`);
+                    if (isNative && !isCalled && Type.utils.isFunction(memberTy)) {
+                        return panic(`Declared member '${field}' from extension of '${Type.show(lhsTy)}' must be called`);
                     }
 
-                    return Type.instantiate(memberTy, this.letLevel);
+                    return Type.instantiate(Type.substitute(memberTy, subst), this.letLevel).ty;
                 } else {
                     return panic(ext.unwrapError());
                 }
@@ -533,25 +543,25 @@ export class TypeEnv {
             ExtensionAccess: extensionAccessExpr => {
                 const { subject, member } = extensionAccessExpr;
                 extensionAccessExpr.subject = this.resolveType(subject);
-                const ext = this.extensions.lookup(subject, member);
+                const ext = this.extensions.lookup(subject, member, this.letLevel);
 
                 return ext.match({
-                    Ok: ({ ty, uuid, declared, static: isStatic }) => {
+                    Ok: ({ ext: { ty, uuid, declared, static: isStatic }, subst }) => {
                         if (declared) {
-                            return panic(`Cannot access a declared extension member with an extension access expression: '${member} @ ${Type.show(subject)}'`);
+                            return panic(`Cannot access a declared extension member with an extension access expression: '${Type.show(subject)}::${member}'`);
                         }
+
 
                         if (!isStatic && Type.utils.isFunction(ty)) {
                             // prepend 'self' to the function's type
                             ty = Type.Function(
-                                [subject, ...Type.utils.unlist(ty.args[0])],
-                                ty.args[1]
+                                [subject, ...Type.utils.functionParameters(ty)],
+                                Type.utils.functionReturnType(ty),
                             );
                         }
 
                         extensionAccessExpr.extensionUuid = uuid;
-
-                        return Type.instantiate(ty, this.letLevel);
+                        return Type.instantiate(Type.substitute(ty, subst), this.letLevel).ty;
                     },
                     Error: panic,
                 });

@@ -1,0 +1,34 @@
+import Foundations { print }
+
+declare fun showType(value: _): Str
+
+extend t[] {
+    declare {
+        let length: Num
+        fun at(index: Num): t
+        fun push(value: t): () 
+    }
+
+    fun reverse() {
+        mut rev = []
+        mut i = self.length - 1
+
+        while i >= 0 {
+            let elem = self.at(i)
+            print(showType(self))
+            print(showType(elem))
+            rev.push(elem)
+            i -= 1
+        }
+
+        print(showType(self))
+        print(showType(rev))
+
+        rev
+    }
+}
+
+mut vals = [1, 2, 3]
+// vals.push(4)
+print(showType(vals.at(0)))
+

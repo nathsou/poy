@@ -92,7 +92,14 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
                 ty: TSType.Function({ args: args.map(arg => TSType.from(arg.ty)), ret: ty }),
             });
         },
-        Call: ({ fun, args }) => JSExpr.Call(jsExprOf(fun, scope), args.map(arg => jsExprOf(arg, scope))),
+        Call: ({ fun, args }) => {
+            // TODO: remove once types can be represented with enums inside poy itself 
+            if (fun.variant === 'Variable' && fun.name === 'showType' && args.length === 1) {
+                return JSExpr.Literal({ literal: Literal.Str(Type.show(args[0].ty)), ty: TSType.String() });
+            }
+
+            return JSExpr.Call(jsExprOf(fun, scope), args.map(arg => jsExprOf(arg, scope)));
+        },
         ModuleAccess: ({ path, member }) => {
             assert(path.length > 0);
             const pathExpr = path.slice(1).reduce(

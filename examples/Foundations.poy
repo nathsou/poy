@@ -1,0 +1,7 @@
+
+pub struct Console {
+    log: _ -> (),
+}
+
+pub declare let console: Console
+pub let print = console.log

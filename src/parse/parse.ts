@@ -891,6 +891,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
 
     function extendDecl(): VariantOf<Decl, 'Extend'> {
         return typeScoped(() => {
+            letLevel += 1;
             const subject = type();
             consume(Token.Symbol('{'));
 
@@ -902,6 +903,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             }
 
             consumeIfPresent(Token.Symbol(';'));
+            letLevel -= 1;
 
             return Decl.Extend({ subject, decls, uuid: uuidv4().replace(/-/g, '_') });
         });

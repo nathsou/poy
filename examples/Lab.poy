@@ -73,6 +73,9 @@ declare module Math {
     fun cbrt(x: Num): Num
     fun min(a: Num, b: Num): Num
     fun max(a: Num, b: Num): Num
+    fun floor(x: Num): Num
+    fun ceil(x: Num): Num
+    fun round(x: Num): Num
 }
 
 let y = use sum = A.a + A.B.b + A.B.C.c in Math.sqrt(fact(sum))
@@ -95,24 +98,10 @@ extend Num {
         true
     }
 
-    fun sqrt() {
-        Math.sqrt(self)
-    }
-}
-
-fun countPrimes(upTo) {
-    mut count = if upTo >= 2 { 1 } else { 0 }
-    mut i = 3
-    
-    while i <= upTo {
-        if i.isPrime() {
-            count += 1
-        }
-
-        i += 2
-    }
-
-    count
+    fun sqrt() { Math.sqrt(self) }
+    fun floor() { Math.floor(self) }
+    fun ceil() { Math.ceil(self) }
+    fun round() { Math.round(self) }
 }
 
 extend a[] {
@@ -151,26 +140,26 @@ extend Tuple<_:_> {
     declare let length: Num
 }
 
-extend Num[] {
+extend a[] {
     static fun init(): Self { [] }
     
     declare {
         let length: Num
-        fun at(index: Num): Num
-        fun push(elem: Num): ()
-        fun pop(): Option<Num>
-        fun filter(predicate: Num -> Bool): Num[]
-        fun map(f: Num -> a): a[]
-        fun flatMap(f: Num -> a[]): a[]
-        fun find(predicate: Num -> Bool): Option<Num>
-        fun forEach(f: Num -> ()): ()
-        fun slice(start: Num, end: Num): Num[]
-        fun includes(value: Num): Bool
-        fun some(predicate: Num -> Bool): Bool
-        fun every(predicate: Num -> Bool): Bool
+        fun at(index: Num): a
+        fun push(elem: a): ()
+        fun pop(): Option<a>
+        fun filter(predicate: a -> Bool): a[]
+        fun map(f: a -> b): b[]
+        fun flatMap(f: a -> b[]): b[]
+        fun find(predicate: a -> Bool): Option<a>
+        fun forEach(f: a -> ()): ()
+        fun slice(start: Num, end: Num): a[]
+        fun includes(value: a): Bool
+        fun some(predicate: a -> Bool): Bool
+        fun every(predicate: a -> Bool): Bool
     }
 
-    fun reverse(): Num[] {
+    fun reverse() {
         mut rev = []
         mut i = self.length - 1
 
@@ -211,6 +200,4 @@ fun range(start: Num, end: Num): Num[] {
     rng
 }
 
-print(range(0, 1000).filter(Num::isPrime))
-print(Num[]())
-print(Num[]::sum([1, 2, 3]))
+print(range(1, 284000).filter(Num::isPrime).length.sqrt().round().isPrime())

@@ -2,7 +2,7 @@ import { DataType, genConstructors, match, matchMany } from "itsamatch";
 import { config } from "../config";
 import { Context } from "../misc/context";
 import { Eq, Impl, Rewrite, Show } from "../misc/traits";
-import { assert, panic } from "../misc/utils";
+import { array, assert, last, panic } from "../misc/utils";
 import { ModulePath } from "../resolve/resolve";
 import { normalize } from './rewrite';
 
@@ -73,13 +73,34 @@ export const TypeVar = {
         'Link Link': (a, b) => Type.eq(a.type, b.type),
         _: () => false,
     }),
-    show: self => match(self, {
-        Unbound: ({ id, name }) => name ?? showTypeVarId(id),
-        Generic: ({ id, name }) => name ?? showTypeVarId(id),
+    show: (self, ignoreName = config.debug.ignoreTypeParamName) => match(self, {
+        Unbound: ({ id, name }) => ignoreName ? showTypeVarId(id) : name ?? showTypeVarId(id),
+        Generic: ({ id, name }) => ignoreName ? showTypeVarId(id) : name ?? showTypeVarId(id),
         Link: ({ type }) => Type.show(type),
     }),
+    substitutionContexts: array<Subst>(),
+    pushSubstitutionContext(): Subst {
+        const subst = new Map<number, Type>();
+        TypeVar.substitutionContexts.push(subst);
+        return subst;
+    },
+    popSubstitutionContext(): Subst {
+        assert(TypeVar.substitutionContexts.length > 0, 'Substitution context stack is empty');
+        return TypeVar.substitutionContexts.pop()!;
+    },
+    recordSubstitutions: <T>(cb: (subst: Subst) => T): T => {
+        const subst = TypeVar.pushSubstitutionContext();
+        const ret = cb(subst);
+        TypeVar.popSubstitutionContext();
+        return ret;
+    },
     linkTo: (self: { ref: TypeVar }, type: Type, subst?: Subst): void => {
         if (self.ref.variant === 'Unbound') {
+            if (TypeVar.substitutionContexts.length > 0) {
+                const contextSubst = last(TypeVar.substitutionContexts);
+                contextSubst.set(self.ref.id, type);
+            }
+
             if (subst != null) {
                 subst.set(self.ref.id, type);
             } else {
@@ -103,17 +124,17 @@ function isList(ty: Type): boolean {
     });
 }
 
-function show(ty: Type): string {
+function show(ty: Type, ignoreName = config.debug.ignoreTypeParamName): string {
     const genericTyVars = new Set<string>();
 
     const show = (ty: Type): string => {
         return match(ty, {
             Var: ({ ref }) => {
                 if (ref.variant === 'Generic') {
-                    genericTyVars.add(ref.name ?? showTypeVarId(ref.id));
+                    genericTyVars.add(ignoreName ? showTypeVarId(ref.id) : ref.name ?? showTypeVarId(ref.id));
                 }
 
-                return TypeVar.show(ref);
+                return TypeVar.show(ref, ignoreName);
             },
             Fun: ({ name, args }) => {
                 switch (name) {
@@ -231,6 +252,11 @@ export const Subst = {
 
         return specificity;
     },
+    show: (subst: Subst): string => {
+        const entries = Array.from(subst.entries()).map(([id, ty]) => `${showTypeVarId(id)}: ${Type.show(ty)}`);
+
+        return '{ ' + entries.join(', ') + ' }';
+    },
 };
 
 function occursCheckAdjustLevels(id: number, level: number, ty: Type): void {
@@ -238,9 +264,9 @@ function occursCheckAdjustLevels(id: number, level: number, ty: Type): void {
         match(t, {
             Var: v => match(v.ref, {
                 Unbound: ({ id: id2, level: level2 }) => {
-                    if (id === id2) {
-                        panic('Recursive type');
-                    }
+                    // if (id === id2) {
+                    //     panic('Recursive type');
+                    // }
 
                     if (level2 > level) {
                         v.ref = TypeVar.Unbound({ id: id2, level });
@@ -261,9 +287,9 @@ function occursCheckAdjustLevels(id: number, level: number, ty: Type): void {
 function unifyVar(v: { ref: TypeVar }, ty: Type, eqs: [Type, Type][], subst?: Subst): void {
     match(v.ref, {
         Unbound: ({ id, level }) => {
-            if (ty.variant === 'Var' && ty.ref.variant === 'Unbound' && ty.ref.id === id) {
-                panic('There should only be one instance of a particular type variable.');
-            }
+            // if (ty.variant === 'Var' && ty.ref.variant === 'Unbound' && ty.ref.id === id) {
+            //     panic(`There should only be one instance of a particular type variable, but found two instances of '${showTypeVarId(id)}'.`);
+            // }
 
             occursCheckAdjustLevels(id, level, ty);
 
@@ -321,8 +347,22 @@ function unifyPure(a: Type, b: Type): Subst | undefined {
 function substitute(ty: Type, subst: Subst): Type {
     return match(ty, {
         Var: ({ ref }) => match(ref, {
-            Unbound: ({ id }) => subst.get(id) ?? ty,
-            Generic: ({ id }) => subst.get(id) ?? ty,
+            Unbound: ({ id }) => {
+                const target = subst.get(id);
+                if (target != null && !Type.eq(ty, target)) {
+                    return substitute(target, subst);
+                }
+
+                return ty;
+            },
+            Generic: ({ id }) => {
+                const target = subst.get(id);
+                if (target != null) {
+                    return substitute(target, subst);
+                }
+
+                return ty;
+            },
             Link: ({ type }) => substitute(type, subst),
         }),
         Fun: ({ name, args, path }) => Type.Fun(name, args.map(arg => substitute(arg, subst)), path),
@@ -346,20 +386,20 @@ function generalize(ty: Type, level: number): Type {
     });
 }
 
-function instantiate(ty: Type, level: number): Type {
-    const varMapping = new Map<number, Type>();
+function instantiate(ty: Type, level: number): { ty: Type, subst: Subst } {
+    const subst: Subst = new Map();
 
     const aux = (ty: Type): Type => {
         return match(ty, {
             Var: ({ ref }) => match(ref, {
                 Unbound: () => ty,
                 Generic: ({ id }) => {
-                    if (varMapping.has(id)) {
-                        return varMapping.get(id)!;
+                    if (subst.has(id)) {
+                        return subst.get(id)!;
                     }
 
                     const freshTy = Type.fresh(level);
-                    varMapping.set(id, freshTy);
+                    subst.set(id, freshTy);
 
                     return freshTy;
                 },
@@ -369,7 +409,7 @@ function instantiate(ty: Type, level: number): Type {
         });
     };
 
-    return aux(ty);
+    return { ty: aux(ty), subst };
 }
 
 function fresh(level: number, name?: string): Type {
