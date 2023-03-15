@@ -264,9 +264,9 @@ function occursCheckAdjustLevels(id: number, level: number, ty: Type): void {
         match(t, {
             Var: v => match(v.ref, {
                 Unbound: ({ id: id2, level: level2 }) => {
-                    // if (id === id2) {
-                    //     panic('Recursive type');
-                    // }
+                    if (id === id2) {
+                        panic('Recursive type');
+                    }
 
                     if (level2 > level) {
                         v.ref = TypeVar.Unbound({ id: id2, level });
@@ -287,9 +287,9 @@ function occursCheckAdjustLevels(id: number, level: number, ty: Type): void {
 function unifyVar(v: { ref: TypeVar }, ty: Type, eqs: [Type, Type][], subst?: Subst): void {
     match(v.ref, {
         Unbound: ({ id, level }) => {
-            // if (ty.variant === 'Var' && ty.ref.variant === 'Unbound' && ty.ref.id === id) {
-            //     panic(`There should only be one instance of a particular type variable, but found two instances of '${showTypeVarId(id)}'.`);
-            // }
+            if (ty.variant === 'Var' && ty.ref.variant === 'Unbound' && ty.ref.id === id) {
+                panic(`There should only be one instance of a particular type variable, but found two instances of '${showTypeVarId(id)}'.`);
+            }
 
             occursCheckAdjustLevels(id, level, ty);
 

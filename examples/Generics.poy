@@ -8,27 +8,35 @@ extend t[] {
         fun at(index: Num): t
         fun push(value: t): () 
     }
-
-    fun reverse() {
-        mut rev = []
-        mut i = self.length - 1
-
-        while i >= 0 {
-            let elem = self.at(i)
-            print(showType(self))
-            print(showType(elem))
-            rev.push(elem)
-            i -= 1
-        }
-
-        print(showType(self))
-        print(showType(rev))
-
-        rev
-    }
 }
 
-mut vals = [1, 2, 3]
-// vals.push(4)
-print(showType(vals.at(0)))
+declare module Math {
+    fun min(a: Num, b: Num): Num
+}
 
+fun zip(as: a[], bs: b[]) {
+    let len = Math.min(as.length, bs.length)
+    mut res = []
+    print(showType(res))
+    mut i = 0
+
+    while i < len {
+        print(showType(as))
+        print(showType(bs))
+        let pair = (as.at(i), bs.at(i))
+        print(showType(pair))
+        print(showType(res))
+        res.push(pair)
+        print(showType(res))
+        i += 1
+    }
+
+    res
+}
+
+print(showType(zip))
+
+mut vals = []
+vals.push((1, true))
+
+print(showType(vals))

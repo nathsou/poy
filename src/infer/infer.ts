@@ -10,7 +10,7 @@ import { AssignmentOp, BinaryOp, UnaryOp } from "../parse/token";
 import { Module, ModulePath, Resolver } from "../resolve/resolve";
 import { ExtensionScope } from "./extensions";
 import { TRS } from "./rewrite";
-import { Type, TypeVar } from "./type";
+import { Subst, Type, TypeVar } from "./type";
 
 type VarInfo = { pub: boolean, mutable: boolean, ty: Type };
 type ModuleInfo = Module & { local: boolean };
@@ -238,7 +238,7 @@ export class TypeEnv {
                             substTy = Type.substitute(ty, globalSubst);
                             const genTy = mutable ? substTy : Type.generalize(substTy, this.letLevel);
                             this.extensions.declare({
-                                subject: Type.substitute(subjectInst.ty, globalSubst),
+                                subject: Type.generalize(Type.substitute(subjectInst.ty, globalSubst), this.letLevel),
                                 member: name,
                                 ty: genTy,
                                 declared: false,
@@ -252,7 +252,7 @@ export class TypeEnv {
                             const genTy = mutable ? ty : Type.generalize(ty, this.letLevel);
 
                             this.extensions.declare({
-                                subject: Type.substitute(subjectInst.ty, globalSubst),
+                                subject: Type.generalize(Type.substitute(subjectInst.ty, globalSubst), this.letLevel),
                                 member: name,
                                 ty: genTy,
                                 declared: true,
@@ -535,7 +535,11 @@ export class TypeEnv {
                         return panic(`Declared member '${field}' from extension of '${Type.show(lhsTy)}' must be called`);
                     }
 
-                    return Type.instantiate(Type.substitute(memberTy, subst), this.letLevel).ty;
+                    const subjectInst = Type.instantiate(Type.substitute(subject, subst), this.letLevel);
+                    const extInst = Type.instantiate(Type.substitute(Type.substitute(memberTy, subst), subjectInst.subst), this.letLevel);
+                    this.unify(lhsTy, subjectInst.ty);
+
+                    return extInst.ty;
                 } else {
                     return panic(ext.unwrapError());
                 }
@@ -550,7 +554,6 @@ export class TypeEnv {
                         if (declared) {
                             return panic(`Cannot access a declared extension member with an extension access expression: '${Type.show(subject)}::${member}'`);
                         }
-
 
                         if (!isStatic && Type.utils.isFunction(ty)) {
                             // prepend 'self' to the function's type

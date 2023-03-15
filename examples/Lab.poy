@@ -3,10 +3,18 @@ import List { Filter, IsEmpty }
 
 struct Console {
     log: _ -> (),
+    warn: _ -> (),
+    info: _ -> (),
+    error: _ -> (),
+    time: Str -> (),
+    timeEnd: Str -> (),
+    clear: () -> (),
 }
 
 declare let console: Console
 let print = console.log
+
+declare let showType: _ -> Str
 
 type {
     ReturnType<Function<_, ret>> = ret
@@ -152,11 +160,24 @@ extend a[] {
         fun map(f: a -> b): b[]
         fun flatMap(f: a -> b[]): b[]
         fun find(predicate: a -> Bool): Option<a>
+        fun findIndex(predicate: a -> Bool): Option<Num>
         fun forEach(f: a -> ()): ()
         fun slice(start: Num, end: Num): a[]
         fun includes(value: a): Bool
         fun some(predicate: a -> Bool): Bool
         fun every(predicate: a -> Bool): Bool
+    }
+
+    fun first() {
+        self.at(0)
+    }
+
+    fun lastIndex(): Num {
+        self.length - 1
+    }
+
+    fun last() {
+        self.at(self.length - 1)
     }
 
     fun reverse() {
@@ -183,8 +204,48 @@ extend a[] {
         total
     }
 
+    fun product() {
+        mut total = 1
+        mut i = 0
+
+        while i < self.length {
+            total *= self.at(i)
+            i += 1
+        }
+
+        total 
+    }
+
     fun isEmpty(): Bool {
         self.length == 0
+    }
+
+    fun count(predicate: a -> Bool): Num {
+        mut count = 0
+        mut i = 0
+
+        while i < self.length {
+            if predicate(self.at(i)) {
+                count += 1
+            }
+
+            i += 1
+        }
+
+        count
+    }
+
+    fun zip(other) {
+        let len = Math.min(self.length, other.length)
+        mut res = []
+        mut i = 0
+
+        while i < len {
+            res.push((self.at(i), other.at(i)))
+            i += 1
+        }
+
+        res
     }
 }
 
@@ -200,4 +261,26 @@ fun range(start: Num, end: Num): Num[] {
     rng
 }
 
-print(range(1, 284000).filter(Num::isPrime).length.sqrt().round().isPrime())
+extend Str {
+    declare {
+        fun startsWith(str: Str): Bool
+        fun endsWith(str: Str): Bool
+        fun includes(str: Str): Bool
+    }
+}
+
+extend Str[] {
+    declare {
+        fun join(sep: Str): Str
+    }
+}
+
+let zipped = [1, 2, 3].zip(["a", "b", "c"])
+print(showType(zipped))
+print(zipped)
+// print(range(1, 284000).count(Num::isPrime).sqrt().round().isPrime())
+// print(Str[]().sum())
+// print(range(1, 100).reverse())
+// print("hello".startsWith("hell"))
+// print(["a", "b", "c"].last())
+// print(showType(_[]::sum))
