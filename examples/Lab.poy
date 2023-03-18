@@ -1,18 +1,6 @@
 import Euler { euler1 }
 import List { Filter, IsEmpty }
-
-struct Console {
-    log: _ -> (),
-    warn: _ -> (),
-    info: _ -> (),
-    error: _ -> (),
-    time: Str -> (),
-    timeEnd: Str -> (),
-    clear: () -> (),
-}
-
-declare let console: Console
-let print = console.log
+import Foundations { print }
 
 declare let showType: _ -> Str
 
@@ -92,11 +80,11 @@ let x = { let x = 3; let y = 7; x * { let x = 11; let y = 17; x + y } - y } + y
 extend Num {
     fun isPrime() {
         if self == 2 { return true }
-        if self < 2 || self % 2 == 0 { return false }
+        if self < 2 or self mod 2 == 0 { return false }
         mut i = 3
 
         while i * i <= self {
-            if self % i == 0 {
+            if self mod i == 0 {
                 return false
             }
 
@@ -275,12 +263,5 @@ extend Str[] {
     }
 }
 
-let zipped = [1, 2, 3].zip(["a", "b", "c"])
-print(showType(zipped))
-print(zipped)
-// print(range(1, 284000).count(Num::isPrime).sqrt().round().isPrime())
-// print(Str[]().sum())
-// print(range(1, 100).reverse())
-// print("hello".startsWith("hell"))
-// print(["a", "b", "c"].last())
-// print(showType(_[]::sum))
+use zipped = [1, 2, 3].zip(["a", "b", "c"]) in print(zipped)
+print(range(1, 284000).count(Num::isPrime))

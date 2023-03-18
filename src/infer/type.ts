@@ -40,11 +40,11 @@ export const Type = {
         isFunction(ty: Type): ty is Type & { variant: 'Fun', name: 'Function', args: [Type, Type] } {
             return ty.variant === 'Fun' && ty.name === 'Function' && ty.args.length === 2 && isList(ty.args[0]);
         },
-        functionParameters(ty: Type): Type[] {
+        parameters(ty: Type): Type[] {
             assert(Type.utils.isFunction(ty));
             return unlist(ty.args[0]);
         },
-        functionReturnType(ty: Type): Type {
+        returnType(ty: Type): Type {
             assert(Type.utils.isFunction(ty));
             return ty.args[1];
         },

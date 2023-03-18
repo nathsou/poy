@@ -1,12 +1,12 @@
 import { match } from 'itsamatch';
 import { Expr as BitterExpr } from '../../ast/bitter/expr';
 import { Stmt as BitterStmt } from '../../ast/bitter/stmt';
-import { Expr as JSExpr } from '../../ast/js/expr';
+import { Expr as JSExpr, BinaryOp as JSBinaryOp } from '../../ast/js/expr';
 import { Stmt as JSStmt } from '../../ast/js/stmt';
 import { TSType } from '../../ast/js/tsType';
 import { Type } from '../../infer/type';
 import { assert } from '../../misc/utils';
-import { Literal } from '../../parse/token';
+import { Literal, BinaryOp } from '../../parse/token';
 import { JSScope } from './jsScope';
 import { jsStmtOf } from './stmt';
 
@@ -18,7 +18,12 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
         Literal: ({ literal }) => JSExpr.Literal({ literal, ty }),
         Variable: ({ name }) => JSExpr.Variable(scope.lookup(name), ty),
         Unary: ({ op, expr }) => JSExpr.Unary({ op, expr: jsExprOf(expr, scope), ty }),
-        Binary: ({ lhs, op, rhs }) => JSExpr.Binary({ lhs: jsExprOf(lhs, scope), op, rhs: jsExprOf(rhs, scope), ty }),
+        Binary: ({ lhs, op, rhs }) => JSExpr.Binary({
+            lhs: jsExprOf(lhs, scope),
+            op: jsBinaryOpOf(op),
+            rhs: jsExprOf(rhs, scope),
+            ty
+        }),
         Block: ({ stmts, ret }) => {
             const blockScope = scope.virtualChild();
             blockScope.add(...stmts.map(stmt => jsStmtOf(stmt, blockScope)));
@@ -116,3 +121,12 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
         VariableAccess: ({ lhs, field }) => JSExpr.Dot(jsExprOf(lhs, scope), field),
     });
 };
+
+function jsBinaryOpOf(op: BinaryOp): JSBinaryOp {
+    switch (op) {
+        case 'and': return '&&';
+        case 'or': return '||';
+        case 'mod': return '%';
+        default: return op;
+    }
+}

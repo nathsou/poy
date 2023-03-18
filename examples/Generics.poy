@@ -6,7 +6,7 @@ extend t[] {
     declare {
         let length: Num
         fun at(index: Num): t
-        fun push(value: t): () 
+        fun push(value: t): ()
     }
 }
 

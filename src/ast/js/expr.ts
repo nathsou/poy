@@ -10,8 +10,8 @@ type Typed<T> = { [K in keyof T]: T[K] & { ty: TSType } };
 export type Expr = DataType<Typed<{
     Literal: { literal: Literal },
     Variable: { name: Name },
-    Unary: { op: string, expr: Expr },
-    Binary: { lhs: Expr, op: string, rhs: Expr },
+    Unary: { op: UnaryOp, expr: Expr },
+    Binary: { lhs: Expr, op: BinaryOp, rhs: Expr },
     Ternary: { cond: Expr, then: Expr, otherwise: Expr },
     Array: { elems: Expr[] },
     Closure: { args: { name: Name, ty: TSType }[], stmts: Stmt[] },
@@ -20,6 +20,11 @@ export type Expr = DataType<Typed<{
     Object: { entries: { key: string, value: Expr }[] },
     Dot: { lhs: Expr, field: string },
 }>>;
+
+export type UnaryOp = '!' | '-' | '+';
+type CompoundOp = '+=' | '-=' | '*=' | '/=' | '**=';
+export type BinaryOp = CompoundOp | '==' | '!=' | '<' | '<=' | '>' | '>=' | '+' | '-' |
+    '*' | '/' | '%' | '**' | '&&' | '||' | '&' | '|';
 
 export const Expr = {
     ...genConstructors<Expr>([

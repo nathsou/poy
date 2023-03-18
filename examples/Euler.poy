@@ -4,7 +4,7 @@ pub fun euler1() {
     mut i = 0
 
     while i < 1000 {
-        if i % 3 == 0 || i % 5 == 0 {
+        if i mod 3 == 0 or i mod 5 == 0 {
             sum += i
         }
 

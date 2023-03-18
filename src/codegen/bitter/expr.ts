@@ -102,11 +102,11 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
                 ty,
             });
         },
-        ExtensionAccess: ({ subject, member, extensionUuid, ty: extTy }) => {
+        ExtensionAccess: ({ member, extensionUuid }) => {
             assert(extensionUuid != null, 'Extension uuid must be present in extension access');
             return BitterExpr.Variable({
                 name: `${member}_${extensionUuid}`,
-                ty: Type.Function([subject, ...Type.utils.functionParameters(extTy!)], ty),
+                ty: sweet.ty!,
             });
         },
     });

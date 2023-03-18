@@ -219,7 +219,7 @@ export class TypeEnv {
             },
             Extend: ({ subject, decls, uuid }) => {
                 TypeVar.recordSubstitutions(globalSubst => {
-                    subject = Type.generalize(this.resolveType(subject), this.letLevel + 1);
+                    subject = Type.generalize(this.resolveType(subject), this.letLevel);
 
                     const extend = (decl: Decl): void => {
                         const subjectInst = Type.instantiate(subject, this.letLevel + 1);
@@ -293,10 +293,10 @@ export class TypeEnv {
                     '-=': [Type.Num, Type.Num],
                     '*=': [Type.Num, Type.Num],
                     '/=': [Type.Num, Type.Num],
-                    '%=': [Type.Num, Type.Num],
+                    'mod=': [Type.Num, Type.Num],
                     '**=': [Type.Num, Type.Num],
-                    '||=': [Type.Num, Type.Num],
-                    '&&=': [Type.Num, Type.Num],
+                    'or=': [Type.Num, Type.Num],
+                    'and=': [Type.Num, Type.Num],
                     '|=': [Type.Num, Type.Num],
                     '&=': [Type.Num, Type.Num],
                 };
@@ -366,7 +366,7 @@ export class TypeEnv {
                     '-': [Type.Num, Type.Num, Type.Num],
                     '*': [Type.Num, Type.Num, Type.Num],
                     '/': [Type.Num, Type.Num, Type.Num],
-                    '%': [Type.Num, Type.Num, Type.Num],
+                    'mod': [Type.Num, Type.Num, Type.Num],
                     '**': [Type.Num, Type.Num, Type.Num],
                     '==': [Type.Var(TypeVar.Generic({ id: 0 })), Type.Var(TypeVar.Generic({ id: 0 })), Type.Bool],
                     '!=': [Type.Var(TypeVar.Generic({ id: 0 })), Type.Var(TypeVar.Generic({ id: 0 })), Type.Bool],
@@ -374,8 +374,8 @@ export class TypeEnv {
                     '>': [Type.Num, Type.Num, Type.Bool],
                     '<=': [Type.Num, Type.Num, Type.Bool],
                     '>=': [Type.Num, Type.Num, Type.Bool],
-                    '&&': [Type.Bool, Type.Bool, Type.Bool],
-                    '||': [Type.Bool, Type.Bool, Type.Bool],
+                    'and': [Type.Bool, Type.Bool, Type.Bool],
+                    'or': [Type.Bool, Type.Bool, Type.Bool],
                     '&': [Type.Num, Type.Num, Type.Num],
                     '|': [Type.Num, Type.Num, Type.Num],
                 };
@@ -555,16 +555,18 @@ export class TypeEnv {
                             return panic(`Cannot access a declared extension member with an extension access expression: '${Type.show(subject)}::${member}'`);
                         }
 
-                        if (!isStatic && Type.utils.isFunction(ty)) {
+                        const instTy = Type.instantiate(Type.substitute(ty, subst), this.letLevel).ty;
+                        extensionAccessExpr.extensionUuid = uuid;
+
+                        if (!isStatic && Type.utils.isFunction(instTy)) {
                             // prepend 'self' to the function's type
-                            ty = Type.Function(
-                                [subject, ...Type.utils.functionParameters(ty)],
-                                Type.utils.functionReturnType(ty),
-                            );
+                            const selfTy = Type.substitute(subject, subst);
+                            const params = [selfTy, ...Type.utils.parameters(instTy)];
+                            const ret = Type.utils.returnType(instTy);
+                            return Type.Fun('Function', [Type.utils.list(params), ret]);
                         }
 
-                        extensionAccessExpr.extensionUuid = uuid;
-                        return Type.instantiate(Type.substitute(ty, subst), this.letLevel).ty;
+                        return instTy;
                     },
                     Error: panic,
                 });

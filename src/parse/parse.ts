@@ -419,11 +419,11 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     }
 
     function logicalOrExpr(): Expr {
-        return binaryExpr(logicalAndExpr, ['||']);
+        return binaryExpr(logicalAndExpr, ['or']);
     }
 
     function logicalAndExpr(): Expr {
-        return binaryExpr(equalityExpr, ['&&']);
+        return binaryExpr(equalityExpr, ['and']);
     }
 
     function equalityExpr(): Expr {
@@ -439,7 +439,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     }
 
     function multiplicationExpr(): Expr {
-        return binaryExpr(powExpr, ['*', '/', '%']);
+        return binaryExpr(powExpr, ['*', '/', 'mod']);
     }
 
     function powExpr(): Expr {
@@ -726,7 +726,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         return Stmt.Return(value);
     }
 
-    const ASSIGNMENT_OPERATORS = new Set<AssignmentOp>(['=', '+=', '-=', '*=', '/=', '%=', '**=', '||=', '&&=', '&=', '|=']);
+    const ASSIGNMENT_OPERATORS = new Set<AssignmentOp>(['=', '+=', '-=', '*=', '/=', 'mod=', '**=', 'or=', 'and=', '&=', '|=']);
 
     function assignmentStmt(): Stmt {
         const lhs = expr();

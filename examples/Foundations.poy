@@ -1,6 +1,12 @@
 
 pub struct Console {
     log: _ -> (),
+    warn: _ -> (),
+    info: _ -> (),
+    error: _ -> (),
+    time: Str -> (),
+    timeEnd: Str -> (),
+    clear: () -> (),
 }
 
 pub declare let console: Console

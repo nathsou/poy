@@ -54,15 +54,15 @@ export const Literal = {
 } satisfies Impl<Eq<Literal>>;
 
 export type UnaryOp = '+' | '-' | '!';
-export type BinaryOp = '+' | '-' | '*' | '/' | '%' | '**' | '==' | '!=' | '<' | '<=' | '>' | '>=' | '&&' | '||' | '&' | '|';
-export type AssignmentOp = '=' | '+=' | '-=' | '*=' | '/=' | '%=' | '**=' | '&&=' | '||=' | '&=' | '|=';
+export type AssignmentOp = '=' | '+=' | '-=' | '*=' | '/=' | 'mod=' | '**=' | 'or=' | 'and=' | '&=' | '|=';
+export type BinaryOp = '+' | '-' | '*' | '/' | 'mod' | '**' | '==' | '!=' | '<' | '<=' | '>' | '>=' | 'and' | 'or' | '&' | '|';
 export type Punctuation = '(' | ')' | '{' | '}' | '[' | ']' | ',' | ';' | ':' | '->' | '=>' | '::' | '_' | '.' | '@';
 export type Symbol = UnaryOp | BinaryOp | AssignmentOp | Punctuation;
 
 const keywords = [
     'module', 'let', 'mut', 'fun', 'if', 'else', 'match', 'for', 'while',
     'return', 'break', 'type', 'enum', 'struct', 'interface', 'extend', 'use', 'in',
-    'declare', 'import', 'pub', 'static',
+    'declare', 'import', 'pub', 'static', 'or', 'and',
 ] as const;
 
 export type Keyword = typeof keywords[number];

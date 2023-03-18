@@ -1,3 +1,4 @@
+import { config } from "../config";
 import { Err, Ok, Result } from "../misc/result";
 import { pushMap } from "../misc/utils";
 import { Subst, Type } from "./type";
@@ -23,7 +24,9 @@ export class ExtensionScope {
     }
 
     public declare(info: ExtensionInfo) {
-        console.log(`// Declaring extension ${Type.show(info.subject)}::${info.member} = ${Type.show(info.ty)}`);
+        if (config.debug.extensionType) {
+            console.log(`// extension ${Type.show(info.subject)}::${info.member}: ${Type.show(info.ty)}`);
+        }
         pushMap(this.extensions, info.member, info);
     }
 

@@ -100,6 +100,9 @@ export const lex = (source: string): Token[] => {
         switch (identifier) {
             case 'true': return Token.Literal(Literal.Bool(true));
             case 'false': return Token.Literal(Literal.Bool(false));
+            case 'and': return Token.Symbol(matches('=') ? 'and=' : 'and');
+            case 'or': return Token.Symbol(matches('=') ? 'or=' : 'or');
+            case 'mod': return Token.Symbol(matches('=') ? 'mod=' : 'mod');
             default:
                 return Keyword.is(identifier) ? Token.Keyword(identifier) : Token.Identifier(identifier);
         }
@@ -176,13 +179,12 @@ export const lex = (source: string): Token[] => {
                     return Token.Symbol(matches('=') ? '/=' : '/');
                 }
             }
-            case '%': return Token.Symbol(matches('=') ? '%=' : '%');
             case '!': return Token.Symbol('!');
             case '=': return Token.Symbol(matches('=') ? '==' : matches('>') ? '=>' : '=');
             case '<': return Token.Symbol(matches('=') ? '<=' : '<');
             case '>': return Token.Symbol(matches('=') ? '>=' : '>');
-            case '&': return Token.Symbol(matches('&') ? matches('=') ? '&&=' : '&&' : matches('=') ? '&=' : '&');
-            case '|': return Token.Symbol(matches('|') ? matches('=') ? '||=' : '||' : matches('=') ? '|=' : '|');
+            case '&': return Token.Symbol(matches('=') ? '&=' : '&');
+            case '|': return Token.Symbol(matches('=') ? '|=' : '|');
             case ':': return Token.Symbol(matches(':') ? '::' : ':');
             case '_': return Token.Symbol('_');
             case '.': return Token.Symbol('.');
