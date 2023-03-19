@@ -25,7 +25,7 @@ export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] => match(sweet, {
                 const letStmt = { ...decl.stmt };
                 letStmt.name = `${letStmt.name}_${uuid}`;
 
-                if (letStmt.value.variant === 'Fun') {
+                if (letStmt.value.variant === 'Fun' && !letStmt.static) {
                     letStmt.value.args.unshift({
                         name: 'self',
                         ann: subject,

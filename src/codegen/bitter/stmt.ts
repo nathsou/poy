@@ -4,8 +4,9 @@ import { Stmt as SweetStmt } from "../../ast/sweet/stmt";
 import { bitterExprOf } from "./expr";
 
 export const bitterStmtOf = (sweet: SweetStmt): BitterStmt[] => match(sweet, {
-    Let: ({ mutable, name, value }) => [BitterStmt.Let({
+    Let: ({ mutable, static: isStatic, name, value }) => [BitterStmt.Let({
         mutable,
+        static: isStatic,
         name,
         value: bitterExprOf(value),
     })],

@@ -10,7 +10,7 @@ import { AssignmentOp, BinaryOp, UnaryOp } from "../parse/token";
 import { Module, ModulePath, Resolver } from "../resolve/resolve";
 import { ExtensionScope } from "./extensions";
 import { TRS } from "./rewrite";
-import { Subst, Type, TypeVar } from "./type";
+import { Type, TypeVar } from "./type";
 
 type VarInfo = { pub: boolean, mutable: boolean, ty: Type };
 type ModuleInfo = Module & { local: boolean };

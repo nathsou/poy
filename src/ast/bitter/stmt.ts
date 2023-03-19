@@ -4,7 +4,7 @@ import { Expr } from "./expr";
 
 export type Stmt = DataType<{
     Expr: { expr: Expr },
-    Let: { mutable: boolean, name: string, value: Expr },
+    Let: { mutable: boolean, static: boolean, name: string, value: Expr },
     Assign: { lhs: Expr, op: AssignmentOp, rhs: Expr },
     While: { cond: Expr, body: Stmt[] },
     Return: { expr: Expr },

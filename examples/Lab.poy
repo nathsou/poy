@@ -5,6 +5,8 @@ import Foundations { print }
 declare let showType: _ -> Str
 
 type {
+    Unit = Tuple<[]>
+    Tuple<[a]> = a
     ReturnType<Function<_, ret>> = ret
     Parameters<Function<args, _>> = args
 
@@ -170,7 +172,7 @@ extend a[] {
 
     fun reverse() {
         mut rev = []
-        mut i = self.length - 1
+        mut i = self.lastIndex()
 
         while i >= 0 {
             rev.push(self.at(i))
