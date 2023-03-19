@@ -109,5 +109,11 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
                 ty: sweet.ty!,
             });
         },
+        TupleAccess: ({ lhs, index }) => BitterExpr.VariableAccess({
+            lhs: bitterExprOf(lhs),
+            field: index,
+            isCalled: false,
+            ty,
+        }),
     });
 }

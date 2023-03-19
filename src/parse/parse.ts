@@ -177,11 +177,22 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     }
 
     function consType(): Type {
-        const lhs = funType();
+        const lhs = arrayType();
 
         if (matches(Token.Symbol(':'))) {
             const rhs = type();
             return Type.Cons(lhs, rhs);
+        }
+
+        return lhs;
+    }
+
+    function arrayType(): Type {
+        let lhs = funType();
+
+        while (matches(Token.Symbol('['))) {
+            consume(Token.Symbol(']'));
+            lhs = Type.Array(lhs);
         }
 
         return lhs;
@@ -196,7 +207,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
                 consumeIfPresent(Token.Symbol(','));
             }
         } else {
-            args.push(arrayType());
+            args.push(typeList());
         }
 
         if (matches(Token.Symbol('->'))) {
@@ -207,16 +218,6 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         }
     }
 
-    function arrayType(): Type {
-        let lhs = typeList();
-
-        while (matches(Token.Symbol('['))) {
-            consume(Token.Symbol(']'));
-            lhs = Type.Array(lhs);
-        }
-
-        return lhs;
-    }
 
     function typeList(): Type {
         if (matches(Token.Symbol('['))) {
@@ -463,8 +464,27 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
 
         while (true) {
             if (matches(Token.Symbol('.'))) {
-                const field = identifier();
-                lhs = Expr.VariableAccess({ lhs, field, isCalled: false, isNative: false });
+                const token = peek();
+                let matched = false;
+
+                switch (token.variant) {
+                    case 'Identifier':
+                        next();
+                        lhs = Expr.VariableAccess({ lhs, field: token.$value, isCalled: false, isNative: false });
+                        matched = true;
+                        break;
+                    case 'Literal':
+                        if (token.value.variant === 'Num') {
+                            next();
+                            lhs = Expr.TupleAccess({ lhs, index: token.value.$value });
+                            matched = true;
+                        }
+                        break;
+                }
+
+                if (!matched) {
+                    reportError('Expected identifier or number literal');
+                }
             } else if (matches(Token.Symbol('('))) {
                 const args = commas(expr);
                 consume(Token.Symbol(')'));

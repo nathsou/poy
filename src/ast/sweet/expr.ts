@@ -19,6 +19,7 @@ export type Expr = DataType<{
     VariableAccess: { lhs: Expr, field: string, extensionUuid?: string, isCalled: boolean, isNative: boolean },
     ModuleAccess: { path: string[], member: string, extensionUuid?: string },
     ExtensionAccess: { subject: Type, member: string, extensionUuid?: string },
+    TupleAccess: { lhs: Expr, index: number },
 }> & { ty?: Type };
 
 export type FunctionArgument = { name: string, ann?: Type };
@@ -27,6 +28,7 @@ export const Expr = {
     ...genConstructors<Expr>([
         'Variable', 'Unary', 'Binary', 'Block', 'If', 'Tuple', 'Array',
         'UseIn', 'Fun', 'Call', 'Struct', 'VariableAccess', 'ExtensionAccess', 'ModuleAccess',
+        'TupleAccess',
     ]),
     Literal: (literal: Literal): Expr => ({ variant: 'Literal', literal }) as const,
 };

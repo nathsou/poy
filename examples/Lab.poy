@@ -6,7 +6,6 @@ declare let showType: _ -> Str
 
 type {
     Unit = Tuple<[]>
-    Tuple<[a]> = a
     ReturnType<Function<_, ret>> = ret
     Parameters<Function<args, _>> = args
 
@@ -138,6 +137,12 @@ extend Tuple<_:_> {
     declare let length: Num
 }
 
+extend Str[] {
+    declare {
+        fun join(sep: Str): Str
+    }
+}
+
 extend a[] {
     static fun init(): Self { [] }
     
@@ -237,6 +242,10 @@ extend a[] {
 
         res
     }
+
+    fun joinWith(fmt, sep) {
+        self.map(fmt).join(sep)
+    }
 }
 
 fun range(start: Num, end: Num): Num[] {
@@ -259,11 +268,30 @@ extend Str {
     }
 }
 
-extend Str[] {
-    declare {
-        fun join(sep: Str): Str
+
+extend (a[], b[]) {
+    fun zip() {
+        self.0.zip(self.1)
     }
 }
 
-use zipped = [1, 2, 3].zip(["a", "b", "c"]) in print(zipped)
-print(range(1, 284000).count(Num::isPrime))
+extend (a, b)[] {
+    fun unzip(): (a[], b[]) {
+        mut i = 0
+        mut as = []
+        mut bs = []
+
+        while i < self.length {
+            let pair = self.at(i)
+            as.push(pair.0) 
+            bs.push(pair.1) 
+            i += 1
+        }
+
+        (as, bs)
+    }
+}
+
+let zipped = [1, 2, 3].zip(["a", "b", "c"])
+print(zipped)
+print(zipped.unzip())

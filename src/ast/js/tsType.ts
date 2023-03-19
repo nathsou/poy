@@ -21,7 +21,7 @@ export type TSType = DataType<{
     Record: { fields: { [key: string]: TSType } },
     Literal: { value: string },
     Ref: { name: string, args: TSType[] },
-    Access: { path: TSType[], member: string },
+    Access: { path: TSType[], member: string | number },
 }>;
 
 export const TSType = {

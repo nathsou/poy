@@ -18,7 +18,7 @@ export type Expr = DataType<Typed<{
     Call: { fun: Expr, args: Expr[] },
     Paren: { expr: Expr },
     Object: { entries: { key: string, value: Expr }[] },
-    Dot: { lhs: Expr, field: string },
+    Dot: { lhs: Expr, field: string | number },
 }>>;
 
 export type UnaryOp = '!' | '-' | '+';
@@ -39,7 +39,7 @@ export const Expr = {
         args,
         ty: TSType.Ref({ name: 'ReturnType', args: [fun.ty] }),
     }) as const,
-    Dot: (lhs: Expr, field: string) => ({
+    Dot: (lhs: Expr, field: string | number) => ({
         variant: 'Dot',
         lhs,
         field,
@@ -90,6 +90,6 @@ function show(expr: Expr, indentLevel: number = 0): string {
                 return `{\n${entriesFmt.map(e => `${indent}    ${e}`).join(',\n')}\n${indent}  }`;
             }
         },
-        Dot: ({ lhs, field }) => `${show(lhs)}.${field}`,
+        Dot: ({ lhs, field }) => typeof field === 'number' ? `${show(lhs)}[${field}]` : `${show(lhs)}.${field}`,
     });
 }

@@ -10,7 +10,7 @@ import { AssignmentOp, BinaryOp, UnaryOp } from "../parse/token";
 import { Module, ModulePath, Resolver } from "../resolve/resolve";
 import { ExtensionScope } from "./extensions";
 import { TRS } from "./rewrite";
-import { Type, TypeVar } from "./type";
+import { Subst, Type, TypeVar } from "./type";
 
 type VarInfo = { pub: boolean, mutable: boolean, ty: Type };
 type ModuleInfo = Module & { local: boolean };
@@ -570,6 +570,24 @@ export class TypeEnv {
                     },
                     Error: panic,
                 });
+            },
+            TupleAccess: ({ lhs, index }) => {
+                let elems = Type.fresh(this.letLevel);
+                const expectedLhsTy = Type.Fun('Tuple', [elems]);
+                const lhsTy = this.inferExpr(lhs);
+                this.unify(lhsTy, expectedLhsTy);
+                elems = Type.utils.unlink(elems);
+
+                if (Type.utils.isList(elems)) {
+                    const elemTys = Type.utils.unlist(elems);
+                    if (index >= elemTys.length) {
+                        return panic(`Tuple index out of bounds: ${index} >= ${elemTys.length}`);
+                    }
+
+                    return elemTys[index];
+                } else {
+                    return panic(`Expected tuple type, got '${Type.show(lhsTy)}'`);
+                }
             },
         });
 

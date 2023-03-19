@@ -28,6 +28,7 @@ export const Type = {
     unify,
     unifyPure,
     substitute,
+    substituteMany,
     normalize,
     fresh,
     vars,
@@ -35,6 +36,7 @@ export const Type = {
     generalize,
     instantiate,
     specificity,
+    occurs,
     utils: {
         vars,
         isFunction(ty: Type): ty is Type & { variant: 'Fun', name: 'Function', args: [Type, Type] } {
@@ -51,6 +53,7 @@ export const Type = {
         list,
         unlist,
         isList,
+        unlink,
     },
 } satisfies Impl<Show<Type> & Eq<Type> & Rewrite<Type>>;
 
@@ -96,15 +99,17 @@ export const TypeVar = {
     },
     linkTo: (self: { ref: TypeVar }, type: Type, subst?: Subst): void => {
         if (self.ref.variant === 'Unbound') {
-            if (TypeVar.substitutionContexts.length > 0) {
-                const contextSubst = last(TypeVar.substitutionContexts);
-                contextSubst.set(self.ref.id, type);
-            }
+            if (!(type.variant === 'Var' && type.ref.variant === 'Unbound' && type.ref.id === self.ref.id)) {
+                if (TypeVar.substitutionContexts.length > 0) {
+                    const contextSubst = last(TypeVar.substitutionContexts);
+                    Subst.set(contextSubst, self.ref.id, type);
+                }
 
-            if (subst != null) {
-                subst.set(self.ref.id, type);
-            } else {
-                self.ref = TypeVar.Link(type);
+                if (subst != null) {
+                    Subst.set(subst, self.ref.id, type);
+                } else {
+                    self.ref = TypeVar.Link(type);
+                }
             }
         }
     },
@@ -257,7 +262,27 @@ export const Subst = {
 
         return '{ ' + entries.join(', ') + ' }';
     },
+    set: (subst: Subst, id: number, ty: Type): void => {
+        // if (subst.has(id)) {
+        //     panic('Duplicate type variable in substitution');
+        // }
+
+        if (!occurs(id, ty)) {
+            subst.set(id, ty);
+        }
+    }
 };
+
+function occurs(id: number, ty: Type): boolean {
+    return match(ty, {
+        Var: ({ ref }) => match(ref, {
+            Unbound: ({ id: id2 }) => id === id2,
+            Generic: ({ id: id2 }) => id === id2,
+            Link: ({ type }) => occurs(id, type),
+        }),
+        Fun: ({ args }) => args.some(arg => occurs(id, arg)),
+    });
+}
 
 function occursCheckAdjustLevels(id: number, level: number, ty: Type): void {
     const go = (t: Type): void => {
@@ -314,6 +339,8 @@ function unify(a: Type, b: Type, subst?: Subst): boolean {
             console.log(`unify '${show(s)}' with '${show(t)}'`);
         }
 
+        if (eq(s, t)) { continue; }
+
         if (s.variant === 'Var') {
             unifyVar(s, t, eqs, subst);
         } else if (t.variant === 'Var') {
@@ -349,7 +376,7 @@ function substitute(ty: Type, subst: Subst): Type {
         Var: ({ ref }) => match(ref, {
             Unbound: ({ id }) => {
                 const target = subst.get(id);
-                if (target != null && !Type.eq(ty, target)) {
+                if (target != null && !occurs(id, target)) {
                     return substitute(target, subst);
                 }
 
@@ -357,7 +384,7 @@ function substitute(ty: Type, subst: Subst): Type {
             },
             Generic: ({ id }) => {
                 const target = subst.get(id);
-                if (target != null) {
+                if (target != null && !occurs(id, target)) {
                     return substitute(target, subst);
                 }
 
@@ -367,6 +394,10 @@ function substitute(ty: Type, subst: Subst): Type {
         }),
         Fun: ({ name, args, path }) => Type.Fun(name, args.map(arg => substitute(arg, subst)), path),
     });
+}
+
+function substituteMany(ty: Type, substs: Subst[]): Type {
+    return substs.reduce((ty, subst) => substitute(ty, subst), ty);
 }
 
 function generalize(ty: Type, level: number): Type {
@@ -399,7 +430,7 @@ function instantiate(ty: Type, level: number): { ty: Type, subst: Subst } {
                     }
 
                     const freshTy = Type.fresh(level);
-                    subst.set(id, freshTy);
+                    Subst.set(subst, id, freshTy);
 
                     return freshTy;
                 },
@@ -438,5 +469,13 @@ function unlist(ty: Type): Type[] {
 
         panic(`Expected list, got '${show(ty)}'`);
     }
+}
+
+function unlink(ty: Type): Type {
+    if (ty.variant === 'Var' && ty.ref.variant === 'Link') {
+        return unlink(ty.ref.type);
+    }
+
+    return ty;
 }
 

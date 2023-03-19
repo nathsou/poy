@@ -19,7 +19,7 @@ export type Expr = DataType<Typed<{
     Fun: { args: FunctionArgument[], body: Expr },
     Call: { fun: Expr, args: Expr[] },
     Struct: { path: string[], name: string, fields: { name: string, value: Expr }[] },
-    VariableAccess: { lhs: Expr, field: string, isCalled: boolean },
+    VariableAccess: { lhs: Expr, field: string | number, isCalled: boolean },
     ModuleAccess: { path: string[], member: string },
 }>>;
 
