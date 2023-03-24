@@ -57,6 +57,7 @@ export const Type = {
     },
 } satisfies Impl<Show<Type> & Eq<Type> & Rewrite<Type>>;
 
+export type TypeVarId = number;
 export type TypeVar = DataType<{
     Unbound: { id: number, name?: string, level: number },
     Generic: { id: number, name?: string },

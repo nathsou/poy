@@ -6,8 +6,8 @@ All types could be encoded as:
 
 ```rust
 enum Type {
-    Var(String),
-    Fun(String, Type[]),
+    Var(Str),
+    Fun(Str, Type[]),
 }
 ```
 
@@ -64,23 +64,22 @@ fun isPrime<a>(n: a) where IsNumberLike<a>: a
 
 Arrays
 ```
-Array<a> <=> a[]
+a[] <=> Array<a>
 ```
 
 Lists
 ```
 [] <=> Nil
 head:tail <=> Cons<head, tail>
-[a, b, c] <==> Cons<a, Cons<b, Cons<c, Nil>>>
+[a, b, c] <=> a::b::c::[] <=> Cons<a, Cons<b, Cons<c, Nil>>>
 ```
 
 Tuples
 ```
-Tuple<[]> <=> Unit
-Tuple<[a]> <=> a
-Tuple<[a, b]> <=> (a, b)
-Tuple<[a, b, c]> <=> (a, b, c)
-...
+Unit <=> Tuple<[]>
+(a, b) <=> Tuple<[a, b]>
+(a, b, c) <=> Tuple<[a, b, c]>
+```
 
 Functions
 ```

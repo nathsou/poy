@@ -1,5 +1,5 @@
 import { DataType, genConstructors } from 'itsamatch';
-import { Type } from '../../infer/type';
+import { Type, TypeVar, TypeVarId } from '../../infer/type';
 import { Stmt } from './stmt';
 
 export type ImportMemberKind = 'value' | 'module' | 'type';
@@ -46,6 +46,7 @@ export type Signature = DataType<{
 export type StructDecl = {
     pub: boolean,
     name: string,
+    params: TypeVarId[],
     fields: { mut: boolean, name: string, ty: Type }[],
 };
 

@@ -3,10 +3,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { Decl, ModuleDecl, Signature, StructDecl } from "../ast/sweet/decl";
 import { Expr, FunctionArgument } from "../ast/sweet/expr";
 import { Stmt } from "../ast/sweet/stmt";
-import { Type, TypeVar } from "../infer/type";
+import { config } from "../config";
+import { Type, TypeVar, TypeVarId } from "../infer/type";
 import { Context } from "../misc/context";
 import { Maybe, None, Some } from "../misc/maybe";
-import { isUpperCase } from "../misc/strings";
+import { isLowerCase, isUpperCase } from "../misc/strings";
 import { assert, last, letIn, panic } from "../misc/utils";
 import { AssignmentOp, BinaryOp, Keyword, Literal, Symbol, Token, UnaryOp } from "./token";
 
@@ -147,9 +148,15 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         return ret;
     }
 
-    function getTypeVarId(name: string): number {
+    function declareTypeVarId(name: string): TypeVarId {
         assert(typeScopes.length > 0, 'empty type scope stack');
 
+        const id = Context.freshTypeVarId();
+        last(typeScopes).set(name, id);
+        return id;
+    }
+
+    function getTypeVarId(name: string): number {
         for (let i = typeScopes.length - 1; i >= 0; i--) {
             const scope = typeScopes[i];
             if (scope.has(name)) {
@@ -157,9 +164,11 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             }
         }
 
-        const id = Context.freshTypeVarId();
-        last(typeScopes).set(name, id);
-        return id;
+        if (config.requireExplicitTypeParameters) {
+            return panic(`Undeclared type variable '${name}'`);
+        }
+
+        return declareTypeVarId(name);
     }
 
     function parens<T>(p: () => T): T {
@@ -168,6 +177,22 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         consume(Token.Symbol(')'));
 
         return ret;
+    }
+
+    function typeParams(declare = true): TypeVarId[] {
+        if (matches(Token.Symbol('<'))) {
+            const params = commas(() => {
+                const name = identifier();
+                assert(isLowerCase(name), 'type parameters must be lowercase');
+                return (declare ? declareTypeVarId : getTypeVarId)(name);
+            });
+
+            consume(Token.Symbol('>'));
+
+            return params;
+        } else {
+            return [];
+        }
     }
 
     // ------ types ------
@@ -200,6 +225,9 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
 
     function funType(): Type {
         const args: Type[] = [];
+        if (check(Token.Symbol('<'))) {
+            typeParams();
+        }
 
         if (matches(Token.Symbol('('))) {
             while (!matches(Token.Symbol(')'))) {
@@ -349,9 +377,10 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     }
 
     function funExpr(isArrowFunction: boolean): Expr {
-        return attempt<Expr>(() => typeScoped(() => {
+        const res = attempt<Expr>(() => typeScoped(() => {
             let args: FunctionArgument[];
             let ret: Type | undefined;
+            const params = typeParams();
             const token = peek();
 
             if (token.variant === 'Identifier') {
@@ -371,8 +400,14 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             }
 
             const body = expr();
-            return Expr.Fun({ args, ret, body });
-        })).orDefault(logicalOrExpr);
+            return Expr.Fun({ typeParams: params, args, ret, body });
+        }))
+
+        if (isArrowFunction) {
+            return res.orDefault(logicalOrExpr);
+        } else {
+            return res.unwrap();
+        }
     }
 
     function useInExpr(): Expr {
@@ -890,6 +925,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         return typeScoped(() => {
             letLevel += 1;
             const name = identifier();
+            const params = typeParams();
             const fields: StructDecl['fields'] = [];
 
             consume(Token.Symbol('{'));
@@ -905,7 +941,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             consumeIfPresent(Token.Symbol(';'));
             letLevel -= 1;
 
-            return Decl.Struct({ pub: modifiers.pub, name, fields });
+            return Decl.Struct({ pub: modifiers.pub, name, params, fields });
         });
     }
 
@@ -945,6 +981,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         return typeScoped(() => {
             letLevel += 1;
             const name = identifier();
+            const params = typeParams();
             consume(Token.Symbol('('));
             const args = commas(functionArgument);
             consume(Token.Symbol(')'));

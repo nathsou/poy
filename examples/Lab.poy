@@ -152,8 +152,8 @@ extend a[] {
         fun push(elem: a): ()
         fun pop(): Option<a>
         fun filter(predicate: a -> Bool): a[]
-        fun map(f: a -> b): b[]
-        fun flatMap(f: a -> b[]): b[]
+        fun map<b>(f: a -> b): b[]
+        fun flatMap<b>(f: a -> b[]): b[]
         fun find(predicate: a -> Bool): Option<a>
         fun findIndex(predicate: a -> Bool): Option<Num>
         fun forEach(f: a -> ()): ()
