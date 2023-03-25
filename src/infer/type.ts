@@ -64,7 +64,7 @@ export type TypeVar = DataType<{
     Link: { type: Type },
 }>;
 
-const showTypeVarId = (id: number): string => {
+export const showTypeVarId = (id: number): string => {
     return String.fromCharCode(97 + (id % 26)) + (id >= 26 ? String(Math.floor(id / 26)) : '');
 };
 
@@ -230,7 +230,7 @@ function vars(ty: Type): Map<string, number> {
 
 function eq(a: Type, b: Type): boolean {
     return matchMany([a, b], {
-        'Var Var': Object.is,
+        'Var Var': (a, b) => TypeVar.eq(a.ref, b.ref),
         'Fun Fun': (a, b) =>
             a.name === b.name &&
             a.args.length === b.args.length &&

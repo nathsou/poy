@@ -5,7 +5,7 @@ import { Stmt } from './stmt';
 
 export type Expr = DataType<{
     Literal: { literal: Literal },
-    Variable: string,
+    Variable: { name: string, typeParams: Type[] },
     Unary: { op: UnaryOp, expr: Expr },
     Binary: { lhs: Expr, op: BinaryOp, rhs: Expr },
     Block: { stmts: Stmt[], ret?: Expr },
@@ -13,12 +13,12 @@ export type Expr = DataType<{
     Tuple: { elems: Expr[] },
     Array: { elems: Expr[] },
     UseIn: { name: string, ann?: Type, value: Expr, rhs: Expr },
-    Fun: { typeParams: TypeVarId[], args: FunctionArgument[], ret?: Type, body: Expr },
+    Fun: { generics: TypeVarId[], args: FunctionArgument[], ret?: Type, body: Expr },
     Call: { fun: Expr, args: Expr[] },
     Struct: { path: string[], name: string, fields: { name: string, value: Expr }[] },
-    VariableAccess: { lhs: Expr, field: string, extensionUuid?: string, isCalled: boolean, isNative: boolean },
+    VariableAccess: { lhs: Expr, field: string, typeParams: Type[], extensionUuid?: string, isCalled: boolean, isNative: boolean },
     ModuleAccess: { path: string[], member: string, extensionUuid?: string },
-    ExtensionAccess: { subject: Type, member: string, extensionUuid?: string },
+    ExtensionAccess: { subject: Type, member: string, typeParams: Type[], extensionUuid?: string },
     TupleAccess: { lhs: Expr, index: number },
 }> & { ty?: Type };
 

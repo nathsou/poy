@@ -1,12 +1,13 @@
 import { config } from "../config";
 import { Err, Ok, Result } from "../misc/result";
 import { pushMap } from "../misc/utils";
-import { Subst, Type } from "./type";
+import { Subst, Type, TypeVarId } from "./type";
 
 export type ExtensionMembers = Map<string, { ty: Type, declared: boolean }>;
 export type ExtensionInfo = {
     subject: Type,
     member: string,
+    generics: TypeVarId[],
     ty: Type,
     declared: boolean,
     static: boolean,

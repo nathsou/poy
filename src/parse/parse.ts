@@ -186,13 +186,23 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
                 assert(isLowerCase(name), 'type parameters must be lowercase');
                 return (declare ? declareTypeVarId : getTypeVarId)(name);
             });
-
             consume(Token.Symbol('>'));
-
             return params;
         } else {
             return [];
         }
+    }
+
+    function typeParamsInst(): Type[] {
+        // identifier '<' is ambiguous without lookahead:
+        // it could be a less than comparison or a type parameter instantiation
+        return attempt(() => {
+            consume(Token.Symbol('<'));
+            const params = commas(type);
+            consume(Token.Symbol('>'));
+
+            return params;
+        }).orDefault([]);
     }
 
     // ------ types ------
@@ -377,10 +387,11 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     }
 
     function funExpr(isArrowFunction: boolean): Expr {
-        const res = attempt<Expr>(() => typeScoped(() => {
+        letLevel += 1;
+        const res = typeScoped(() => attempt<Expr>(() => {
             let args: FunctionArgument[];
             let ret: Type | undefined;
-            const params = typeParams();
+            const generics = typeParams();
             const token = peek();
 
             if (token.variant === 'Identifier') {
@@ -400,14 +411,11 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             }
 
             const body = expr();
-            return Expr.Fun({ typeParams: params, args, ret, body });
-        }))
+            return Expr.Fun({ generics, args, ret, body });
+        }));
+        letLevel -= 1;
 
-        if (isArrowFunction) {
-            return res.orDefault(logicalOrExpr);
-        } else {
-            return res.unwrap();
-        }
+        return res.orDefault(logicalOrExpr);
     }
 
     function useInExpr(): Expr {
@@ -505,7 +513,14 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
                 switch (token.variant) {
                     case 'Identifier':
                         next();
-                        lhs = Expr.VariableAccess({ lhs, field: token.$value, isCalled: false, isNative: false });
+                        const params = typeParamsInst();
+                        lhs = Expr.VariableAccess({
+                            lhs,
+                            field: token.$value,
+                            typeParams: params,
+                            isCalled: false,
+                            isNative: false
+                        });
                         matched = true;
                         break;
                     case 'Literal':
@@ -548,6 +563,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
                 return Expr.Call({
                     fun: Expr.ExtensionAccess({
                         member: 'init',
+                        typeParams: [],
                         subject,
                     }),
                     args
@@ -556,7 +572,8 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
 
             consume(Token.Symbol('::'));
             const member = identifier();
-            return Expr.ExtensionAccess({ member, subject });
+            const params = typeParamsInst();
+            return Expr.ExtensionAccess({ member, typeParams: params, subject });
         }).orDefault(primaryExpr);
     }
 
@@ -573,7 +590,9 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
                     return moduleAccessExpr(name);
                 }
 
-                return Expr.Variable(name);
+                const params = typeParamsInst();
+
+                return Expr.Variable({ name, typeParams: params });
             },
             Symbol: symb => {
                 switch (symb) {
@@ -729,7 +748,8 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             pub: modifiers.pub,
             static: modifiers.static,
             mutable: false,
-            name, value
+            name,
+            value
         });
     }
 
