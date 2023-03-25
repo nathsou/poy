@@ -5,6 +5,6 @@ export const config = {
     debug: {
         unification: false,
         ignoreTypeParamName: true,
-        extensionType: false,
+        extensionType: true,
     },
 };

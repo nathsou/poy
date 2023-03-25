@@ -27,7 +27,9 @@
 - [x] Support static functions and initializers
 
 ### 4. Generics
-- [ ] Support generic functions
+- [x] Generic functions
+- [ ] Generic Structs
+- [ ] Generic Modules
 
 ### 5. Mutability
 - [ ] Require `mut` keyword for any mutable function argument / variable / struct member 

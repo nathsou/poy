@@ -15,7 +15,7 @@ export type Expr = DataType<{
     UseIn: { name: string, ann?: Type, value: Expr, rhs: Expr },
     Fun: { generics: TypeVarId[], args: FunctionArgument[], ret?: Type, body: Expr },
     Call: { fun: Expr, args: Expr[] },
-    Struct: { path: string[], name: string, fields: { name: string, value: Expr }[] },
+    Struct: { path: string[], name: string, typeParams: Type[], fields: { name: string, value: Expr }[] },
     VariableAccess: { lhs: Expr, field: string, typeParams: Type[], extensionUuid?: string, isCalled: boolean, isNative: boolean },
     ModuleAccess: { path: string[], member: string, extensionUuid?: string },
     ExtensionAccess: { subject: Type, member: string, typeParams: Type[], extensionUuid?: string },

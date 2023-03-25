@@ -10,7 +10,7 @@ import { AssignmentOp, BinaryOp, UnaryOp } from "../parse/token";
 import { Module, ModulePath, Resolver } from "../resolve/resolve";
 import { ExtensionScope } from "./extensions";
 import { TRS } from "./rewrite";
-import { showTypeVarId, Subst, Type, TypeVar, TypeVarId } from "./type";
+import { Subst, Type, TypeVar, TypeVarId } from "./type";
 
 type VarInfo = { pub: boolean, mutable: boolean, generics?: TypeVarId[], ty: Type };
 type ModuleInfo = Module & { local: boolean };
@@ -528,7 +528,7 @@ export class TypeEnv {
 
                 return ty;
             },
-            Struct: ({ name, fields }) => {
+            Struct: ({ name, typeParams, fields }) => {
                 const decl = this.structs.lookup(name).unwrap(`Struct '${name}' not found`);
                 const fieldTys = new Map(fields.map(({ name, value }) => [name, this.inferExpr(value)]));
                 const expectedFields = new Set(decl.fields.map(proj('name')));
@@ -564,7 +564,6 @@ export class TypeEnv {
                         }
                     }
                 }
-
 
                 return this.extensions.lookup(lhsTy, field, this.letLevel).match({
                     Ok: ({ ext: { ty: memberTy, generics, declared: isNative, uuid, subject }, subst }) => {

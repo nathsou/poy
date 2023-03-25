@@ -4,7 +4,7 @@ import { Decl, ModuleDecl, Signature, StructDecl } from "../ast/sweet/decl";
 import { Expr, FunctionArgument } from "../ast/sweet/expr";
 import { Stmt } from "../ast/sweet/stmt";
 import { config } from "../config";
-import { Type, TypeVar, TypeVarId } from "../infer/type";
+import { showTypeVarId, Type, TypeVar, TypeVarId } from "../infer/type";
 import { Context } from "../misc/context";
 import { Maybe, None, Some } from "../misc/maybe";
 import { isLowerCase, isUpperCase } from "../misc/strings";
@@ -131,11 +131,20 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
 
     function attempt<T>(p: () => T): Maybe<T> {
         const start = index;
+        typeScopes.push(new Map());
 
         try {
-            return Some(p());
+            const res = p();
+            if (typeScopes.length > 1) {
+                const scope = typeScopes.pop()!;
+                for (const [name, id] of scope) {
+                    last(typeScopes).set(name, id);
+                }
+            }
+            return Some(res);
         } catch (e) {
             index = start;
+            typeScopes.pop()!;
             return None;
         }
     }
@@ -445,7 +454,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         return Expr.If({ cond, then });
     }
 
-    function structExpr(path: string[], name: string): Expr {
+    function structExpr(path: string[], name: string, typeParams: Type[]): Expr {
         consumeIfPresent(Token.Symbol('{'));
         const fields: { name: string, value: Expr }[] = [];
 
@@ -459,7 +468,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             consumeIfPresent(Token.Symbol(';'));
         }
 
-        return Expr.Struct({ path, name, fields });
+        return Expr.Struct({ path, name, typeParams, fields });
     }
 
     function logicalOrExpr(): Expr {
@@ -635,9 +644,10 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         const parts = path(prefix);
         const components = parts.slice(0, -1);
         const member = last(parts);
+        const params = typeParamsInst();
 
         if (matches(Token.Symbol('{'))) {
-            return structExpr(components, member);
+            return structExpr(components, member, params);
         }
 
         return Expr.ModuleAccess({ path: components, member });

@@ -16,26 +16,21 @@ declare module Math {
     fun min(a: Num, b: Num): Num
 }
 
-fun zip<a, b>(as: a[], bs: b[]): (a, b)[] {
-    let len = Math.min(as.length, bs.length)
-    mut res = []
-    mut i = 0
-
-    while i < len {
-        let pair = (as.at(i), bs.at(i))
-        res.push(pair)
-        i += 1
-    }
-
-    res
-}
-
 extend a[] {
-    fun zip<b>(bs: b[]) {
-        zip(self, bs)
+    fun zip<b>(bs: b[]): (a, b)[] {
+        let len = Math.min(self.length, bs.length)
+        mut res = []
+        mut i = 0
+
+        while i < len {
+            let pair = (self.at(i), bs.at(i))
+            res.push(pair)
+            i += 1
+        }
+
+        res
     }
 }
 
-print(zip<Num, Str>([1, 2, 3], ["a", "b", "c"]))
 print([1, 2, 3].zip<Str>(["a", "b", "c"]))
 print(Num[]::zip<Str>([1, 2, 3], ["a", "b", "c"]))
