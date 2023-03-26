@@ -1,5 +1,5 @@
 import { DataType, genConstructors } from 'itsamatch';
-import { Type, TypeVarId } from '../../infer/type';
+import { Type } from '../../infer/type';
 import { BinaryOp, Literal, UnaryOp } from '../../parse/token';
 import { Stmt } from './stmt';
 
@@ -13,7 +13,7 @@ export type Expr = DataType<{
     Tuple: { elems: Expr[] },
     Array: { elems: Expr[] },
     UseIn: { name: string, ann?: Type, value: Expr, rhs: Expr },
-    Fun: { generics: TypeVarId[], args: FunctionArgument[], ret?: Type, body: Expr },
+    Fun: { generics: string[], args: FunctionArgument[], ret?: Type, body: Expr },
     Call: { fun: Expr, args: Expr[] },
     Struct: { path: string[], name: string, typeParams: Type[], fields: { name: string, value: Expr }[] },
     VariableAccess: { lhs: Expr, field: string, typeParams: Type[], extensionUuid?: string, isCalled: boolean, isNative: boolean },

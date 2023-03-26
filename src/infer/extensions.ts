@@ -1,19 +1,20 @@
 import { config } from "../config";
 import { Err, Ok, Result } from "../misc/result";
-import { pushMap } from "../misc/utils";
-import { Subst, Type, TypeVarId } from "./type";
+import { pushMap, zip } from "../misc/utils";
+import { TypeEnv } from "./infer";
+import { Subst, Type } from "./type";
 
 export type ExtensionMembers = Map<string, { ty: Type, declared: boolean }>;
 export type ExtensionInfo = {
     subject: Type,
     member: string,
-    generics: TypeVarId[],
+    generics: string[],
     ty: Type,
     declared: boolean,
     static: boolean,
-    uuid: string
+    uuid: string,
 };
-export type MatchingExtension = { ext: ExtensionInfo, subst: Subst };
+export type MatchingExtension = { ext: ExtensionInfo, subst: Subst, params: Map<string, Type> };
 
 export class ExtensionScope {
     private extensions: Map<string, ExtensionInfo[]>;
@@ -31,15 +32,21 @@ export class ExtensionScope {
         pushMap(this.extensions, info.member, info);
     }
 
-    public matchingCandidates(subject: Type, member: string, letLevel: number): MatchingExtension[] {
-        const subjectInst = Type.instantiate(subject, letLevel);
+    public matchingCandidates(subject: Type, member: string, env: TypeEnv): MatchingExtension[] {
+        const subjectInst = Type.instantiate(subject, env.letLevel, env.generics, 'matchingCandidates');
         const candidates: MatchingExtension[] = [];
         const traverse = (scope: ExtensionScope): void => {
             for (const ext of scope.extensions.get(member) ?? []) {
-                const extSubjectInst = Type.instantiate(ext.subject, letLevel);
-                const subst = Type.unifyPure(subjectInst.ty, extSubjectInst.ty);
+                const params = env.generics.child();
+                const extParams = Type.namedParams(ext.subject);
+                const allParams = [...new Set([...extParams, ...ext.generics])];
+                const sdsds = zip(allParams, allParams.map(name => Type.fresh(env.letLevel, name)));
+                params.declareMany(sdsds);
+                const subst = Type.unifyPure(subjectInst.ty, ext.subject, params);
                 if (subst) {
-                    candidates.push({ ext, subst: new Map([...subjectInst.subst, ...extSubjectInst.subst, ...subst]) });
+                    params.substitute(subst);
+                    const mapping = new Map([...sdsds, ...Subst.parameterize(subst, params.reversed).entries()]);
+                    candidates.push({ ext, subst: new Map([...subjectInst.subst, ...subst]), params: mapping });
                 }
             }
 
@@ -53,8 +60,8 @@ export class ExtensionScope {
         return candidates;
     }
 
-    public lookup(subject: Type, member: string, letLevel: number): Result<MatchingExtension, string> {
-        const candidates = this.matchingCandidates(subject, member, letLevel);
+    public lookup(subject: Type, member: string, env: TypeEnv): Result<MatchingExtension, string> {
+        const candidates = this.matchingCandidates(subject, member, env);
 
         if (candidates.length === 0) {
             return Err(`No extension found for ${Type.show(subject)}::${member}`);
@@ -64,9 +71,10 @@ export class ExtensionScope {
             return Ok(candidates[0]);
         }
 
-        const bySpecificity = candidates.map(({ ext, subst }) => ({
+        const bySpecificity = candidates.map(({ ext, subst, params }) => ({
             ext,
             subst,
+            params,
             specificity: Subst.specificity(subst),
         }));
 

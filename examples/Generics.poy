@@ -1,30 +1,36 @@
 import Foundations { print }
 
-declare fun showType(value: _): Str
-
-extend t[] {
-    declare {
-        let length: Num
-        fun at(index: Num): t
-        fun push(value: t): ()
-    }
-
-    static fun init(): Self { [] }
-}
+declare let showType: _ -> Str
 
 declare module Math {
     fun min(a: Num, b: Num): Num
 }
 
 extend a[] {
-    fun zip<b>(bs: b[]): (a, b)[] {
-        let len = Math.min(self.length, bs.length)
+    declare let length: Num
+    declare fun at(index: Num): a
+    declare fun push(value: a): ()
+    declare fun map<b>(f: a -> b): b[]
+
+    fun reversed() {
+        mut rev = []
+        mut i = self.length - 1
+
+        while i >= 0 {
+            rev.push(self.at(i))
+            i -= 1
+        }
+
+        rev
+    }
+
+    fun zip<b>(other: b[]) {
+        let len = Math.min(self.length, other.length)
         mut res = []
         mut i = 0
 
         while i < len {
-            let pair = (self.at(i), bs.at(i))
-            res.push(pair)
+            res.push((self.at(i), other.at(i)))
             i += 1
         }
 
@@ -32,5 +38,5 @@ extend a[] {
     }
 }
 
-print([1, 2, 3].zip<Str>(["a", "b", "c"]))
-print(Num[]::zip<Str>([1, 2, 3], ["a", "b", "c"]))
+print([1, 2, 3].zip<Str>(["a", "b", "c"]).reversed())
+print(showType(Num[]::reversed))

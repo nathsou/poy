@@ -1,20 +1,7 @@
 import Euler { euler1 }
-import List { Filter, IsEmpty }
 import Foundations { print }
 
 declare let showType: _ -> Str
-
-type {
-    Unit = Tuple<[]>
-    ReturnType<Function<_, ret>> = ret
-    Parameters<Function<args, _>> = args
-
-    Not<True> = False
-    Not<False> = True
-    
-    L = [[], [A, B], [], [], [C], [D, E, F], []]
-    Query = Filter<@fun<lst, Not<IsEmpty<lst>>>, L>
-}
 
 struct Person {
     name: Str,
@@ -30,10 +17,6 @@ extend Person {
 
 extend Tuple<[]> {
     let isUnit = true
-}
-
-extend Tuple<_:_> {
-    let isUnit = false
 }
 
 extend Person {
@@ -99,42 +82,6 @@ extend Num {
     fun floor() { Math.floor(self) }
     fun ceil() { Math.ceil(self) }
     fun round() { Math.round(self) }
-}
-
-extend a[] {
-    let kind = "any"
-}
-
-extend Num[] {
-    let kind = "num"
-}
-
-extend (_, _) {
-    let kind = "any_any"
-}
-
-extend (Num, _) {
-    let kind = "num_any"
-}
-
-extend (_, Num) {
-    let kind = "any_num"
-}
-
-extend (Str, Num) {
-    let kind = "str_num"
-}
-
-extend (Bool, Num) {
-    let kind = "bool_num"
-}
-
-extend () {
-    let length = 0
-}
-
-extend Tuple<_:_> {
-    declare let length: Num
 }
 
 extend Str[] {
@@ -276,7 +223,7 @@ extend (a[], b[]) {
 }
 
 extend (a, b)[] {
-    fun unzip(): (a[], b[]) {
+    fun unzip() {
         mut i = 0
         mut as = []
         mut bs = []
@@ -292,6 +239,11 @@ extend (a, b)[] {
     }
 }
 
+fun factorial(n) { range(1, n + 1).product() }
+
 let zipped = [1, 2, 3].zip(["a", "b", "c"])
 print(zipped)
 print(zipped.unzip())
+print([1, 2, 3].sum())
+print(_[]::sum(range(1, 100 + 1)))
+print(factorial(11))

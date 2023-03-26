@@ -45,8 +45,9 @@ export const last = <T>(elems: T[]): T => {
 
 export const zip = <A, B>(as: A[], bs: B[]): [A, B][] => {
     const zipped: [A, B][] = [];
+    const len = Math.min(as.length, bs.length);
 
-    for (let i = 0; i < as.length; i++) {
+    for (let i = 0; i < len; i++) {
         zipped.push([as[i], bs[i]]);
     }
 
@@ -78,4 +79,14 @@ export function* indexed<T>(elems: Iterable<T>): Iterable<[T, number]> {
         yield [elem, i];
         i += 1;
     }
+}
+
+export function gen<T>(count: number, f: (i: number) => T): T[] {
+    const elems: T[] = [];
+
+    for (let i = 0; i < count; i++) {
+        elems.push(f(i));
+    }
+
+    return elems;
 }

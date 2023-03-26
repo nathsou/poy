@@ -22,3 +22,7 @@ export function setIntersection<T>(a: Set<T>, b: Set<T>): Set<T> {
 
     return result;
 }
+
+export function uniq<T>(values: T[]): T[] {
+    return [...new Set(values)];
+}

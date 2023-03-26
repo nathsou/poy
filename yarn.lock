@@ -117,7 +117,7 @@
   resolved "https://registry.yarnpkg.com/@types/uuid/-/uuid-9.0.1.tgz#98586dc36aee8dacc98cc396dbca8d0429647aa6"
   integrity sha512-rFT3ak0/2trgvp4yYZo5iKFEPsET7vKydKF+VRCxlQ9bpheehyAJH89dAkaLEq/j/RZXJIqcgsmPJKUP1Z28HA==
 
-esbuild@^0.17.13:
+esbuild@^0.17.8:
   version "0.17.13"
   resolved "https://registry.yarnpkg.com/esbuild/-/esbuild-0.17.13.tgz#463066919a5567e8d1f4781004129da7fc8774b6"
   integrity sha512-4ixMwdErBcQHgTBeoxnowENCPKWFAGxgTyKHMK8gqn9sZaC7ZNWFKtim16g2rzQ2b/FYyy3lIUUJboFtjolhqg==
@@ -150,10 +150,10 @@ itsamatch@^1.2.0:
   resolved "https://registry.yarnpkg.com/itsamatch/-/itsamatch-1.2.0.tgz#2a8805cb676377505d03cba98d3d37f535d7c7af"
   integrity sha512-FyvO4wHPOEjBb5de7ibyfAE/57X/pMROchvNccqxmUSyUPl3xuvbCzi0Gj4ubca3XHp6SUaOzzxSgN31HD9uJQ==
 
-typescript@^5.0.2:
-  version "5.0.2"
-  resolved "https://registry.yarnpkg.com/typescript/-/typescript-5.0.2.tgz#891e1a90c5189d8506af64b9ef929fca99ba1ee5"
-  integrity sha512-wVORMBGO/FAs/++blGNeAVdbNKtIh1rbBL2EyQ1+J9lClJ93KiiKe8PmFIVdXhHcyv44SL9oglmfeSsndo0jRw==
+typescript@^4.9.5:
+  version "4.9.5"
+  resolved "https://registry.yarnpkg.com/typescript/-/typescript-4.9.5.tgz#095979f9bcc0d09da324d58d03ce8f8374cbe65a"
+  integrity sha512-1FXk9E2Hm+QzZQ7z+McJiHL4NW1F2EzMu9Nq9i3zAaGqibafqYwCVU6WyWAuyQRRzOlxou8xZSyXLEN8oKj24g==
 
 uuid@^9.0.0:
   version "9.0.0"

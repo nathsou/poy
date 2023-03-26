@@ -3,9 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Decl, ModuleDecl, Signature, StructDecl } from "../ast/sweet/decl";
 import { Expr, FunctionArgument } from "../ast/sweet/expr";
 import { Stmt } from "../ast/sweet/stmt";
-import { config } from "../config";
-import { showTypeVarId, Type, TypeVar, TypeVarId } from "../infer/type";
-import { Context } from "../misc/context";
+import { Type, TypeVar } from "../infer/type";
 import { Maybe, None, Some } from "../misc/maybe";
 import { isLowerCase, isUpperCase } from "../misc/strings";
 import { assert, last, letIn, panic } from "../misc/utils";
@@ -13,8 +11,6 @@ import { AssignmentOp, BinaryOp, Keyword, Literal, Symbol, Token, UnaryOp } from
 
 export const parse = (tokens: Token[], newlines: number[], filePath: string) => {
     let index = 0;
-    let letLevel = 0;
-    const typeScopes: Map<string, number>[] = [];
     const modifiers = { pub: false, static: false };
 
     // ------ meta ------
@@ -131,53 +127,13 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
 
     function attempt<T>(p: () => T): Maybe<T> {
         const start = index;
-        typeScopes.push(new Map());
 
         try {
-            const res = p();
-            if (typeScopes.length > 1) {
-                const scope = typeScopes.pop()!;
-                for (const [name, id] of scope) {
-                    last(typeScopes).set(name, id);
-                }
-            }
-            return Some(res);
+            return Some(p());
         } catch (e) {
             index = start;
-            typeScopes.pop()!;
             return None;
         }
-    }
-
-    function typeScoped<T>(action: () => T): T {
-        typeScopes.push(new Map());
-        const ret = action();
-        typeScopes.pop();
-
-        return ret;
-    }
-
-    function declareTypeVarId(name: string): TypeVarId {
-        assert(typeScopes.length > 0, 'empty type scope stack');
-
-        const id = Context.freshTypeVarId();
-        last(typeScopes).set(name, id);
-        return id;
-    }
-
-    function getTypeVarId(name: string): number {
-        for (let i = typeScopes.length - 1; i >= 0; i--) {
-            const scope = typeScopes[i];
-            if (scope.has(name)) {
-                return scope.get(name)!;
-            }
-        }
-
-        if (config.requireExplicitTypeParameters) {
-            return panic(`Undeclared type variable '${name}'`);
-        }
-
-        return declareTypeVarId(name);
     }
 
     function parens<T>(p: () => T): T {
@@ -188,12 +144,12 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         return ret;
     }
 
-    function typeParams(declare = true): TypeVarId[] {
+    function typeParams(): string[] {
         if (matches(Token.Symbol('<'))) {
             const params = commas(() => {
                 const name = identifier();
                 assert(isLowerCase(name), 'type parameters must be lowercase');
-                return (declare ? declareTypeVarId : getTypeVarId)(name);
+                return name;
             });
             consume(Token.Symbol('>'));
             return params;
@@ -296,11 +252,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         if (token.variant === 'Symbol') {
             if (token.$value === '_') {
                 next();
-                return Type.Var(
-                    TypeVar.Unbound({
-                        id: Context.freshTypeVarId(),
-                        level: letLevel,
-                    }));
+                return Type.Var(TypeVar.Param({ name: '_' }));
             } else if (token.$value === '@') {
                 next();
                 const token = peek();
@@ -351,8 +303,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     }
 
     function varType(name: string): Type {
-        const id = getTypeVarId(name);
-        return Type.Var(TypeVar.Unbound({ id, level: letLevel, name }));
+        return Type.Var(TypeVar.Param({ name }));
     }
 
     function typeAnnotation(): Type | undefined {
@@ -396,8 +347,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     }
 
     function funExpr(isArrowFunction: boolean): Expr {
-        letLevel += 1;
-        const res = typeScoped(() => attempt<Expr>(() => {
+        const res = attempt<Expr>(() => {
             let args: FunctionArgument[];
             let ret: Type | undefined;
             const generics = typeParams();
@@ -421,25 +371,20 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
 
             const body = expr();
             return Expr.Fun({ generics, args, ret, body });
-        }));
-        letLevel -= 1;
+        });
 
         return res.orDefault(logicalOrExpr);
     }
 
     function useInExpr(): Expr {
-        return typeScoped(() => {
-            letLevel += 1;
-            const name = identifier();
-            const ann = typeAnnotation();
-            consume(Token.Symbol('='));
-            const value = expr();
-            consume(Token.Keyword('in'));
-            const rhs = expr();
-            letLevel -= 1;
+        const name = identifier();
+        const ann = typeAnnotation();
+        consume(Token.Symbol('='));
+        const value = expr();
+        consume(Token.Keyword('in'));
+        const rhs = expr();
 
-            return Expr.UseIn({ name, ann, value, rhs });
-        });
+        return Expr.UseIn({ name, ann, value, rhs });
     }
 
     function ifExpr(): Expr {
@@ -764,23 +709,19 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     }
 
     function letStmt(mutable: boolean): Stmt {
-        return typeScoped(() => {
-            letLevel += 1;
-            const name = identifier();
-            const ann = typeAnnotation();
-            consume(Token.Symbol('='));
-            const value = expr();
-            consumeIfPresent(Token.Symbol(';'));
-            letLevel -= 1;
+        const name = identifier();
+        const ann = typeAnnotation();
+        consume(Token.Symbol('='));
+        const value = expr();
+        consumeIfPresent(Token.Symbol(';'));
 
-            return Stmt.Let({
-                pub: modifiers.pub,
-                static: modifiers.static,
-                mutable,
-                name,
-                ann,
-                value
-            });
+        return Stmt.Let({
+            pub: modifiers.pub,
+            static: modifiers.static,
+            mutable,
+            name,
+            ann,
+            value
         });
     }
 
@@ -941,92 +882,74 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     }
 
     function typeDecl(): VariantOf<Decl, 'Type'> {
-        return typeScoped(() => {
-            const lhs = type();
-            consume(Token.Symbol('='));
-            const rhs = type();
-            consumeIfPresent(Token.Symbol(';'));
+        const lhs = type();
+        consume(Token.Symbol('='));
+        const rhs = type();
+        consumeIfPresent(Token.Symbol(';'));
 
-            return Decl.Type({ pub: modifiers.pub, lhs, rhs });
-        });
+        return Decl.Type({ pub: modifiers.pub, lhs, rhs });
     }
 
     function structDecl(): VariantOf<Decl, 'Struct'> {
-        return typeScoped(() => {
-            letLevel += 1;
+        const name = identifier();
+        const params = typeParams();
+        const fields: StructDecl['fields'] = [];
+
+        consume(Token.Symbol('{'));
+
+        while (!matches(Token.Symbol('}'))) {
+            const mut = matches(Token.Keyword('mut'));
             const name = identifier();
-            const params = typeParams();
-            const fields: StructDecl['fields'] = [];
+            const ty = typeAnnotationRequired();
+            fields.push({ mut, name, ty });
+            consumeIfPresent(Token.Symbol(','));
+        }
 
-            consume(Token.Symbol('{'));
+        consumeIfPresent(Token.Symbol(';'));
 
-            while (!matches(Token.Symbol('}'))) {
-                const mut = matches(Token.Keyword('mut'));
-                const name = identifier();
-                const ty = typeAnnotationRequired();
-                fields.push({ mut, name, ty });
-                consumeIfPresent(Token.Symbol(','));
-            }
-
-            consumeIfPresent(Token.Symbol(';'));
-            letLevel -= 1;
-
-            return Decl.Struct({ pub: modifiers.pub, name, params, fields });
-        });
+        return Decl.Struct({ pub: modifiers.pub, name, params, fields });
     }
 
     function extendDecl(): VariantOf<Decl, 'Extend'> {
-        return typeScoped(() => {
-            letLevel += 1;
-            const subject = type();
-            consume(Token.Symbol('{'));
+        const subject = type();
+        consume(Token.Symbol('{'));
 
-            const decls: Decl[] = [];
+        const decls: Decl[] = [];
 
-            while (!matches(Token.Symbol('}'))) {
-                decls.push(decl());
-                consumeIfPresent(Token.Symbol(','));
-            }
+        while (!matches(Token.Symbol('}'))) {
+            decls.push(decl());
+            consumeIfPresent(Token.Symbol(','));
+        }
 
-            consumeIfPresent(Token.Symbol(';'));
-            letLevel -= 1;
+        consumeIfPresent(Token.Symbol(';'));
 
-            return Decl.Extend({ subject, decls, uuid: uuidv4().replace(/-/g, '_') });
-        });
+        return Decl.Extend({ subject, decls, uuid: uuidv4().replace(/-/g, '_') });
     }
 
     function variableSignature(mutable: boolean): VariantOf<Signature, 'Variable'> {
-        return typeScoped(() => {
-            letLevel += 1;
-            const name = identifier();
-            const ty = typeAnnotationRequired();
-            consumeIfPresent(Token.Symbol(';'));
-            letLevel -= 1;
+        const name = identifier();
+        const ty = typeAnnotationRequired();
+        consumeIfPresent(Token.Symbol(';'));
 
-            return { variant: 'Variable', static: modifiers.static, mutable, name, ty };
-        });
+        return { variant: 'Variable', static: modifiers.static, mutable, generics: [], name, ty };
     }
 
     function functionSignature(): VariantOf<Signature, 'Variable'> {
-        return typeScoped(() => {
-            letLevel += 1;
-            const name = identifier();
-            const params = typeParams();
-            consume(Token.Symbol('('));
-            const args = commas(functionArgument);
-            consume(Token.Symbol(')'));
-            const ret = typeAnnotationRequired();
-            consumeIfPresent(Token.Symbol(';'));
-            letLevel -= 1;
+        const name = identifier();
+        const generics = typeParams();
+        consume(Token.Symbol('('));
+        const args = commas(functionArgument);
+        consume(Token.Symbol(')'));
+        const ret = typeAnnotationRequired();
+        consumeIfPresent(Token.Symbol(';'));
 
-            if (args.some(arg => arg.ann === undefined)) {
-                reportError('All arguments in a function signature must have a type annotation');
-            }
+        if (args.some(arg => arg.ann === undefined)) {
+            reportError('All arguments in a function signature must have a type annotation');
+        }
 
-            const funTy = Type.Function(args.map(arg => arg.ann!), ret);
+        const funTy = Type.Function(args.map(arg => arg.ann!), ret);
 
-            return { variant: 'Variable', mutable: false, static: modifiers.static, name, ty: funTy };
-        });
+        return { variant: 'Variable', mutable: false, static: modifiers.static, generics, name, ty: funTy };
     }
 
     function moduleSignature(): VariantOf<Signature, 'Module'> {
