@@ -38,5 +38,13 @@ extend a[] {
     }
 }
 
+struct IteratorResult<res> {
+    value: res,
+    done: Bool,
+}
+
 print([1, 2, 3].zip<Str>(["a", "b", "c"]).reversed())
 print(showType(Num[]::reversed))
+let ir = IteratorResult { value: 3, done: false }
+print(showType(ir))
+print(ir)

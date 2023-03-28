@@ -33,7 +33,7 @@ export class ExtensionScope {
     }
 
     public matchingCandidates(subject: Type, member: string, env: TypeEnv): MatchingExtension[] {
-        const subjectInst = Type.instantiate(subject, env.letLevel, env.generics, 'matchingCandidates');
+        const subjectInst = Type.instantiate(subject, env.letLevel, env.generics);
         const candidates: MatchingExtension[] = [];
         const traverse = (scope: ExtensionScope): void => {
             for (const ext of scope.extensions.get(member) ?? []) {

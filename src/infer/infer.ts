@@ -1,11 +1,11 @@
-import { match } from "itsamatch";
+import { match, VariantOf } from "itsamatch";
 import { Decl, StructDecl } from "../ast/sweet/decl";
 import { Expr } from "../ast/sweet/expr";
 import { Stmt } from "../ast/sweet/stmt";
 import { Maybe } from "../misc/maybe";
 import { Scope, TypeParamScope } from "../misc/scope";
 import { setDifference, uniq } from "../misc/sets";
-import { gen, last, panic, proj, zip } from "../misc/utils";
+import { last, panic, proj, zip } from "../misc/utils";
 import { AssignmentOp, BinaryOp, UnaryOp } from "../parse/token";
 import { Module, ModulePath, Resolver } from "../resolve/resolve";
 import { ExtensionScope } from "./extensions";
@@ -68,27 +68,71 @@ export class TypeEnv {
         pub: boolean,
         mutable: boolean,
         name: string,
-        generics: string[],
         ann: Type | undefined,
         value: Expr
     ): Type {
         this.letLevel += 1;
+
+        let ty: Type;
         const rhsEnv = this.child();
-        const freshTy = rhsEnv.freshType();
-        rhsEnv.variables.declare(name, { pub, mutable, generics, ty: freshTy });
-        const ty = rhsEnv.resolveType(rhsEnv.inferExpr(value));
-        rhsEnv.unify(ty, freshTy);
-        this.letLevel -= 1;
+        let generics: string[] | undefined;
+
+        if (value.variant === 'Fun') {
+            generics = value.generics;
+            const recTy = rhsEnv.freshType();
+            rhsEnv.variables.declare(name, { pub, mutable, generics: value.generics, ty: recTy });
+            const funTy = rhsEnv.inferFun(value);
+            const funTyInst = Type.instantiate(funTy, rhsEnv.letLevel, rhsEnv.generics).ty;
+            rhsEnv.unify(funTyInst, recTy);
+            ty = funTy;
+        } else {
+            ty = rhsEnv.inferExpr(value);
+        }
 
         if (ann) {
             rhsEnv.unify(ann, ty);
         }
+
+        this.letLevel -= 1;
 
         // https://en.wikipedia.org/wiki/Value_restriction
         const genTy = mutable ? ty : Type.generalize(ty, this.letLevel);
         this.variables.declare(name, { pub, mutable, generics, ty: genTy });
 
         return genTy;
+    }
+
+    private inferFun(fun: VariantOf<Expr, 'Fun'>): Type {
+        const { generics, args, body, ret } = fun;
+        const params = generics.map(() => this.freshType());
+        this.generics.declareMany(zip(generics, params));
+
+        const argTys = args.map(arg => arg.ann ?? this.freshType());
+        const returnTy = ret ?? this.freshType();
+        this.functionStack.push(returnTy);
+
+        args.forEach(({ name }, i) => {
+            this.variables.declare(name, {
+                pub: false,
+                mutable: false,
+                ty: this.resolveType(argTys[i]),
+                generics,
+            });
+
+            args[i].ann = argTys[i];
+        });
+
+        return TypeVar.recordSubstitutions(subst => {
+            const bodyTy = this.inferExpr(body);
+            this.unify(bodyTy, returnTy);
+            this.generics.substitute(subst);
+            this.functionStack.pop();
+            let funTy = Type.Function(argTys, bodyTy)
+            funTy = Type.substitute(funTy, subst);
+            funTy = Type.parameterize(funTy, this.generics);
+            fun.ty = funTy;
+            return funTy;
+        });
     }
 
     public async inferDecl(decl: Decl): Promise<void> {
@@ -241,13 +285,9 @@ export class TypeEnv {
 
                             if (value.variant === 'Fun') {
                                 generics.push(...value.generics);
-                                extEnv.generics.declareMany(zip(
-                                    value.generics,
-                                    value.generics.map(name => Type.fresh(this.letLevel, name))
-                                ));
                             }
 
-                            const ty = extEnv.inferLet(pub, mutable, name, generics, ann, value);
+                            const ty = extEnv.inferLet(pub, mutable, name, ann, value);
                             extEnv.generics.substitute(globalSubst);
                             const genTy = Type.parameterize(mutable ? ty : Type.generalize(ty, this.letLevel), extEnv.generics);
                             const subjectTy = Type.parameterize(
@@ -312,7 +352,7 @@ export class TypeEnv {
                     generics.push(...value.generics);
                 }
 
-                this.inferLet(pub, mutable, name, generics, ann, value);
+                this.inferLet(pub, mutable, name, ann, value);
             },
             Assign: ({ lhs, op, rhs }) => {
                 const alpha = Type.Var(TypeVar.Generic({ id: 0 }));
@@ -331,7 +371,7 @@ export class TypeEnv {
                 };
 
                 const [expectedLhsTy, expectedRhsTy] = ASSIGNMENT_OP_TYPE[op].map(ty =>
-                    Type.instantiate(ty, this.letLevel, this.generics, 'inferStmt:Assign')
+                    Type.instantiate(ty, this.letLevel, this.generics)
                 );
 
                 const lhsTy = this.inferExpr(lhs);
@@ -408,7 +448,7 @@ export class TypeEnv {
                         ));
                     }
 
-                    return Type.instantiate(ty, this.letLevel, typeParamScope, 'inferExpr:Variable').ty;
+                    return Type.instantiate(ty, this.letLevel, typeParamScope).ty;
                 },
                 None: () => panic(`Variable ${name} not found`),
             }),
@@ -448,7 +488,7 @@ export class TypeEnv {
                 };
 
                 const [lhsExpected, rhsExpected, retTy] = BINARY_OP_TYPE[op].map(ty =>
-                    Type.instantiate(ty, this.letLevel, this.generics, 'inferExpr:Binary')
+                    Type.instantiate(ty, this.letLevel, this.generics)
                 );
 
                 this.unify(lhsTy, lhsExpected.ty);
@@ -478,27 +518,10 @@ export class TypeEnv {
 
                 return Type.Array(elemTy);
             },
-            Fun: ({ args, ret, body }) => {
+            Fun: fun => {
                 const funEnv = this.child();
-                const argTys = args.map(arg => arg.ann ?? this.freshType());
-                const returnTy = ret ?? this.freshType();
-                funEnv.functionStack.push(returnTy);
-
-                args.forEach(({ name }, i) => {
-                    funEnv.variables.declare(name, {
-                        pub: false,
-                        mutable: false,
-                        ty: argTys[i],
-                    });
-
-                    args[i].ann = argTys[i];
-                });
-
-                const bodyTy = funEnv.inferExpr(body);
-                this.unify(bodyTy, returnTy);
-                funEnv.functionStack.pop();
-
-                return Type.Function(argTys, bodyTy);
+                const ty = Type.instantiate(funEnv.inferFun(fun), this.letLevel, this.generics).ty;
+                return ty;
             },
             Call: ({ fun, args }) => {
                 const funTy = this.inferExpr(fun);
@@ -528,7 +551,7 @@ export class TypeEnv {
             },
             UseIn: ({ name, ann, value, rhs }) => {
                 const rhsEnv = this.child();
-                rhsEnv.inferLet(false, false, name, [], ann, value);
+                rhsEnv.inferLet(false, false, name, ann, value);
                 return rhsEnv.inferExpr(rhs);
             },
             ModuleAccess: moduleAccessExpr => {
@@ -574,25 +597,34 @@ export class TypeEnv {
                 }
 
                 const structParamsScope = this.generics.child();
-                structParamsScope.declareMany(zip(decl.params, typeParams));
+                const paramsInst = typeParams.length > 0 ? typeParams : decl.params.map(() => this.freshType());
+                structParamsScope.declareMany(zip(decl.params, paramsInst));
 
                 for (const { name, ty } of decl.fields) {
-                    this.unify(fieldTys.get(name)!, Type.instantiate(ty, this.letLevel, structParamsScope, 'inferExpr:Struct').ty);
+                    this.unify(fieldTys.get(name)!, Type.instantiate(ty, this.letLevel, structParamsScope).ty);
                 }
 
-                return Type.Fun(name, [], { file: this.modulePath, subpath: [], env: this });
+                return Type.Fun(name, paramsInst, { file: this.modulePath, subpath: [], env: this });
             },
             VariableAccess: dotExpr => {
                 const { lhs, field, typeParams, isCalled } = dotExpr;
                 const lhsTy = this.inferExpr(lhs);
 
-                if (lhsTy.variant === 'Fun' && lhsTy.args.length === 0 && this.structs.has(lhsTy.name)) {
+                if (lhsTy.variant === 'Fun' && this.structs.has(lhsTy.name)) {
                     const decl = this.structs.lookup(lhsTy.name);
                     if (decl.isSome()) {
-                        const fieldInfo = decl.unwrap().fields.find(({ name }) => name === field);
+                        const structDecl = decl.unwrap();
+                        const fieldInfo = structDecl.fields.find(({ name }) => name === field);
+                        this.validateTypeParameters('Struct', lhsTy.name, structDecl.params, typeParams);
+                        const params = zip(
+                            structDecl.params,
+                            typeParams.length > 0 ? typeParams : structDecl.params.map(() => this.freshType())
+                        );
+
+                        this.generics.declareMany(params);
 
                         if (fieldInfo) {
-                            return Type.instantiate(fieldInfo.ty, this.letLevel, this.generics, 'inferExpr:VariableAccess').ty;
+                            return Type.instantiate(fieldInfo.ty, this.letLevel, this.generics).ty;
                         }
                     }
                 }
@@ -615,8 +647,8 @@ export class TypeEnv {
                                 typeParams :
                                 generics.map(name => Type.fresh(this.letLevel, name))
                         ));
-                        const subjectInst = Type.instantiate(Type.substitute(subject, subst), this.letLevel, typeParamScope, 'inferExpr:VariableAccess 2');
-                        const extInst = Type.instantiate(Type.substituteMany(memberTy, [subjectInst.subst, subst]), this.letLevel, typeParamScope, 'inferExpr:VariableAccess 3');
+                        const subjectInst = Type.instantiate(Type.substitute(subject, subst), this.letLevel, typeParamScope);
+                        const extInst = Type.instantiate(Type.substituteMany(memberTy, [subjectInst.subst, subst]), this.letLevel, typeParamScope);
                         this.unify(lhsTy, subjectInst.ty);
 
                         return extInst.ty;
@@ -627,7 +659,7 @@ export class TypeEnv {
             ExtensionAccess: extensionAccessExpr => {
                 const { subject, typeParams, member } = extensionAccessExpr;
                 extensionAccessExpr.subject = this.resolveType(subject);
-                const subjectInst = Type.instantiate(subject, this.letLevel, this.generics, 'inferExpr:ExtensionAccess 1');
+                const subjectInst = Type.instantiate(subject, this.letLevel, this.generics);
                 const ext = this.extensions.lookup(subjectInst.ty, member, this);
 
                 return ext.match({
@@ -639,7 +671,7 @@ export class TypeEnv {
                         const typeParamScope = this.generics.child();
                         typeParamScope.declareMany([...params.entries()]);
                         typeParamScope.declareMany(zip(generics, typeParams));
-                        const instTy = Type.instantiate(Type.substitute(ty, subst), this.letLevel, typeParamScope, 'inferExpr:ExtensionAccess').ty;
+                        const instTy = Type.instantiate(Type.substitute(ty, subst), this.letLevel, typeParamScope).ty;
                         extensionAccessExpr.extensionUuid = uuid;
 
                         if (!isStatic && Type.utils.isFunction(instTy)) {

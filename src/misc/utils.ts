@@ -43,7 +43,11 @@ export const last = <T>(elems: T[]): T => {
     return elems[elems.length - 1];
 };
 
-export const zip = <A, B>(as: A[], bs: B[]): [A, B][] => {
+export const zip = <A, B>(as: A[], bs: B[], checkSameLength = true): [A, B][] => {
+    if (checkSameLength && as.length !== bs.length) {
+        panic(`called zip with arrays of different lengths: ${as.length} and ${bs.length}`);
+    }
+
     const zipped: [A, B][] = [];
     const len = Math.min(as.length, bs.length);
 

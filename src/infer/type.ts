@@ -88,28 +88,29 @@ export const TypeVar = {
         Param: ({ name }) => "'" + name,
         Link: ({ type }) => Type.show(type),
     }),
-    substitutionContexts: array<Subst>(),
-    pushSubstitutionContext(): Subst {
-        const subst = new Map<number, Type>();
-        TypeVar.substitutionContexts.push(subst);
-        return subst;
-    },
-    popSubstitutionContext(): Subst {
-        assert(TypeVar.substitutionContexts.length > 0, 'Substitution context stack is empty');
-        return TypeVar.substitutionContexts.pop()!;
+    context: {
+        substitutions: array<Subst>(),
+        push: (): Subst => {
+            const subst = new Map<number, Type>();
+            TypeVar.context.substitutions.push(subst);
+            return subst;
+        },
+        pop: (): Subst => {
+            assert(TypeVar.context.substitutions.length > 0, 'Substitution context stack is empty');
+            return TypeVar.context.substitutions.pop()!;
+        },
     },
     recordSubstitutions: <T>(cb: (subst: Subst) => T): T => {
-        const subst = TypeVar.pushSubstitutionContext();
+        const subst = TypeVar.context.push();
         const ret = cb(subst);
-        TypeVar.popSubstitutionContext();
+        TypeVar.context.pop();
         return ret;
     },
     linkTo: (self: { ref: TypeVar }, type: Type, subst?: Subst): void => {
         if (self.ref.variant === 'Unbound') {
             if (!(type.variant === 'Var' && type.ref.variant === 'Unbound' && type.ref.id === self.ref.id)) {
-                if (TypeVar.substitutionContexts.length > 0) {
-                    const contextSubst = last(TypeVar.substitutionContexts);
-                    Subst.set(contextSubst, self.ref.id, type);
+                for (const sig of TypeVar.context.substitutions) {
+                    Subst.set(sig, self.ref.id, type);
                 }
 
                 const deref = unlink(type);
@@ -348,12 +349,12 @@ function occursCheckAdjustLevels(id: number, level: number, ty: Type, params?: S
                             Some: t => go(t),
                             None: () => {
                                 if (name[0] !== '_') {
-                                    panic(`Unknown type parameter '${name}' 2`);
+                                    panic(`Unknown type parameter '${name}'`);
                                 }
                             },
                         });
                     } else {
-                        panic(`Unknown type parameter '${name}' (occursCheckAdjustLevels)`);
+                        panic(`Unknown type parameter '${name}'`);
                     }
                 },
                 Link: ({ type }) => go(type),
@@ -387,12 +388,12 @@ function unifyVar(v: { ref: TypeVar }, ty: Type, eqs: [Type, Type][], params?: S
                     },
                     None: () => {
                         if (name[0] !== '_') {
-                            panic(`Unknown type parameter '${name}' 4`);
+                            panic(`Unknown type parameter '${name}'`);
                         }
                     }
                 });
             } else {
-                panic(`Unresolved type parameter '${name}' (unifyVar)`);
+                panic(`Unresolved type parameter '${name}'`);
             }
         },
         Link: ({ type }) => {
@@ -513,7 +514,7 @@ function generalize(ty: Type, level: number): Type {
     });
 }
 
-function instantiate(ty: Type, level: number, params: Scope<Type>, source: string): { ty: Type, subst: Subst } {
+function instantiate(ty: Type, level: number, params: Scope<Type>): { ty: Type, subst: Subst } {
     const subst: Subst = new Map();
 
     const aux = (ty: Type): Type => {
@@ -540,7 +541,7 @@ function instantiate(ty: Type, level: number, params: Scope<Type>, source: strin
                                 return Type.fresh(level);
                             }
 
-                            return panic(`Unknown type parameter '${name}' 3`);
+                            return panic(`Unknown type parameter '${name}'`);
                         },
                     });
                 },
