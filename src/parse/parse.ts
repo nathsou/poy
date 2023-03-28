@@ -877,7 +877,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         return Decl.Import({
             path: path.slice(0, -1),
             module: last(path),
-            members: members?.map(name => ({ name })),
+            members: members?.map(name => ({ name, native: false })),
         });
     }
 
@@ -927,12 +927,12 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         return Decl.Extend({ params, subject, decls, uuid: uuidv4().replace(/-/g, '_') });
     }
 
-    function variableSignature(mutable: boolean): VariantOf<Signature, 'Variable'> {
+    function variableSignature(mut: boolean): VariantOf<Signature, 'Variable'> {
         const name = identifier();
         const ty = typeAnnotationRequired();
         consumeIfPresent(Token.Symbol(';'));
 
-        return { variant: 'Variable', static: modifiers.static, mutable, params: [], name, ty };
+        return { variant: 'Variable', static: modifiers.static, mut, params: [], name, ty };
     }
 
     function functionSignature(): VariantOf<Signature, 'Variable'> {
@@ -952,7 +952,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
 
         return {
             variant: 'Variable',
-            mutable: false,
+            mut: false,
             static: modifiers.static,
             params,
             name,

@@ -12,8 +12,15 @@ import { ExtensionScope } from "./extensions";
 import { TRS } from "./rewrite";
 import { Subst, Type, TypeVar } from "./type";
 
-type VarInfo = { pub: boolean, mutable: boolean, generics?: string[], ty: Type };
-type ModuleInfo = Module & { local: boolean };
+type VarInfo = {
+    pub?: boolean,
+    mut?: boolean,
+    generics?: string[],
+    ty: Type,
+    native?: boolean,
+};
+
+type ModuleInfo = Module & { local: boolean, native?: boolean };
 
 export class TypeEnv {
     public variables: Scope<VarInfo>;
@@ -66,7 +73,7 @@ export class TypeEnv {
 
     private inferLet(
         pub: boolean,
-        mutable: boolean,
+        mut: boolean,
         name: string,
         ann: Type | undefined,
         value: Expr
@@ -80,7 +87,7 @@ export class TypeEnv {
         if (value.variant === 'Fun') {
             generics = value.generics;
             const recTy = rhsEnv.freshType();
-            rhsEnv.variables.declare(name, { pub, mutable, generics: value.generics, ty: recTy });
+            rhsEnv.variables.declare(name, { pub, mut, generics: value.generics, ty: recTy });
             const funTy = rhsEnv.inferFun(value);
             const funTyInst = Type.instantiate(funTy, rhsEnv.letLevel, rhsEnv.generics).ty;
             rhsEnv.unify(funTyInst, recTy);
@@ -96,8 +103,8 @@ export class TypeEnv {
         this.letLevel -= 1;
 
         // https://en.wikipedia.org/wiki/Value_restriction
-        const genTy = mutable ? ty : Type.generalize(ty, this.letLevel);
-        this.variables.declare(name, { pub, mutable, generics, ty: genTy });
+        const genTy = mut ? ty : Type.generalize(ty, this.letLevel);
+        this.variables.declare(name, { pub, mut, generics, ty: genTy });
 
         return genTy;
     }
@@ -113,8 +120,6 @@ export class TypeEnv {
 
         args.forEach(({ name }, i) => {
             this.variables.declare(name, {
-                pub: false,
-                mutable: false,
                 ty: this.resolveType(argTys[i]),
                 generics,
             });
@@ -156,9 +161,9 @@ export class TypeEnv {
                 this.structs.declare(struct.name, struct);
             },
             Declare: ({ sig }) => match(sig, {
-                Variable: ({ mutable, name, ty }) => {
-                    const genTy = mutable ? ty : Type.generalize(ty, this.letLevel);
-                    this.variables.declare(name, { pub: true, mutable, ty: genTy });
+                Variable: ({ mut, name, ty }) => {
+                    const genTy = mut ? ty : Type.generalize(ty, this.letLevel);
+                    this.variables.declare(name, { pub: true, mut, native: true, ty: genTy });
                 },
                 Module: ({ name, signatures }) => {
                     const moduleEnv = this.child();
@@ -166,6 +171,7 @@ export class TypeEnv {
                     this.modules.declare(name, {
                         pub: true,
                         local: true,
+                        native: true,
                         name,
                         env: moduleEnv,
                         decls
@@ -203,11 +209,12 @@ export class TypeEnv {
                     for (const member of members) {
                         const name = member.name;
                         mod.env.variables.lookup(name).match({
-                            Some: ({ pub, mutable, ty }) => {
+                            Some: ({ pub, mut, native, ty }) => {
                                 member.kind = 'value';
+                                member.native = !!native;
 
                                 if (pub) {
-                                    this.variables.declare(name, { pub, mutable, ty });
+                                    this.variables.declare(name, { pub, mut, ty });
                                 } else {
                                     panic(`Cannot import private variable '${name}' from module '${module}'`);
                                 }
@@ -216,11 +223,12 @@ export class TypeEnv {
                                 mod.env.modules.lookup(name).match({
                                     Some: (module) => {
                                         member.kind = 'module';
+                                        member.native = !!module.native;
 
                                         if (module.pub) {
                                             this.modules.declare(name, { ...module, local: false });
                                         } else {
-                                            panic(`Cannot import private module '${name}' from module '${module}'`);
+                                            panic(`Cannot import private module '${name}' from module '${module.name}'`);
                                         }
                                     },
                                     None: () => {
@@ -273,7 +281,7 @@ export class TypeEnv {
                             globalParams,
                             globalParams.map(name => Type.fresh(this.letLevel, name))
                         ));
-                        extEnv.variables.declare('self', { pub: false, mutable: false, ty: subject });
+                        extEnv.variables.declare('self', { pub: false, mut: false, ty: subject });
                         extEnv.typeRules.set('Self', [{
                             pub: false,
                             lhs: Type.Fun('Self', [], { file: this.modulePath, subpath: [], env: extEnv }),
@@ -310,9 +318,9 @@ export class TypeEnv {
                                 uuid,
                             });
                         } else if (decl.variant === 'Declare' && decl.sig.variant === 'Variable') {
-                            let { mutable, name, ty, static: isStatic } = decl.sig;
+                            let { mut, name, ty, static: isStatic } = decl.sig;
                             ty = Type.substitute(ty, globalSubst);
-                            const genTy = mutable ? ty : Type.generalize(ty, this.letLevel);
+                            const genTy = mut ? ty : Type.generalize(ty, this.letLevel);
 
                             this.extensions.declare({
                                 subject: Type.generalize(Type.substitute(subject, globalSubst), this.letLevel),

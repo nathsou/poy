@@ -12,7 +12,7 @@ export type Decl = DataType<{
     Import: {
         path: string[],
         module: string,
-        members?: { name: string, kind?: ImportMemberKind }[],
+        members?: { name: string, native: boolean, kind?: ImportMemberKind }[],
     },
     Struct: StructDecl,
     Extend: ExtendDecl,
@@ -38,7 +38,7 @@ export type ModuleDecl = {
 };
 
 export type Signature = DataType<{
-    Variable: { static: boolean, mutable: boolean, params: string[], name: string, ty: Type },
+    Variable: { static: boolean, mut: boolean, params: string[], name: string, ty: Type },
     Module: { name: string, signatures: Signature[] },
     Type: TypeDecl,
 }>;

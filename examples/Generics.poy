@@ -1,4 +1,4 @@
-import Foundations { print }
+import Foundations { print, console, Console }
 
 declare let showType: _ -> Str
 
@@ -45,8 +45,15 @@ struct IteratorResult<res> {
     done: Bool,
 }
 
+extend<a> a {
+    fun print() {
+        console.log(self)
+        self
+    }
+}
+
 print([1, 2, 3].zip<Str>(["a", "b", "c"]).reversed())
 print(showType(Num[]::reversed))
 let ir = IteratorResult<_> { value: "hello", done: false }
 print(showType(ir))
-print(ir)
+ir.print()
