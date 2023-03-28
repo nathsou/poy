@@ -264,14 +264,15 @@ export class TypeEnv {
                     }
                 }
             },
-            Extend: ({ subject, decls, uuid }) => {
+            Extend: ({ params: globalParams, subject, decls, uuid }) => {
                 TypeVar.recordSubstitutions(globalSubst => {
                     subject = Type.generalize(subject, this.letLevel);
-                    const globalGenerics = [...Type.namedParams(subject)];
-
                     const extend = (decl: Decl): void => {
                         const extEnv = this.child();
-                        extEnv.generics.declareMany(zip(globalGenerics, globalGenerics.map(name => Type.fresh(this.letLevel, name))));
+                        extEnv.generics.declareMany(zip(
+                            globalParams,
+                            globalParams.map(name => Type.fresh(this.letLevel, name))
+                        ));
                         extEnv.variables.declare('self', { pub: false, mutable: false, ty: subject });
                         extEnv.typeRules.set('Self', [{
                             pub: false,
@@ -316,7 +317,7 @@ export class TypeEnv {
                             this.extensions.declare({
                                 subject: Type.generalize(Type.substitute(subject, globalSubst), this.letLevel),
                                 member: name,
-                                generics: uniq([...globalGenerics, ...decl.sig.generics]),
+                                generics: uniq([...globalParams, ...decl.sig.params]),
                                 ty: genTy,
                                 declared: true,
                                 static: isStatic,
@@ -420,7 +421,12 @@ export class TypeEnv {
         return { ty, params: mapping };
     }
 
-    private validateTypeParameters(kind: string, name: string, generics: string[] | undefined, typeParams: Type[]) {
+    private validateTypeParameters(
+        kind: string,
+        name: string,
+        generics: string[] | undefined,
+        typeParams: Type[]
+    ): Type[] {
         if (typeParams.length > 0 && generics == null) {
             panic(`${kind} '${name}' expects no type parameters, but ${typeParams.length} were given.`);
         }
@@ -428,6 +434,16 @@ export class TypeEnv {
         if (generics != null && typeParams.length > 0 && typeParams.length !== generics.length) {
             panic(`${kind} '${name}' expects ${generics.length} type parameters, but ${typeParams.length} were given.`);
         }
+
+        if (generics != null && typeParams.length === generics.length) {
+            return typeParams.map(ty => this.resolveType(ty));
+        }
+
+        if (generics != null) {
+            return generics.map(name => Type.fresh(this.letLevel, name));
+        }
+
+        return [];
     }
 
     public inferExpr(expr: Expr): Type {
@@ -437,15 +453,12 @@ export class TypeEnv {
             Literal: ({ literal }) => Type[literal.variant],
             Variable: ({ name, typeParams }) => this.variables.lookup(name).match({
                 Some: ({ ty, generics }) => {
-                    this.validateTypeParameters('Variable', name, generics, typeParams);
                     let typeParamScope = this.generics;
 
                     if (generics != null && generics.length > 0) {
+                        const params = this.validateTypeParameters('Variable', name, generics, typeParams);
                         typeParamScope = this.generics.child();
-                        typeParamScope.declareMany(zip(
-                            generics,
-                            typeParams.length > 0 ? typeParams : generics.map(name => Type.fresh(this.letLevel, name))
-                        ));
+                        typeParamScope.declareMany(zip(generics, params));
                     }
 
                     return Type.instantiate(ty, this.letLevel, typeParamScope).ty;
@@ -597,14 +610,14 @@ export class TypeEnv {
                 }
 
                 const structParamsScope = this.generics.child();
-                const paramsInst = typeParams.length > 0 ? typeParams : decl.params.map(() => this.freshType());
-                structParamsScope.declareMany(zip(decl.params, paramsInst));
+                const params = this.validateTypeParameters('Struct', name, decl.params, typeParams);
+                structParamsScope.declareMany(zip(decl.params, params));
 
                 for (const { name, ty } of decl.fields) {
                     this.unify(fieldTys.get(name)!, Type.instantiate(ty, this.letLevel, structParamsScope).ty);
                 }
 
-                return Type.Fun(name, paramsInst, { file: this.modulePath, subpath: [], env: this });
+                return Type.Fun(name, params, { file: this.modulePath, subpath: [], env: this });
             },
             VariableAccess: dotExpr => {
                 const { lhs, field, typeParams, isCalled } = dotExpr;
@@ -615,13 +628,8 @@ export class TypeEnv {
                     if (decl.isSome()) {
                         const structDecl = decl.unwrap();
                         const fieldInfo = structDecl.fields.find(({ name }) => name === field);
-                        this.validateTypeParameters('Struct', lhsTy.name, structDecl.params, typeParams);
-                        const params = zip(
-                            structDecl.params,
-                            typeParams.length > 0 ? typeParams : structDecl.params.map(() => this.freshType())
-                        );
-
-                        this.generics.declareMany(params);
+                        const params = this.validateTypeParameters('Struct', lhsTy.name, structDecl.params, typeParams);
+                        this.generics.declareMany(zip(structDecl.params, params));
 
                         if (fieldInfo) {
                             return Type.instantiate(fieldInfo.ty, this.letLevel, this.generics).ty;
@@ -638,14 +646,11 @@ export class TypeEnv {
                             return panic(`Declared member '${field}' from extension of '${Type.show(lhsTy)}' must be called`);
                         }
 
-                        this.validateTypeParameters('Member', field, generics, typeParams);
                         const typeParamScope = this.generics.child();
                         typeParamScope.declareMany([...params.entries()]);
                         typeParamScope.declareMany(zip(
                             generics,
-                            typeParams.length === generics.length ?
-                                typeParams :
-                                generics.map(name => Type.fresh(this.letLevel, name))
+                            this.validateTypeParameters('Member', field, generics, typeParams)
                         ));
                         const subjectInst = Type.instantiate(Type.substitute(subject, subst), this.letLevel, typeParamScope);
                         const extInst = Type.instantiate(Type.substituteMany(memberTy, [subjectInst.subst, subst]), this.letLevel, typeParamScope);

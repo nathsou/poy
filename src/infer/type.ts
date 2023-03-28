@@ -3,7 +3,7 @@ import { config } from "../config";
 import { Context } from "../misc/context";
 import { Scope, TypeParamScope } from "../misc/scope";
 import { Eq, Impl, Rewrite, Show } from "../misc/traits";
-import { array, assert, last, panic } from "../misc/utils";
+import { array, assert, panic } from "../misc/utils";
 import { ModulePath } from "../resolve/resolve";
 import { normalize } from './rewrite';
 
@@ -589,4 +589,3 @@ function unlink(ty: Type): Type {
 
     return ty;
 }
-

@@ -38,7 +38,7 @@ export type ModuleDecl = {
 };
 
 export type Signature = DataType<{
-    Variable: { static: boolean, mutable: boolean, generics: string[], name: string, ty: Type },
+    Variable: { static: boolean, mutable: boolean, params: string[], name: string, ty: Type },
     Module: { name: string, signatures: Signature[] },
     Type: TypeDecl,
 }>;
@@ -51,6 +51,7 @@ export type StructDecl = {
 };
 
 export type ExtendDecl = {
+    params: string[],
     subject: Type,
     decls: Decl[],
     uuid: string,

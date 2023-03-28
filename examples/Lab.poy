@@ -90,7 +90,7 @@ extend Str[] {
     }
 }
 
-extend a[] {
+extend<a> a[] {
     static fun init(): Self { [] }
     
     declare {
@@ -216,13 +216,13 @@ extend Str {
 }
 
 
-extend (a[], b[]) {
+extend<a, b> (a[], b[]) {
     fun zip() {
         self.0.zip(self.1)
     }
 }
 
-extend (a, b)[] {
+extend<a, b> (a, b)[] {
     fun unzip() {
         mut i = 0
         mut as = []

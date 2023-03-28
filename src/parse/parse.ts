@@ -911,6 +911,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     }
 
     function extendDecl(): VariantOf<Decl, 'Extend'> {
+        const params = typeParams();
         const subject = type();
         consume(Token.Symbol('{'));
 
@@ -923,7 +924,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
 
         consumeIfPresent(Token.Symbol(';'));
 
-        return Decl.Extend({ subject, decls, uuid: uuidv4().replace(/-/g, '_') });
+        return Decl.Extend({ params, subject, decls, uuid: uuidv4().replace(/-/g, '_') });
     }
 
     function variableSignature(mutable: boolean): VariantOf<Signature, 'Variable'> {
@@ -931,12 +932,12 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         const ty = typeAnnotationRequired();
         consumeIfPresent(Token.Symbol(';'));
 
-        return { variant: 'Variable', static: modifiers.static, mutable, generics: [], name, ty };
+        return { variant: 'Variable', static: modifiers.static, mutable, params: [], name, ty };
     }
 
     function functionSignature(): VariantOf<Signature, 'Variable'> {
         const name = identifier();
-        const generics = typeParams();
+        const params = typeParams();
         consume(Token.Symbol('('));
         const args = commas(functionArgument);
         consume(Token.Symbol(')'));
@@ -949,7 +950,14 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
 
         const funTy = Type.Function(args.map(arg => arg.ann!), ret);
 
-        return { variant: 'Variable', mutable: false, static: modifiers.static, generics, name, ty: funTy };
+        return {
+            variant: 'Variable',
+            mutable: false,
+            static: modifiers.static,
+            params,
+            name,
+            ty: funTy,
+        };
     }
 
     function moduleSignature(): VariantOf<Signature, 'Module'> {

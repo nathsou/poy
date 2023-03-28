@@ -6,11 +6,13 @@ declare module Math {
     fun min(a: Num, b: Num): Num
 }
 
-extend a[] {
-    declare let length: Num
-    declare fun at(index: Num): a
-    declare fun push(value: a): ()
-    declare fun map<b>(f: a -> b): b[]
+extend<a> a[] {
+    declare {
+        let length: Num
+        fun at(index: Num): a
+        fun push(value: a): ()
+        fun map<b>(f: a -> b): b[]
+    }
 
     fun reversed() {
         mut rev = []
@@ -45,6 +47,6 @@ struct IteratorResult<res> {
 
 print([1, 2, 3].zip<Str>(["a", "b", "c"]).reversed())
 print(showType(Num[]::reversed))
-let ir = IteratorResult { value: 3, done: false }
+let ir = IteratorResult<_> { value: "hello", done: false }
 print(showType(ir))
 print(ir)
