@@ -52,24 +52,24 @@ export class Scope<T> {
 }
 
 export class TypeParamScope extends Scope<Type> {
-    public reversed: Map<TypeVarId, string>;
+    public typeVarIdMapping: Map<TypeVarId, string>;
 
     constructor(parent?: TypeParamScope) {
         super(parent);
-        this.reversed = new Map();
+        this.typeVarIdMapping = new Map();
         this.allowShadowing = true;
     }
 
     override declare(name: string, value: Type): void {
         super.declare(name, value);
         if (value.variant === 'Var' && 'id' in value.ref) {
-            this.reversed.set(value.ref.id, name);
+            this.typeVarIdMapping.set(value.ref.id, name);
         }
     }
 
     public lookupParam(id: TypeVarId): Maybe<string> {
-        if (this.reversed.has(id)) {
-            return Some(this.reversed.get(id)!);
+        if (this.typeVarIdMapping.has(id)) {
+            return Some(this.typeVarIdMapping.get(id)!);
         }
 
         if (this.parent != null && this.parent instanceof TypeParamScope) {
@@ -82,24 +82,16 @@ export class TypeParamScope extends Scope<Type> {
     public substitute(subst: Subst): void {
         let fixpoint = true;
 
-        // for (const [id, ty] of subst) {
-        //     if (ty.variant === 'Var' && ty.ref.variant === 'Param' && !this.reversed.has(id)) {
-        //         // fixpoint = false;
-        //         console.log(`Adding ${showTypeVarId(id)} (${id}) -> ${ty.ref.name}`);
-        //         this.reversed.set(id, ty.ref.name);
-        //     }
-        // }
-
-        for (const [id, name] of this.reversed) {
+        for (const [id, name] of this.typeVarIdMapping) {
             if (subst.has(id)) {
                 const mapped = Type.utils.unlink(subst.get(id)!);
                 if (
                     mapped.variant === 'Var' &&
                     'id' in mapped.ref &&
-                    !this.reversed.has(mapped.ref.id)
+                    !this.typeVarIdMapping.has(mapped.ref.id)
                 ) {
                     fixpoint = false;
-                    this.reversed.set(mapped.ref.id, name);
+                    this.typeVarIdMapping.set(mapped.ref.id, name);
                 }
             }
         }
@@ -115,6 +107,6 @@ export class TypeParamScope extends Scope<Type> {
     }
 
     public show(): string {
-        return [...this.reversed.entries()].map(([id, name]) => `${showTypeVarId(id)} -> ${name}`).join('\n');
+        return [...this.typeVarIdMapping.entries()].map(([id, name]) => `${showTypeVarId(id)} -> ${name}`).join(', ');
     }
 }

@@ -82,10 +82,10 @@ export const TypeVar = {
         'Param Param': (a, b) => a.name === b.name,
         _: () => false,
     }),
-    show: (self, ignoreName = config.debug.ignoreTypeParamName) => match(self, {
-        Unbound: ({ id, name }) => ignoreName ? showTypeVarId(id) : name ?? showTypeVarId(id),
-        Generic: ({ id, name }) => ignoreName ? showTypeVarId(id) : name ?? showTypeVarId(id),
-        Param: ({ name }) => "'" + name,
+    show: (self) => match(self, {
+        Unbound: ({ id }) => showTypeVarId(id),
+        Generic: ({ id }) => showTypeVarId(id),
+        Param: ({ name }) => name,
         Link: ({ type }) => Type.show(type),
     }),
     context: {
@@ -99,12 +99,12 @@ export const TypeVar = {
             assert(TypeVar.context.substitutions.length > 0, 'Substitution context stack is empty');
             return TypeVar.context.substitutions.pop()!;
         },
-    },
-    recordSubstitutions: <T>(cb: (subst: Subst) => T): T => {
-        const subst = TypeVar.context.push();
-        const ret = cb(subst);
-        TypeVar.context.pop();
-        return ret;
+        record: <T>(cb: (subst: Subst) => T): T => {
+            const subst = TypeVar.context.push();
+            const ret = cb(subst);
+            TypeVar.context.pop();
+            return ret;
+        },
     },
     linkTo: (self: { ref: TypeVar }, type: Type, subst?: Subst): void => {
         if (self.ref.variant === 'Unbound') {
@@ -149,7 +149,7 @@ function show(ty: Type, ignoreName = config.debug.ignoreTypeParamName): string {
                     genericTyVars.add(ignoreName ? showTypeVarId(ref.id) : ref.name ?? showTypeVarId(ref.id));
                 }
 
-                return TypeVar.show(ref, ignoreName);
+                return TypeVar.show(ref);
             },
             Fun: ({ name, args }) => {
                 switch (name) {

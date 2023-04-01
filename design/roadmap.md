@@ -29,7 +29,6 @@
 ### 4. Generics
 - [x] Generic functions
 - [x] Generic Structs
-- [ ] Generic Modules
 
 ### 5. Iterators
 

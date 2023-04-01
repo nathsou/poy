@@ -115,7 +115,7 @@ export class TypeEnv {
         this.generics.declareMany(zip(generics, params));
 
         const argTys = args.map(arg => arg.ann ?? this.freshType());
-        const returnTy = ret ?? this.freshType();
+        const returnTy = this.resolveType(ret ?? this.freshType());
         this.functionStack.push(returnTy);
 
         args.forEach(({ name }, i) => {
@@ -127,17 +127,20 @@ export class TypeEnv {
             args[i].ann = argTys[i];
         });
 
-        return TypeVar.recordSubstitutions(subst => {
+        const funTy = TypeVar.context.record(subst => {
             const bodyTy = this.inferExpr(body);
             this.unify(bodyTy, returnTy);
             this.generics.substitute(subst);
             this.functionStack.pop();
-            let funTy = Type.Function(argTys, bodyTy)
-            funTy = Type.substitute(funTy, subst);
-            funTy = Type.parameterize(funTy, this.generics);
-            fun.ty = funTy;
-            return funTy;
+
+            return Type.parameterize(
+                Type.substitute(Type.Function(argTys, bodyTy), subst),
+                this.generics
+            );
         });
+
+        fun.ty = funTy;
+        return funTy;
     }
 
     public async inferDecl(decl: Decl): Promise<void> {
@@ -273,20 +276,25 @@ export class TypeEnv {
                 }
             },
             Extend: ({ params: globalParams, subject, decls, uuid }) => {
-                TypeVar.recordSubstitutions(globalSubst => {
+                TypeVar.context.record(globalSubst => {
                     subject = Type.generalize(subject, this.letLevel);
-                    const extend = (decl: Decl): void => {
-                        const extEnv = this.child();
-                        extEnv.generics.declareMany(zip(
+
+                    const declareSelf = (env: TypeEnv): void => {
+                        env.generics.declareMany(zip(
                             globalParams,
                             globalParams.map(name => Type.fresh(this.letLevel, name))
                         ));
-                        extEnv.variables.declare('self', { pub: false, mut: false, ty: subject });
-                        extEnv.typeRules.set('Self', [{
+                        env.variables.declare('self', { pub: false, mut: false, ty: subject });
+                        env.typeRules.set('Self', [{
                             pub: false,
-                            lhs: Type.Fun('Self', [], { file: this.modulePath, subpath: [], env: extEnv }),
+                            lhs: Type.Fun('Self', [], { file: this.modulePath, subpath: [], env }),
                             rhs: subject,
                         }]);
+                    };
+
+                    const extend = (decl: Decl): void => {
+                        const extEnv = this.child();
+                        declareSelf(extEnv);
 
                         if (decl.variant === 'Stmt' && decl.stmt.variant === 'Let') {
                             const { pub, mutable, static: isStatic, name, ann, value } = decl.stmt;
@@ -302,7 +310,9 @@ export class TypeEnv {
                             const subjectTy = Type.parameterize(
                                 Type.generalize(
                                     Type.substitute(
-                                        extEnv.resolveType(subject), globalSubst),
+                                        extEnv.resolveType(subject),
+                                        globalSubst
+                                    ),
                                     this.letLevel - 1
                                 ),
                                 extEnv.generics
@@ -416,17 +426,22 @@ export class TypeEnv {
         });
     }
 
-    private parametrize(
+    private parameterize(
         generics: string[],
-        infer: (scope: TypeParamScope) => { ty: Type, subst: Subst }
+        infer: () => Type
     ): { ty: Type, params: Map<string, Type> } {
+        // instantiate the type parameters
         const params = generics.map(name => Type.fresh(this.letLevel, name));
-        const scope = this.generics.child();
-        scope.declareMany(zip(generics, params));
-        const { ty, subst } = infer(scope);
-        scope.substitute(subst);
-        const mapping = Subst.parameterize(subst, scope.reversed);
-        return { ty, params: mapping };
+        this.generics.declareMany(zip(generics, params));
+
+        // infer a type and record the substitutions
+        // so that we can map the type parameters back to their original names
+        return TypeVar.context.record(subst => {
+            const ty = infer();
+            this.generics.substitute(subst);
+            const mapping = Subst.parameterize(subst, this.generics.typeVarIdMapping);
+            return { ty, params: mapping };
+        });
     }
 
     private validateTypeParameters(

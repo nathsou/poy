@@ -14,7 +14,7 @@ extend<a> a[] {
         fun map<b>(f: a -> b): b[]
     }
 
-    fun reversed() {
+    fun reversed(): a[] {
         mut rev = []
         mut i = self.length - 1
 
@@ -26,7 +26,7 @@ extend<a> a[] {
         rev
     }
 
-    fun zip<b>(other: b[]) {
+    fun zip<b>(other: b[]): (a, b)[] {
         let len = Math.min(self.length, other.length)
         mut res = []
         mut i = 0
@@ -57,3 +57,4 @@ print(showType(Num[]::reversed))
 let ir = IteratorResult<_> { value: "hello", done: false }
 print(showType(ir))
 ir.print()
+[1, 2, 3].print().reversed().print()

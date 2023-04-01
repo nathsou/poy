@@ -1,5 +1,6 @@
 import { config } from "../config";
 import { Err, Ok, Result } from "../misc/result";
+import { uniq } from "../misc/sets";
 import { pushMap, zip } from "../misc/utils";
 import { TypeEnv } from "./infer";
 import { Subst, Type } from "./type";
@@ -14,6 +15,7 @@ export type ExtensionInfo = {
     static: boolean,
     uuid: string,
 };
+
 export type MatchingExtension = { ext: ExtensionInfo, subst: Subst, params: Map<string, Type> };
 
 export class ExtensionScope {
@@ -39,13 +41,13 @@ export class ExtensionScope {
             for (const ext of scope.extensions.get(member) ?? []) {
                 const params = env.generics.child();
                 const extParams = Type.namedParams(ext.subject);
-                const allParams = [...new Set([...extParams, ...ext.generics])];
-                const sdsds = zip(allParams, allParams.map(name => Type.fresh(env.letLevel, name)));
-                params.declareMany(sdsds);
+                const allParams = uniq([...extParams, ...ext.generics]);
+                const insts = zip(allParams, allParams.map(name => Type.fresh(env.letLevel, name)));
+                params.declareMany(insts);
                 const subst = Type.unifyPure(subjectInst.ty, ext.subject, params);
                 if (subst) {
                     params.substitute(subst);
-                    const mapping = new Map([...sdsds, ...Subst.parameterize(subst, params.reversed).entries()]);
+                    const mapping = new Map([...insts, ...Subst.parameterize(subst, params.typeVarIdMapping).entries()]);
                     candidates.push({ ext, subst: new Map([...subjectInst.subst, ...subst]), params: mapping });
                 }
             }
