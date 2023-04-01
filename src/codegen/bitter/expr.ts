@@ -11,7 +11,7 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
 
     return match(sweet, {
         Literal: ({ literal }) => BitterExpr.Literal(literal, ty),
-        Variable: name => BitterExpr.Variable({ name, ty }),
+        Variable: ({ name }) => BitterExpr.Variable({ name, ty }),
         Unary: ({ op, expr }) => BitterExpr.Unary({ op, expr: bitterExprOf(expr), ty }),
         Binary: ({ lhs, op, rhs }) => BitterExpr.Binary({
             lhs: bitterExprOf(lhs),

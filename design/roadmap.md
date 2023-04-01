@@ -27,9 +27,12 @@
 - [x] Support static functions and initializers
 
 ### 4. Generics
-- [ ] Support generic functions
+- [x] Generic functions
+- [x] Generic Structs
 
-### 5. Mutability
+### 5. Iterators
+
+### 6. Mutability
 - [ ] Require `mut` keyword for any mutable function argument / variable / struct member 
 - [ ] Prevent mutation of immutable structures and nested elements
 
@@ -48,17 +51,15 @@ a[0].a += 1 // error
 a[1].d += 1 // ok
 ```
 
-### 6. Enums and Pattern Matching
+### 7. Enums and Pattern Matching
 - [ ] Enum declarations
 - [ ] Destructuring in let declarations, use expressions and function arguments
 - [ ] Rewrite match expressions to decision trees
 - [ ] Resolve enums with the shorthand `.Member` syntax instead of `Struct.Member`
 
-### 8. Iterators
+### 8. String template literals
 
-### 9. String template literals
-
-### 10. Checkpoint I
+### 9. Checkpoint I
 - [ ] Improve error messages
 - [ ] Identify improvement areas and clean up
 - [ ] Optimize pattern matching (+ eliminate `Option` type overhead)
@@ -70,22 +71,22 @@ a[1].d += 1 // ok
 At this point, Poy should be as expressive as OCaml and perfectly usable as is.
 Inclusion of the following features is not guaranteed as it may overcomplexify the code.
 
-### 11. Dictionaries
+### 10. Dictionaries
 - [ ] Structural typing
 - [ ] Support index signature type definitions: { ...String: Num }
 
-### 12. Array Comprehension
+### 11. Array Comprehension
 - [ ] Find a clean way to build and represent array / dict comprehensions.
 
-### 13. Interfaces (aka traits / protocols)
+### 12. Interfaces (aka traits / protocols)
 - [ ] Decide between monomorphization and dictionary passing.
 - [ ] Extend the type system to support interface contexts.
 - [ ] Rewrite interface calls.
 - [ ] Define standard interfaces (Show, Eq, ...)
 
-### 14. Argument labels
+### 13. Argument labels
 
-### 15. Checkpoint II
+### 14. Checkpoint II
 - [ ] Clean up
 - [ ] Optimize dictionary type inference
 - [ ] Optimize interfaces

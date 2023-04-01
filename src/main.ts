@@ -1,6 +1,12 @@
 import { bundle } from "./bundle/bundle";
-import { createFileSystem } from "./misc/fs";
+import { createFileSystem, type FileSystem } from "./misc/fs";
 import { Resolver } from "./resolve/resolve";
+
+async function compile(sourceFile: string, fs: FileSystem): Promise<string> {
+    const resolver = new Resolver(fs);
+    await resolver.resolve(sourceFile);
+    return bundle(resolver.modules);
+}
 
 async function main() {
     const fs = await createFileSystem();
@@ -13,9 +19,7 @@ async function main() {
         process.exit(1);
     }
 
-    const resolver = new Resolver(fs);
-    await resolver.resolve(sourceFile);
-    const output = bundle(resolver.modules);
+    const output = await compile(sourceFile, fs);
 
     if (outFile === undefined) {
         console.log(output);

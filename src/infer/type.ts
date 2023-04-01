@@ -1,8 +1,9 @@
 import { DataType, genConstructors, match, matchMany } from "itsamatch";
 import { config } from "../config";
 import { Context } from "../misc/context";
+import { Scope, TypeParamScope } from "../misc/scope";
 import { Eq, Impl, Rewrite, Show } from "../misc/traits";
-import { array, assert, last, panic } from "../misc/utils";
+import { array, assert, panic } from "../misc/utils";
 import { ModulePath } from "../resolve/resolve";
 import { normalize } from './rewrite';
 
@@ -32,9 +33,11 @@ export const Type = {
     normalize,
     fresh,
     vars,
+    namedParams,
     rewrite,
     generalize,
     instantiate,
+    parameterize,
     specificity,
     occurs,
     utils: {
@@ -57,58 +60,65 @@ export const Type = {
     },
 } satisfies Impl<Show<Type> & Eq<Type> & Rewrite<Type>>;
 
+export type TypeVarId = number;
 export type TypeVar = DataType<{
     Unbound: { id: number, name?: string, level: number },
     Generic: { id: number, name?: string },
+    Param: { name: string },
     Link: { type: Type },
 }>;
 
-const showTypeVarId = (id: number): string => {
+export const showTypeVarId = (id: number): string => {
     return String.fromCharCode(97 + (id % 26)) + (id >= 26 ? String(Math.floor(id / 26)) : '');
 };
 
 export const TypeVar = {
-    ...genConstructors<TypeVar>(['Unbound', 'Generic']),
+    ...genConstructors<TypeVar>(['Unbound', 'Generic', 'Param']),
     Link: (type: Type): TypeVar => ({ variant: 'Link', type }),
     eq: (a, b) => matchMany([a, b], {
         'Unbound Unbound': (a, b) => a.id === b.id,
         'Generic Generic': (a, b) => a.id === b.id,
         'Link Link': (a, b) => Type.eq(a.type, b.type),
+        'Param Param': (a, b) => a.name === b.name,
         _: () => false,
     }),
-    show: (self, ignoreName = config.debug.ignoreTypeParamName) => match(self, {
-        Unbound: ({ id, name }) => ignoreName ? showTypeVarId(id) : name ?? showTypeVarId(id),
-        Generic: ({ id, name }) => ignoreName ? showTypeVarId(id) : name ?? showTypeVarId(id),
+    show: (self) => match(self, {
+        Unbound: ({ id }) => showTypeVarId(id),
+        Generic: ({ id }) => showTypeVarId(id),
+        Param: ({ name }) => name,
         Link: ({ type }) => Type.show(type),
     }),
-    substitutionContexts: array<Subst>(),
-    pushSubstitutionContext(): Subst {
-        const subst = new Map<number, Type>();
-        TypeVar.substitutionContexts.push(subst);
-        return subst;
-    },
-    popSubstitutionContext(): Subst {
-        assert(TypeVar.substitutionContexts.length > 0, 'Substitution context stack is empty');
-        return TypeVar.substitutionContexts.pop()!;
-    },
-    recordSubstitutions: <T>(cb: (subst: Subst) => T): T => {
-        const subst = TypeVar.pushSubstitutionContext();
-        const ret = cb(subst);
-        TypeVar.popSubstitutionContext();
-        return ret;
+    context: {
+        substitutions: array<Subst>(),
+        push: (): Subst => {
+            const subst = new Map<number, Type>();
+            TypeVar.context.substitutions.push(subst);
+            return subst;
+        },
+        pop: (): Subst => {
+            assert(TypeVar.context.substitutions.length > 0, 'Substitution context stack is empty');
+            return TypeVar.context.substitutions.pop()!;
+        },
+        record: <T>(cb: (subst: Subst) => T): T => {
+            const subst = TypeVar.context.push();
+            const ret = cb(subst);
+            TypeVar.context.pop();
+            return ret;
+        },
     },
     linkTo: (self: { ref: TypeVar }, type: Type, subst?: Subst): void => {
         if (self.ref.variant === 'Unbound') {
             if (!(type.variant === 'Var' && type.ref.variant === 'Unbound' && type.ref.id === self.ref.id)) {
-                if (TypeVar.substitutionContexts.length > 0) {
-                    const contextSubst = last(TypeVar.substitutionContexts);
-                    Subst.set(contextSubst, self.ref.id, type);
+                for (const sig of TypeVar.context.substitutions) {
+                    Subst.set(sig, self.ref.id, type);
                 }
 
+                const deref = unlink(type);
+
                 if (subst != null) {
-                    Subst.set(subst, self.ref.id, type);
+                    Subst.set(subst, self.ref.id, deref);
                 } else {
-                    self.ref = TypeVar.Link(type);
+                    self.ref = TypeVar.Link(deref);
                 }
             }
         }
@@ -139,7 +149,7 @@ function show(ty: Type, ignoreName = config.debug.ignoreTypeParamName): string {
                     genericTyVars.add(ignoreName ? showTypeVarId(ref.id) : ref.name ?? showTypeVarId(ref.id));
                 }
 
-                return TypeVar.show(ref, ignoreName);
+                return TypeVar.show(ref);
             },
             Fun: ({ name, args }) => {
                 switch (name) {
@@ -227,9 +237,28 @@ function vars(ty: Type): Map<string, number> {
     return vars;
 }
 
+function namedParams(ty: Type): Set<string> {
+    const params = new Set<string>();
+
+    const aux = (ty: Type): void => {
+        match(ty, {
+            Var: ({ ref }) => {
+                if (ref.variant === 'Param' && ref.name != null && ref.name[0] !== '_') {
+                    params.add(ref.name);
+                }
+            },
+            Fun: ({ args }) => args.forEach(aux),
+        });
+    };
+
+    aux(ty);
+
+    return params;
+}
+
 function eq(a: Type, b: Type): boolean {
     return matchMany([a, b], {
-        'Var Var': Object.is,
+        'Var Var': (a, b) => TypeVar.eq(a.ref, b.ref),
         'Fun Fun': (a, b) =>
             a.name === b.name &&
             a.args.length === b.args.length &&
@@ -270,7 +299,20 @@ export const Subst = {
         if (!occurs(id, ty)) {
             subst.set(id, ty);
         }
-    }
+    },
+    parameterize: (subst: Subst, mapping: Map<TypeVarId, string>): Map<string, Type> => {
+        const params = new Map<string, Type>();
+
+        for (const [id, ty] of subst) {
+            const name = mapping.get(id);
+
+            if (name != null) {
+                params.set(name, ty);
+            }
+        }
+
+        return params;
+    },
 };
 
 function occurs(id: number, ty: Type): boolean {
@@ -279,12 +321,13 @@ function occurs(id: number, ty: Type): boolean {
             Unbound: ({ id: id2 }) => id === id2,
             Generic: ({ id: id2 }) => id === id2,
             Link: ({ type }) => occurs(id, type),
+            Param: () => false,
         }),
         Fun: ({ args }) => args.some(arg => occurs(id, arg)),
     });
 }
 
-function occursCheckAdjustLevels(id: number, level: number, ty: Type): void {
+function occursCheckAdjustLevels(id: number, level: number, ty: Type, params?: Scope<Type>): void {
     const go = (t: Type): void => {
         match(t, {
             Var: v => match(v.ref, {
@@ -300,6 +343,20 @@ function occursCheckAdjustLevels(id: number, level: number, ty: Type): void {
                 Generic: () => {
                     panic('Generic type variables should not appear during unification');
                 },
+                Param: ({ name }) => {
+                    if (params != null) {
+                        params.lookup(name).match({
+                            Some: t => go(t),
+                            None: () => {
+                                if (name[0] !== '_') {
+                                    panic(`Unknown type parameter '${name}'`);
+                                }
+                            },
+                        });
+                    } else {
+                        panic(`Unknown type parameter '${name}'`);
+                    }
+                },
                 Link: ({ type }) => go(type),
             }),
             Fun: ({ args }) => args.forEach(go),
@@ -309,19 +366,35 @@ function occursCheckAdjustLevels(id: number, level: number, ty: Type): void {
     go(ty);
 }
 
-function unifyVar(v: { ref: TypeVar }, ty: Type, eqs: [Type, Type][], subst?: Subst): void {
+function unifyVar(v: { ref: TypeVar }, ty: Type, eqs: [Type, Type][], params?: Scope<Type>, subst?: Subst): void {
     match(v.ref, {
         Unbound: ({ id, level }) => {
             if (ty.variant === 'Var' && ty.ref.variant === 'Unbound' && ty.ref.id === id) {
                 panic(`There should only be one instance of a particular type variable, but found two instances of '${showTypeVarId(id)}'.`);
             }
 
-            occursCheckAdjustLevels(id, level, ty);
+            occursCheckAdjustLevels(id, level, ty, params);
 
             TypeVar.linkTo(v, ty, subst);
         },
         Generic: () => {
             panic('Generic type variables should not appear during unification');
+        },
+        Param: ({ name }) => {
+            if (params) {
+                params.lookup(name).match({
+                    Some: t => {
+                        eqs.push([t, ty]);
+                    },
+                    None: () => {
+                        if (name[0] !== '_') {
+                            panic(`Unknown type parameter '${name}'`);
+                        }
+                    }
+                });
+            } else {
+                panic(`Unresolved type parameter '${name}'`);
+            }
         },
         Link: ({ type }) => {
             eqs.push([type, ty]);
@@ -330,7 +403,7 @@ function unifyVar(v: { ref: TypeVar }, ty: Type, eqs: [Type, Type][], subst?: Su
 }
 
 // returns true if unification succeeded
-function unify(a: Type, b: Type, subst?: Subst): boolean {
+function unify(a: Type, b: Type, params?: Scope<Type>, subst?: Subst): boolean {
     const eqs: [Type, Type][] = [[a, b]];
 
     while (eqs.length > 0) {
@@ -342,9 +415,9 @@ function unify(a: Type, b: Type, subst?: Subst): boolean {
         if (eq(s, t)) { continue; }
 
         if (s.variant === 'Var') {
-            unifyVar(s, t, eqs, subst);
+            unifyVar(s, t, eqs, params, subst);
         } else if (t.variant === 'Var') {
-            unifyVar(t, s, eqs, subst);
+            unifyVar(t, s, eqs, params, subst);
         } else if (s.variant === 'Fun' && t.variant === 'Fun') {
             if (s.name !== t.name || s.args.length !== t.args.length) {
                 return false;
@@ -361,10 +434,10 @@ function unify(a: Type, b: Type, subst?: Subst): boolean {
     return true;
 }
 
-function unifyPure(a: Type, b: Type): Subst | undefined {
+function unifyPure(a: Type, b: Type, params?: Scope<Type>): Subst | undefined {
     const subst = new Map<number, Type>();
 
-    if (!unify(a, b, subst)) {
+    if (!unify(a, b, params, subst)) {
         return undefined;
     }
 
@@ -390,6 +463,7 @@ function substitute(ty: Type, subst: Subst): Type {
 
                 return ty;
             },
+            Param: () => ty,
             Link: ({ type }) => substitute(type, subst),
         }),
         Fun: ({ name, args, path }) => Type.Fun(name, args.map(arg => substitute(arg, subst)), path),
@@ -398,6 +472,28 @@ function substitute(ty: Type, subst: Subst): Type {
 
 function substituteMany(ty: Type, substs: Subst[]): Type {
     return substs.reduce((ty, subst) => substitute(ty, subst), ty);
+}
+
+function parameterize(ty: Type, params: TypeParamScope): Type {
+    return match(ty, {
+        Var: ({ ref }) => match(ref, {
+            Unbound: ({ id }) => {
+                return params.lookupParam(id).match({
+                    Some: name => Type.Var(TypeVar.Param({ name })),
+                    None: () => ty,
+                });
+            },
+            Generic: ({ id }) => {
+                return params.lookupParam(id).match({
+                    Some: name => Type.Var(TypeVar.Param({ name })),
+                    None: () => ty,
+                });
+            },
+            Param: () => ty,
+            Link: ({ type }) => parameterize(type, params),
+        }),
+        Fun: ({ name, args, path }) => Type.Fun(name, args.map(arg => parameterize(arg, params)), path),
+    });
 }
 
 function generalize(ty: Type, level: number): Type {
@@ -411,32 +507,47 @@ function generalize(ty: Type, level: number): Type {
                 return ty;
             },
             Generic: () => ty,
+            Param: () => ty,
             Link: ({ type }) => generalize(type, level),
         }),
         Fun: ({ name, args, path }) => Type.Fun(name, args.map(arg => generalize(arg, level)), path),
     });
 }
 
-function instantiate(ty: Type, level: number): { ty: Type, subst: Subst } {
+function instantiate(ty: Type, level: number, params: Scope<Type>): { ty: Type, subst: Subst } {
     const subst: Subst = new Map();
 
     const aux = (ty: Type): Type => {
         return match(ty, {
             Var: ({ ref }) => match(ref, {
                 Unbound: () => ty,
-                Generic: ({ id }) => {
+                Generic: ({ id, name }) => {
                     if (subst.has(id)) {
                         return subst.get(id)!;
                     }
 
-                    const freshTy = Type.fresh(level);
+                    const freshTy = Type.fresh(level, name);
                     Subst.set(subst, id, freshTy);
 
                     return freshTy;
                 },
+                Param: ({ name }) => {
+                    const res = params.lookup(name);
+
+                    return res.match({
+                        Some: aux,
+                        None: () => {
+                            if (name[0] === '_') {
+                                return Type.fresh(level);
+                            }
+
+                            return panic(`Unknown type parameter '${name}'`);
+                        },
+                    });
+                },
                 Link: ({ type }) => aux(type),
             }),
-            Fun: ({ name, args, path }) => Type.Fun(name, args.map(arg => aux(arg)), path),
+            Fun: ({ name, args, path }) => Type.Fun(name, args.map(aux), path),
         });
     };
 
@@ -478,4 +589,3 @@ function unlink(ty: Type): Type {
 
     return ty;
 }
-

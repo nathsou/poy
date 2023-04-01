@@ -1,42 +1,60 @@
-import Foundations { print }
+import Foundations { print, console, Console }
 
-declare fun showType(value: _): Str
-
-extend t[] {
-    declare {
-        let length: Num
-        fun at(index: Num): t
-        fun push(value: t): ()
-    }
-}
+declare let showType: _ -> Str
 
 declare module Math {
     fun min(a: Num, b: Num): Num
 }
 
-fun zip(as: a[], bs: b[]) {
-    let len = Math.min(as.length, bs.length)
-    mut res = []
-    print(showType(res))
-    mut i = 0
-
-    while i < len {
-        print(showType(as))
-        print(showType(bs))
-        let pair = (as.at(i), bs.at(i))
-        print(showType(pair))
-        print(showType(res))
-        res.push(pair)
-        print(showType(res))
-        i += 1
+extend<a> a[] {
+    declare {
+        let length: Num
+        fun at(index: Num): a
+        fun push(value: a): ()
+        fun map<b>(f: a -> b): b[]
     }
 
-    res
+    fun reversed(): a[] {
+        mut rev = []
+        mut i = self.length - 1
+
+        while i >= 0 {
+            rev.push(self.at(i))
+            i -= 1
+        }
+
+        rev
+    }
+
+    fun zip<b>(other: b[]): (a, b)[] {
+        let len = Math.min(self.length, other.length)
+        mut res = []
+        mut i = 0
+
+        while i < len {
+            res.push((self.at(i), other.at(i)))
+            i += 1
+        }
+
+        res
+    }
 }
 
-print(showType(zip))
+struct IteratorResult<res> {
+    value: res,
+    done: Bool,
+}
 
-mut vals = []
-vals.push((1, true))
+extend<a> a {
+    fun print() {
+        console.log(self)
+        self
+    }
+}
 
-print(showType(vals))
+print([1, 2, 3].zip<Str>(["a", "b", "c"]).reversed())
+print(showType(Num[]::reversed))
+let ir = IteratorResult<_> { value: "hello", done: false }
+print(showType(ir))
+ir.print()
+[1, 2, 3].print().reversed().print()

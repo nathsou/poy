@@ -1,6 +1,6 @@
-import { DataType, genConstructors } from 'itsamatch';
+import { DataType, genConstructors, VariantOf } from 'itsamatch';
 import { Type } from '../../infer/type';
-import { ImportMemberKind, Signature } from '../sweet/decl';
+import { Decl as SweetDecl, Signature } from '../sweet/decl';
 import { Stmt } from './stmt';
 
 export type Decl = DataType<{
@@ -11,7 +11,7 @@ export type Decl = DataType<{
     Import: {
         path: string[],
         module: string,
-        members?: { name: string, kind?: ImportMemberKind }[],
+        members?: VariantOf<SweetDecl, 'Import'>['members'],
     },
     Struct: {
         pub: boolean,

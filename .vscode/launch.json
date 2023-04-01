@@ -12,6 +12,9 @@
                 "<node_internals>/**"
             ],
             "program": "${workspaceFolder}/build/poy.js",
+            "args": [
+                "${workspaceFolder}/examples/Generics.poy"
+            ],
             "outFiles": [
                 "${workspaceFolder}/**/*.js"
             ]
