@@ -1,4 +1,4 @@
-import Foundations { print, console, Console }
+import Foundations { print, console, Console, ElementType }
 
 declare let showType: _ -> Str
 

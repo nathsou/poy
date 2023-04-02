@@ -11,3 +11,10 @@ pub struct Console {
 
 pub declare let console: Console
 pub let print = console.log
+
+pub type {
+    ReturnType<Function<_, ret>> = ret
+    Parameters<Function<args, _>> = args
+
+    ElementType<a[]> = a
+}

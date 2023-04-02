@@ -149,10 +149,15 @@ export class TypeEnv {
                 this.inferStmt(stmt);
             },
             Type: ({ pub, lhs, rhs }) => {
+                const typeEnv = this.child();
+                typeEnv.generics.declareMany(
+                    [...Type.namedParams(lhs)].map(name => [name, typeEnv.freshType()])
+                );
+
                 TRS.add(
                     this.typeRules,
-                    this.resolveType(lhs),
-                    this.resolveType(rhs),
+                    typeEnv.resolveType(lhs),
+                    typeEnv.resolveType(rhs),
                     pub
                 );
             },
