@@ -16,7 +16,7 @@ export type Expr = DataType<Typed<{
     Tuple: { elems: Expr[] },
     Array: { elems: Expr[] },
     UseIn: { name: string, value: Expr, rhs: Expr },
-    Fun: { args: FunctionArgument[], body: Expr },
+    Fun: { args: FunctionArgument[], body: Expr, isIterator: boolean },
     Call: { fun: Expr, args: Expr[] },
     Struct: { path: string[], name: string, fields: { name: string, value: Expr }[] },
     VariableAccess: { lhs: Expr, field: string | number, isCalled: boolean },

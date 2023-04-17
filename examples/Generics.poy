@@ -58,3 +58,4 @@ let ir = IteratorResult<_> { value: "hello", done: false }
 print(showType(ir))
 ir.print()
 [1, 2, 3].print().reversed().print()
+

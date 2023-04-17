@@ -15,6 +15,7 @@ export type Expr = DataType<Typed<{
     Ternary: { cond: Expr, then: Expr, otherwise: Expr },
     Array: { elems: Expr[] },
     Closure: { args: { name: Name, ty: TSType }[], stmts: Stmt[] },
+    Generator: { args: { name: Name, ty: TSType }[], stmts: Stmt[] },
     Call: { fun: Expr, args: Expr[] },
     Paren: { expr: Expr },
     Object: { entries: { key: string, value: Expr }[] },
@@ -29,7 +30,7 @@ export type BinaryOp = CompoundOp | '==' | '!=' | '<' | '<=' | '>' | '>=' | '+' 
 export const Expr = {
     ...genConstructors<Expr>([
         'Literal', 'Unary', 'Binary', 'Ternary',
-        'Array', 'Closure', 'Object',
+        'Array', 'Closure', 'Object', 'Generator',
     ]),
     Variable: (name: Name, ty: TSType): Expr => ({ variant: 'Variable', name, ty }) as const,
     Paren: (expr: Expr): Expr => ({ variant: 'Paren', expr, ty: expr.ty }) as const,
@@ -66,6 +67,7 @@ function show(expr: Expr, indentLevel: number = 0): string {
         Array: ({ elems }) => `[${elems.map(e => show(e, indentLevel)).join(', ')}]`,
         Closure: ({ args, stmts }) =>
             `(${args.map(({ name }) => name.mangled).join(', ')}) => {\n${indent}${Stmt.showStmts(stmts, indentLevel + 1)}\n${indent}}`,
+        Generator: ({ args, stmts }) => `function* (${args.map(({ name }) => name.mangled).join(', ')}) {\n${indent}${Stmt.showStmts(stmts, indentLevel + 1)}\n${indent}}`,
         Call: ({ fun, args }) => {
             if (fun.variant === 'Closure') {
                 fun = Expr.Paren(fun);

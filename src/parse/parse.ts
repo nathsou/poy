@@ -370,7 +370,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             }
 
             const body = expr();
-            return Expr.Fun({ generics, args, ret, body });
+            return Expr.Fun({ generics, args, ret, body, isIterator: false });
         });
 
         return res.orDefault(logicalOrExpr);
@@ -683,9 +683,15 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
                     case 'while':
                         next();
                         return whileStmt();
+                    case 'for':
+                        next();
+                        return forStmt();
                     case 'return':
                         next();
                         return returnStmt();
+                    case 'yield':
+                        next();
+                        return yieldStmt();
                     default:
                         return assignmentStmt();
                 }
@@ -745,11 +751,28 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         return Stmt.While(cond, body);
     }
 
+    function forStmt(): Stmt {
+        const name = identifier();
+        consume(Token.Keyword('in'));
+        const iterator = expr();
+        const body = statementList();
+        consumeIfPresent(Token.Symbol(';'));
+
+        return Stmt.For(name, iterator, body);
+    }
+
     function returnStmt(): Stmt {
         const value = expr();
         consumeIfPresent(Token.Symbol(';'));
 
         return Stmt.Return(value);
+    }
+
+    function yieldStmt(): Stmt {
+        const value = expr();
+        consumeIfPresent(Token.Symbol(';'));
+
+        return Stmt.Yield(value);
     }
 
     const ASSIGNMENT_OPERATORS = new Set<AssignmentOp>(['=', '+=', '-=', '*=', '/=', 'mod=', '**=', 'or=', 'and=', '&=', '|=']);

@@ -24,6 +24,7 @@ export const Type = {
     Nil: Object.freeze<Type>({ variant: 'Fun', name: 'Nil', args: [] }),
     Cons: (head: Type, tail: Type): Type => Type.Fun('Cons', [head, tail]),
     Unit: Object.freeze<Type>({ variant: 'Fun', name: 'Tuple', args: [{ variant: 'Fun', name: 'Nil', args: [] }] }),
+    Iterator: (elem: Type): Type => Type.Fun('Iterator', [elem]),
     show,
     eq,
     unify,

@@ -31,7 +31,7 @@ export class TypeEnv {
     private typeImports: Map<string, ModulePath>;
     private extensions: ExtensionScope;
     public letLevel: number;
-    private functionStack: Type[];
+    private functionStack: { ty: Type, isIterator: boolean }[];
     private resolver: Resolver;
     private modulePath: string;
     private moduleName: string;
@@ -69,6 +69,10 @@ export class TypeEnv {
         if (!unifiable) {
             panic(`Cannot unify '${Type.show(s)}' with '${Type.show(t)}'`);
         }
+    }
+
+    private unifyPure(s: Type, t: Type): Subst | undefined {
+        return Type.unifyPure(this.normalize(s), this.normalize(t), this.generics);
     }
 
     private inferLet(
@@ -116,7 +120,8 @@ export class TypeEnv {
 
         const argTys = args.map(arg => arg.ann ?? this.freshType());
         const returnTy = this.resolveType(ret ?? this.freshType());
-        this.functionStack.push(returnTy);
+        const retTyInfo = { ty: returnTy, isIterator: false };
+        this.functionStack.push(retTyInfo);
 
         args.forEach(({ name }, i) => {
             this.variables.declare(name, {
@@ -129,15 +134,21 @@ export class TypeEnv {
 
         const funTy = TypeVar.context.record(subst => {
             const bodyTy = this.inferExpr(body);
-            this.unify(bodyTy, returnTy);
+            if (!retTyInfo.isIterator) {
+                this.unify(bodyTy, retTyInfo.ty);
+            }
+
             this.generics.substitute(subst);
             this.functionStack.pop();
+            const retTy = retTyInfo.isIterator ? Type.Iterator(retTyInfo.ty) : retTyInfo.ty;
 
             return Type.parameterize(
-                Type.substitute(Type.Function(argTys, bodyTy), subst),
+                Type.substitute(Type.Function(argTys, retTy), subst),
                 this.generics
             );
         });
+
+        fun.isIterator = retTyInfo.isIterator;
 
         fun.ty = funTy;
         return funTy;
@@ -408,8 +419,40 @@ export class TypeEnv {
             },
             While: ({ cond, body }) => {
                 this.unify(this.inferExpr(cond), Type.Bool);
+                const bodyEnv = this.child();
+
+                for (const stmt of body) {
+                    bodyEnv.inferStmt(stmt);
+                }
+            },
+            For: ({ name, iterator, body }) => {
+                const iterTy = this.inferExpr(iterator);
+                const elemTy = this.freshType();
+
+                // if `iterator` is not an iterator, try to call iter() on it
+                if (this.unifyPure(iterTy, Type.Iterator(elemTy)) == null) {
+                    return this.inferStmt({
+                        variant: 'For',
+                        name,
+                        iterator: Expr.Call({
+                            fun: Expr.VariableAccess({
+                                lhs: iterator,
+                                field: 'iter',
+                                isCalled: true,
+                                isNative: false,
+                                typeParams: [],
+                            }),
+                            args: [],
+                        }),
+                        body,
+                    });
+                }
+
+                this.unify(iterTy, Type.Iterator(elemTy));
 
                 const bodyEnv = this.child();
+                bodyEnv.variables.declare(name, { pub: false, mut: false, ty: elemTy });
+
                 for (const stmt of body) {
                     bodyEnv.inferStmt(stmt);
                 }
@@ -419,9 +462,19 @@ export class TypeEnv {
                     panic('Return statement used outside of a function body');
                 }
 
-                const funReturnTy = last(this.functionStack);
+                const funReturnTy = last(this.functionStack).ty;
                 const exprTy = this.inferExpr(expr);
                 this.unify(funReturnTy, exprTy);
+            },
+            Yield: ({ expr }) => {
+                if (this.functionStack.length === 0) {
+                    panic('Yield statement used outside of a function body');
+                }
+
+                const funRet = last(this.functionStack);
+                funRet.isIterator = true;
+                const exprTy = this.inferExpr(expr);
+                this.unify(funRet.ty, exprTy);
             },
             _Many: ({ stmts }) => {
                 for (const stmt of stmts) {

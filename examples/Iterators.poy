@@ -1,0 +1,19 @@
+import Foundations { print }
+
+extend<a> a[] {
+    declare let length: Num
+    declare fun at(index: Num): a
+
+    fun iter() {
+        mut i = 0
+
+        while i < self.length {
+            yield self.at(i)
+            i += 1
+        }
+    }
+}
+
+for n in [1, 2, 3] {
+    print(n)
+}

@@ -132,6 +132,7 @@ export const lex = (source: string): Token[] => {
                 Keyword: kw => {
                     switch (kw) {
                         case 'return': return true;
+                        case 'yield': return true;
                         case 'break': return true;
                         default: return false;
                     }

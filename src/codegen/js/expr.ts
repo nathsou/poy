@@ -86,12 +86,12 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
                 ty: rhs.ty,
             }), scope);
         },
-        Fun: ({ args, body }) => {
+        Fun: ({ args, body, isIterator }) => {
             const bodyScope = scope.realChild();
             const declaredArgs = args.map(arg => ({ name: bodyScope.declare(arg.name), ty: TSType.from(arg.ty) }));
             const ret = jsExprOf(body, bodyScope);
 
-            return JSExpr.Closure({
+            return (JSExpr[isIterator ? 'Generator' : 'Closure'])({
                 args: declaredArgs,
                 stmts: [...bodyScope.statements, JSStmt.Return(ret)],
                 ty: TSType.Function({ args: args.map(arg => TSType.from(arg.ty)), ret: ty }),

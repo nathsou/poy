@@ -38,9 +38,10 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
             rhs: bitterExprOf(rhs),
             ty
         }),
-        Fun: ({ args, body }) => BitterExpr.Fun({
+        Fun: ({ args, body, isIterator }) => BitterExpr.Fun({
             args: args.map(arg => ({ name: arg.name, ty: arg.ann! })),
             body: bitterExprOf(body),
+            isIterator,
             ty,
         }),
         Call: ({ fun, args, ty }) => {
