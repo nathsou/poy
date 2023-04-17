@@ -1,4 +1,7 @@
 
+export type Ref<T> = { ref: T };
+export const ref = <T>(ref: T): Ref<T> => ({ ref });
+
 export const panic = (msg: string): never => {
     throw new Error(msg);
 };

@@ -426,24 +426,26 @@ export class TypeEnv {
                 }
             },
             For: ({ name, iterator, body }) => {
-                const iterTy = this.inferExpr(iterator);
+                const iterTy = this.inferExpr(iterator.ref);
                 const elemTy = this.freshType();
 
                 // if `iterator` is not an iterator, try to call iter() on it
                 if (this.unifyPure(iterTy, Type.Iterator(elemTy)) == null) {
+                    iterator.ref = Expr.Call({
+                        fun: Expr.VariableAccess({
+                            lhs: iterator.ref,
+                            field: 'iter',
+                            isCalled: true,
+                            isNative: false,
+                            typeParams: [],
+                        }),
+                        args: [],
+                    });
+
                     return this.inferStmt({
                         variant: 'For',
                         name,
-                        iterator: Expr.Call({
-                            fun: Expr.VariableAccess({
-                                lhs: iterator,
-                                field: 'iter',
-                                isCalled: true,
-                                isNative: false,
-                                typeParams: [],
-                            }),
-                            args: [],
-                        }),
+                        iterator,
                         body,
                     });
                 }

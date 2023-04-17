@@ -13,7 +13,7 @@ export const bitterStmtOf = (sweet: SweetStmt): BitterStmt[] => match(sweet, {
     Expr: ({ expr }) => [BitterStmt.Expr(bitterExprOf(expr))],
     Assign: ({ lhs, op, rhs }) => [BitterStmt.Assign(bitterExprOf(lhs), op, bitterExprOf(rhs))],
     While: ({ cond, body }) => [BitterStmt.While(bitterExprOf(cond), body.flatMap(bitterStmtOf))],
-    For: ({ name, iterator, body }) => [BitterStmt.For(name, bitterExprOf(iterator), body.flatMap(bitterStmtOf))],
+    For: ({ name, iterator, body }) => [BitterStmt.For(name, bitterExprOf(iterator.ref), body.flatMap(bitterStmtOf))],
     Return: ({ expr }) => [BitterStmt.Return(bitterExprOf(expr))],
     Yield: ({ expr }) => [BitterStmt.Yield(bitterExprOf(expr))],
     _Many: ({ stmts }) => stmts.flatMap(bitterStmtOf),

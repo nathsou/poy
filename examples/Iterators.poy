@@ -1,8 +1,10 @@
 import Foundations { print }
 
 extend<a> a[] {
-    declare let length: Num
-    declare fun at(index: Num): a
+    declare {
+        let length: Num
+        fun at(index: Num): a
+    }
 
     fun iter() {
         mut i = 0

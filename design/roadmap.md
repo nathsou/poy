@@ -31,8 +31,14 @@
 - [x] Generic Structs
 
 ### 5. Iterators
+- [x] Support yield expressions
+- [x] Automatically call `iter` on iterables 
 
-### 6. Mutability
+### 6. Attributes
+- [ ] Support alias attributes: `declare #[alias("Symbol.iterator")] fun iter(): Iterator<a>`
+- [ ] Support `new` attribtues: `#[new("Map")]`
+
+### 7. Mutability
 - [ ] Require `mut` keyword for any mutable function argument / variable / struct member 
 - [ ] Prevent mutation of immutable structures and nested elements
 
@@ -51,15 +57,15 @@ a[0].a += 1 // error
 a[1].d += 1 // ok
 ```
 
-### 7. Enums and Pattern Matching
+### 8. Enums and Pattern Matching
 - [ ] Enum declarations
 - [ ] Destructuring in let declarations, use expressions and function arguments
 - [ ] Rewrite match expressions to decision trees
 - [ ] Resolve enums with the shorthand `.Member` syntax instead of `Struct.Member`
 
-### 8. String template literals
+### 9. String template literals
 
-### 9. Checkpoint I
+### 10. Checkpoint I
 - [ ] Improve error messages
 - [ ] Identify improvement areas and clean up
 - [ ] Optimize pattern matching (+ eliminate `Option` type overhead)
@@ -71,22 +77,22 @@ a[1].d += 1 // ok
 At this point, Poy should be as expressive as OCaml and perfectly usable as is.
 Inclusion of the following features is not guaranteed as it may overcomplexify the code.
 
-### 10. Dictionaries
+### 11. Dictionaries
 - [ ] Structural typing
 - [ ] Support index signature type definitions: { ...String: Num }
 
-### 11. Array Comprehension
+### 12. Array Comprehension
 - [ ] Find a clean way to build and represent array / dict comprehensions.
 
-### 12. Interfaces (aka traits / protocols)
+### 13. Interfaces (aka traits / protocols)
 - [ ] Decide between monomorphization and dictionary passing.
 - [ ] Extend the type system to support interface contexts.
 - [ ] Rewrite interface calls.
 - [ ] Define standard interfaces (Show, Eq, ...)
 
-### 13. Argument labels
+### 14. Argument labels
 
-### 14. Checkpoint II
+### 15. Checkpoint II
 - [ ] Clean up
 - [ ] Optimize dictionary type inference
 - [ ] Optimize interfaces
