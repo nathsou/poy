@@ -1,6 +1,6 @@
 import { match, VariantOf } from 'itsamatch';
 import { Decl as BitterDecl } from '../../ast/bitter/decl';
-import { Decl as SweetDecl, ModuleDecl } from '../../ast/sweet/decl';
+import { ModuleDecl, Decl as SweetDecl } from '../../ast/sweet/decl';
 import { bitterStmtOf } from './stmt';
 
 export const bitterModuleOf = (sweet: ModuleDecl): VariantOf<BitterDecl, 'Module'> => {
@@ -18,7 +18,7 @@ export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] => match(sweet, {
     Import: ({ path, module, members }) => [BitterDecl.Import({ path, module, members })],
     Struct: ({ pub, name, fields }) => [BitterDecl.Struct({ pub, name, fields })],
     Extend: ({ subject, decls, uuid }) => {
-        const letDecls: BitterDecl[] = [];
+        const filteredDecls: BitterDecl[] = [];
 
         for (const decl of decls) {
             if (decl.variant === 'Stmt' && decl.stmt.variant === 'Let') {
@@ -32,11 +32,17 @@ export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] => match(sweet, {
                     });
                 }
 
-                letDecls.push(...bitterDeclsOf(SweetDecl.Stmt(letStmt)));
+                filteredDecls.push(...bitterDeclsOf(SweetDecl.Stmt(letStmt)));
+            } else if (decl.variant === 'Declare') {
+                filteredDecls.push(...bitterDeclsOf(decl));
+            } else if (decl.variant === '_Many') {
+                for (const subDecl of decl.decls) {
+                    filteredDecls.push(...bitterDeclsOf(subDecl));
+                }
             }
         }
 
-        return letDecls;
+        return [BitterDecl.Extend({ subject, uuid, decls: filteredDecls })];
     },
     _Many: ({ decls }) => decls.flatMap(bitterDeclsOf),
 });

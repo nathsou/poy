@@ -46,7 +46,7 @@ export const last = <T>(elems: T[]): T => {
     return elems[elems.length - 1];
 };
 
-export const zip = <A, B>(as: A[], bs: B[], checkSameLength = true): [A, B][] => {
+export const zip = <A, B>(as: readonly A[], bs: readonly B[], checkSameLength = true): [A, B][] => {
     if (checkSameLength && as.length !== bs.length) {
         panic(`called zip with arrays of different lengths: ${as.length} and ${bs.length}`);
     }

@@ -190,6 +190,7 @@ export const lex = (source: string): Token[] => {
             case '_': return Token.Symbol('_');
             case '.': return Token.Symbol('.');
             case '@': return Token.Symbol('@');
+            case '#': return Token.Symbol('#');
             case '"': return parseStr();
             default:
                 if (isDigit(char)) {

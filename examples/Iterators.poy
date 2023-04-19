@@ -1,9 +1,15 @@
 import Foundations { print }
 
+#as("boxgirl")
+let boxboy = 2019
+
+print(boxboy)
+
 extend<a> a[] {
     declare {
         let length: Num
         fun at(index: Num): a
+        // #as("Symbol.iterator") fun iter(): Iterator<a>
     }
 
     fun iter() {

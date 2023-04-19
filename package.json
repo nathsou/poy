@@ -15,10 +15,11 @@
     "url": "https://github.com/nathsou/poy"
   },
   "devDependencies": {
+    "@types/node": "^18.15.11",
+    "@types/uuid": "9.0.1",
     "esbuild": "^0.17.14",
     "itsamatch": "^1.2.0",
-    "typescript": "4.9.4",
-    "uuid": "^9.0.0",
-    "@types/uuid": "9.0.1"
+    "typescript": "^5.0.4",
+    "uuid": "^9.0.0"
   }
 }

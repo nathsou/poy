@@ -92,6 +92,6 @@ function show(expr: Expr, indentLevel: number = 0): string {
                 return `{\n${entriesFmt.map(e => `${indent}    ${e}`).join(',\n')}\n${indent}  }`;
             }
         },
-        Dot: ({ lhs, field }) => typeof field === 'number' ? `${show(lhs)}[${field}]` : `${show(lhs)}.${field}`,
+        Dot: ({ lhs, field }) => typeof field === 'number' || field.includes('.') ? `${show(lhs)}[${field}]` : `${show(lhs)}.${field}`,
     });
 }

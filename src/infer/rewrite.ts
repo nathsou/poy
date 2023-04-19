@@ -1,7 +1,7 @@
 import { match } from "itsamatch";
 import { config } from "../config";
 import { Impl, Show } from "../misc/traits";
-import { assert, panic, zip } from "../misc/utils";
+import { assert, last, panic, zip } from "../misc/utils";
 import { TypeEnv } from "./infer";
 import { Subst, Type } from "./type";
 
@@ -65,7 +65,7 @@ const externals: Record<string, (args: Type[], env: TypeEnv, counter: StepCounte
 
         if (symb.name === '@fun') {
             const lambdaArgs = symb.args.slice(0, -1);
-            const body = symb.args.at(-1)!;
+            const body = last(symb.args);
             const subst: Subst = new Map(zip(lambdaArgs.map(arg => {
                 assert(arg.variant === 'Var' && arg.ref.variant === 'Unbound');
                 return arg.ref.id;

@@ -51,12 +51,12 @@ export class JSScope {
         return mangledName;
     }
 
-    public declare(name: string): Name {
+    public declare(name: string, as_?: string): Name {
         if (this.members.has(name)) {
             throw new Error(`Member '${name}' already declared`);
         }
 
-        const mangled = this.mangle(name);
+        const mangled = as_ ?? this.mangle(name);
         const result = { name, mangled };
         this.members.set(name, result);
         this.usedNames.add(mangled);

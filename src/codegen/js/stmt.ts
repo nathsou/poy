@@ -6,8 +6,8 @@ import { JSScope } from './jsScope';
 
 export const jsStmtOf = (bitter: BitterStmt, scope: JSScope): JSStmt => {
     return match(bitter, {
-        Let: ({ mutable, name, value }) => {
-            const declaredName = scope.declare(name);
+        Let: ({ mutable, name, value, as }) => {
+            const declaredName = scope.declare(name, as);
             const jsValue = jsExprOf(value, scope);
 
             if (mutable) {

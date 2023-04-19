@@ -13,6 +13,7 @@ export type Stmt = DataType<{
         name: string,
         ann?: Type,
         value: Expr,
+        as?: string,
     },
     Assign: { lhs: Expr, op: AssignmentOp, rhs: Expr },
     While: { cond: Expr, body: Stmt[] },

@@ -1,17 +1,19 @@
 import { match, VariantOf } from "itsamatch";
 import { v4 as uuidv4 } from 'uuid';
+import { Attribute, Attributes } from "../ast/sweet/attribute";
 import { Decl, ModuleDecl, Signature, StructDecl } from "../ast/sweet/decl";
 import { Expr, FunctionArgument } from "../ast/sweet/expr";
 import { Stmt } from "../ast/sweet/stmt";
 import { Type, TypeVar } from "../infer/type";
 import { Maybe, None, Some } from "../misc/maybe";
 import { isLowerCase, isUpperCase } from "../misc/strings";
-import { assert, last, letIn, panic } from "../misc/utils";
+import { assert, block, last, letIn, panic, ref } from "../misc/utils";
 import { AssignmentOp, BinaryOp, Keyword, Literal, Symbol, Token, UnaryOp } from "./token";
 
 export const parse = (tokens: Token[], newlines: number[], filePath: string) => {
     let index = 0;
     const modifiers = { pub: false, static: false };
+    const attrs = ref<Attributes>({});
 
     // ------ meta ------
 
@@ -80,6 +82,18 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         });
     }
 
+    function literal(): Literal {
+        return match(peek(), {
+            Literal: ({ value }) => {
+                next();
+                return value;
+            },
+            _: () => {
+                reportError('Expected literal');
+            },
+        });
+    }
+
     function reportError(message: string): never {
         const { loc } = tokens[index];
         const start = loc?.start ?? 0;
@@ -144,6 +158,14 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         return ret;
     }
 
+    function brackets<T>(p: () => T): T {
+        consume(Token.Symbol('['));
+        const ret = p();
+        consume(Token.Symbol(']'));
+
+        return ret;
+    }
+
     function typeParams(): string[] {
         if (matches(Token.Symbol('<'))) {
             const params = commas(() => {
@@ -168,6 +190,36 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
 
             return params;
         }).orDefault([]);
+    }
+
+    function attribute(): Attribute {
+        const name = identifier();
+        const args = [];
+
+        if (matches(Token.Symbol('('))) {
+            args.push(...commas(literal));
+            consume(Token.Symbol(')'));
+        }
+
+        return { name, args };
+    }
+
+    function attributes(): Attributes {
+        const attrs = Attributes.parse(block(() => {
+            if (matches(Token.Symbol('#'))) {
+                if (check(Token.Symbol('['))) {
+                    return brackets(() => commas(attribute));
+                } else {
+                    return [attribute()];
+                }
+            }
+
+            return [];
+        }));
+
+        consumeIfPresent(Token.Symbol(';'));
+
+        return attrs;
     }
 
     // ------ types ------
@@ -643,6 +695,8 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     // ------ statements ------
 
     function stmt(): Stmt {
+        attrs.ref = attributes();
+
         return match(peek(), {
             Keyword: keyword => {
                 switch (keyword) {
@@ -727,7 +781,8 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             mutable,
             name,
             ann,
-            value
+            value,
+            as: attrs.ref.as,
         });
     }
 
