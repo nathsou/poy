@@ -1,3 +1,4 @@
+import { Attributes } from "../ast/sweet/attribute";
 import { config } from "../config";
 import { Err, Ok, Result } from "../misc/result";
 import { uniq } from "../misc/sets";
@@ -9,6 +10,7 @@ export type ExtensionMembers = Map<string, { ty: Type, declared: boolean }>;
 export type ExtensionInfo = {
     subject: Type,
     member: string,
+    attrs: Attributes,
     generics: string[],
     ty: Type,
     declared: boolean,

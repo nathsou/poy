@@ -3,6 +3,7 @@ import { Type } from "../../infer/type";
 import { AssignmentOp } from "../../parse/token";
 import { Expr } from "./expr";
 import { Ref, ref } from "../../misc/utils";
+import { Attributes } from "./attribute";
 
 export type Stmt = DataType<{
     Expr: { expr: Expr },
@@ -13,7 +14,7 @@ export type Stmt = DataType<{
         name: string,
         ann?: Type,
         value: Expr,
-        as?: string,
+        attrs: Attributes,
     },
     Assign: { lhs: Expr, op: AssignmentOp, rhs: Expr },
     While: { cond: Expr, body: Stmt[] },

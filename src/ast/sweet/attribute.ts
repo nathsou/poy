@@ -5,7 +5,6 @@ export type Attribute = { name: string, args: Literal[] };
 
 export type Attributes = Partial<{
   as: string,
-  new: string,
 }>;
 
 export type AttributeName = keyof Attributes;
@@ -39,6 +38,7 @@ function parseArgs<const Ks extends readonly Literal['variant'][]>(
 }
 
 export const Attributes = {
+  empty: (): Attributes => ({}),
   get: (attributes: Attribute[], name: string): Attribute | undefined => {
     return attributes.find((attribute) => attribute.name === name);
   },
@@ -48,12 +48,11 @@ export const Attributes = {
     for (const attribute of attributes) {
       switch (attribute.name) {
         case "as": {
-          const [as] = parseArgs("as", ["Str"], attribute.args);
-          parsed.as = as;
+          parsed.as = parseArgs("as", ["Str"], attribute.args)[0];
           break;
         }
         case "new": {
-          parsed.new = parseArgs("new", ["Str"], attribute.args)[0];
+          parsed.as = 'new ' + parseArgs("new", ["Str"], attribute.args)[0];
           break;
         }
         default: {

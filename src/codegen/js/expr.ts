@@ -81,7 +81,7 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
         Array: ({ elems }) => JSExpr.Array({ elems: elems.map(expr => jsExprOf(expr, scope)), ty }),
         UseIn: ({ name, value, rhs }) => {
             return jsExprOf(BitterExpr.Block({
-                stmts: [BitterStmt.Let({ mutable: false, static: false, name, value })],
+                stmts: [BitterStmt.Let({ mutable: false, static: false, name, value, attrs: {} })],
                 ret: rhs,
                 ty: rhs.ty,
             }), scope);

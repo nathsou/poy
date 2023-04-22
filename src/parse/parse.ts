@@ -7,13 +7,16 @@ import { Stmt } from "../ast/sweet/stmt";
 import { Type, TypeVar } from "../infer/type";
 import { Maybe, None, Some } from "../misc/maybe";
 import { isLowerCase, isUpperCase } from "../misc/strings";
-import { assert, block, last, letIn, panic, ref } from "../misc/utils";
+import { assert, block, last, letIn, panic } from "../misc/utils";
 import { AssignmentOp, BinaryOp, Keyword, Literal, Symbol, Token, UnaryOp } from "./token";
 
 export const parse = (tokens: Token[], newlines: number[], filePath: string) => {
     let index = 0;
     const modifiers = { pub: false, static: false };
-    const attrs = ref<Attributes>({});
+    const attribs = {
+        ref: Attributes.empty(),
+        copy: (): Attributes => ({ ...attribs.ref }),
+    };
 
     // ------ meta ------
 
@@ -695,7 +698,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     // ------ statements ------
 
     function stmt(): Stmt {
-        attrs.ref = attributes();
+        attribs.ref = attributes();
 
         return match(peek(), {
             Keyword: keyword => {
@@ -758,7 +761,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     }
 
     function funStmt(): Stmt {
-        const as = attrs.ref.as;
+        const attrs = attribs.copy();
         const name = identifier();
         const value = funExpr(false);
         consumeIfPresent(Token.Symbol(';'));
@@ -769,12 +772,12 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             mutable: false,
             name,
             value,
-            as,
+            attrs,
         });
     }
 
     function letStmt(mutable: boolean): Stmt {
-        const as = attrs.ref.as;
+        const attrs = attribs.copy();
         const name = identifier();
         const ann = typeAnnotation();
         consume(Token.Symbol('='));
@@ -788,7 +791,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             name,
             ann,
             value,
-            as,
+            attrs,
         });
     }
 
@@ -873,6 +876,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     };
 
     function decl(): Decl {
+        attribs.ref = attributes();
         const token = peek();
 
         if (token.variant === 'Keyword') {
@@ -1109,13 +1113,14 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     }
 
     function declareDecl(): Decl {
+        const attrs = attribs.copy();
         const sigs = signatures();
 
         if (sigs.length === 1) {
-            return Decl.Declare(sigs[0]);
+            return Decl.Declare(sigs[0], attrs);
         }
 
-        return Decl._Many({ decls: sigs.map(sig => Decl.Declare(sig)) });
+        return Decl._Many({ decls: sigs.map(sig => Decl.Declare(sig, attrs)) });
     }
 
     function moduleDecl(): VariantOf<Decl, 'Module'> {

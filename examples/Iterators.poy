@@ -7,14 +7,8 @@ extend<a> a[] {
         fun push(elem: a): ()
     }
 
-    fun iter() {
-        mut i = 0
-
-        while i < self.length {
-            yield self.at(i)
-            i += 1
-        }
-    }
+    #as("Symbol.iterator")
+    declare fun iter(): Iterator<a>
 }
 
 extend<a> Iterator<a> {
@@ -93,4 +87,30 @@ fun solve(a: Num) {
     mid
 }
 
+#new("Map")
+declare fun createMap(): Map<k, v>
+
+extend<k, v> Map<k, v> {
+    declare {
+        fun get(key: k): v
+        fun set(key: k, value: v): ()
+        fun keys(): Iterator<k>
+        fun values(): Iterator<v>
+        fun entries(): Iterator<(k, v)>
+    }
+
+    static fun init() {
+        createMap()
+    }
+}
+
+mut m = Map<Str, Num>()
+m.set("hello", 1)
+m.set("world", 2)
+print(m.entries().toArray())
+
 print(use x = solve(5.9722 * 10 ** 24) in (x, x ** x))
+
+for v in [1, 2, 3] {
+    print(v)
+}

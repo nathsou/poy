@@ -2,11 +2,12 @@ import { DataType, genConstructors, VariantOf } from 'itsamatch';
 import { Type } from '../../infer/type';
 import { Decl as SweetDecl, Signature } from '../sweet/decl';
 import { Stmt } from './stmt';
+import { Attributes } from '../sweet/attribute';
 
 export type Decl = DataType<{
     Stmt: { stmt: Stmt },
     Type: { lhs: Type, rhs: Type },
-    Declare: { sig: Signature },
+    Declare: { sig: Signature, attrs: Attributes },
     Module: { name: string, decls: Decl[] },
     Import: {
         path: string[],

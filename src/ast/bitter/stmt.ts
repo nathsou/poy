@@ -1,10 +1,11 @@
 import { DataType, genConstructors } from "itsamatch";
 import { AssignmentOp } from "../../parse/token";
 import { Expr } from "./expr";
+import { Attributes } from "../sweet/attribute";
 
 export type Stmt = DataType<{
     Expr: { expr: Expr },
-    Let: { mutable: boolean, static: boolean, name: string, value: Expr, as?: string },
+    Let: { mutable: boolean, static: boolean, name: string, value: Expr, attrs: Attributes },
     Assign: { lhs: Expr, op: AssignmentOp, rhs: Expr },
     While: { cond: Expr, body: Stmt[] },
     For: { name: string, iterator: Expr, body: Stmt[] },

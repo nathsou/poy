@@ -55,13 +55,13 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSDecl {
                                     }
                                 }
                             },
-                            Declare: ({ sig }) => {
+                            Declare: ({ sig, attrs }) => {
                                 match(sig, {
                                     Variable: ({ name }) => {
-                                        moduleScope.declare(name);
+                                        moduleScope.declare(name, attrs.as);
                                     },
                                     Module: ({ name }) => {
-                                        moduleScope.declare(name);
+                                        moduleScope.declare(name, attrs.as);
                                     },
                                     Type: () => { },
                                 });

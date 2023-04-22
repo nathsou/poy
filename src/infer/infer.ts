@@ -186,7 +186,7 @@ export class TypeEnv {
                 },
                 Module: ({ name, signatures }) => {
                     const moduleEnv = this.child();
-                    const decls = signatures.map(sig => Decl.Declare(sig));
+                    const decls = signatures.map(sig => Decl.Declare(sig, {}));
                     this.modules.declare(name, {
                         pub: true,
                         local: true,
@@ -313,7 +313,7 @@ export class TypeEnv {
                         declareSelf(extEnv);
 
                         if (decl.variant === 'Stmt' && decl.stmt.variant === 'Let') {
-                            const { pub, mutable, static: isStatic, name, ann, value } = decl.stmt;
+                            const { pub, mutable, static: isStatic, name, ann, value, attrs } = decl.stmt;
                             const generics: string[] = [];
 
                             if (value.variant === 'Fun') {
@@ -337,6 +337,7 @@ export class TypeEnv {
                             this.extensions.declare({
                                 subject: subjectTy,
                                 member: name,
+                                attrs,
                                 generics,
                                 ty: genTy,
                                 declared: false,
@@ -351,6 +352,7 @@ export class TypeEnv {
                             this.extensions.declare({
                                 subject: Type.generalize(Type.substitute(subject, globalSubst), this.letLevel),
                                 member: name,
+                                attrs: decl.attrs,
                                 generics: uniq([...globalParams, ...decl.sig.params]),
                                 ty: genTy,
                                 declared: true,
@@ -728,12 +730,16 @@ export class TypeEnv {
                 }
 
                 return this.extensions.lookup(lhsTy, field, this).match({
-                    Ok: ({ ext: { ty: memberTy, generics, declared: isNative, uuid, subject }, subst, params }) => {
+                    Ok: ({ ext: { ty: memberTy, generics, declared: isNative, uuid, subject, attrs }, subst, params }) => {
                         dotExpr.extensionUuid = uuid;
                         dotExpr.isNative = isNative;
 
                         if (isNative && !isCalled && Type.utils.isFunction(memberTy)) {
                             return panic(`Declared member '${field}' from extension of '${Type.show(lhsTy)}' must be called`);
+                        }
+
+                        if (attrs.as != null) {
+                            dotExpr.field = attrs.as;
                         }
 
                         const typeParamScope = this.generics.child();

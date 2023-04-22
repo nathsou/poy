@@ -35,8 +35,9 @@
 - [x] Automatically call `iter` on iterables 
 
 ### 6. Attributes
-- [ ] Support alias attributes: `declare #[alias("Symbol.iterator")] fun iter(): Iterator<a>`
-- [ ] Support `new` attributes: `#[new("Map")]`
+- [x] Support alias attributes: `declare #[alias("Symbol.iterator")] fun iter(): Iterator<a>`
+- [x] Support `new` attributes: `#[new("Map")]`
+- [ ] Support declared initializers
 
 ### 7. Mutability
 - [ ] Require `mut` keyword for any mutable function argument / variable / struct member 

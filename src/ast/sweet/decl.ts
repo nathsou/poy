@@ -1,6 +1,7 @@
 import { DataType, genConstructors } from 'itsamatch';
 import { Type } from '../../infer/type';
 import { Stmt } from './stmt';
+import { Attributes } from './attribute';
 
 export type ImportMemberKind = 'value' | 'module' | 'type';
 
@@ -8,7 +9,7 @@ export type Decl = DataType<{
     Stmt: { stmt: Stmt },
     Type: TypeDecl,
     Module: ModuleDecl,
-    Declare: { sig: Signature },
+    Declare: { sig: Signature, attrs: Attributes },
     Import: {
         path: string[],
         module: string,
@@ -22,7 +23,7 @@ export type Decl = DataType<{
 export const Decl = {
     ...genConstructors<Decl>(['Module', 'Import', 'Type', 'Struct', 'Extend', '_Many']),
     Stmt: (stmt: Stmt) => ({ variant: 'Stmt', stmt }) satisfies Decl,
-    Declare: (sig: Signature) => ({ variant: 'Declare', sig }) satisfies Decl,
+    Declare: (sig: Signature, attrs: Attributes) => ({ variant: 'Declare', sig, attrs }) satisfies Decl,
 };
 
 export type TypeDecl = {
