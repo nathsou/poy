@@ -12,10 +12,9 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSDecl {
     const aux = (decl: BitterDecl): JSDecl[] => {
         return match(decl, {
             Module: ({ name, decls }) => {
-                const moduleToStmt = (name: string, decls: BitterDecl[]): { stmt: JSStmt, ty: TSType } => {
+                const moduleToStmt = (name: string, decls: BitterDecl[], moduleScope: JSScope): { stmt: JSStmt, ty: TSType } => {
                     scope.declare(name);
                     const members: { name: string, ty: TSType }[] = [];
-                    const moduleScope = scope.realChild();
 
                     for (const decl of decls) {
                         match(decl, {
@@ -30,7 +29,12 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSDecl {
                                 }
                             },
                             Module: ({ name, decls }) => {
-                                const { stmt, ty } = moduleToStmt(name, decls);
+                                const { stmt, ty } = moduleToStmt(
+                                    name,
+                                    decls,
+                                    moduleScope.realChild()
+                                );
+
                                 moduleScope.add(stmt);
                                 members.push({ name, ty });
                             },
@@ -112,7 +116,7 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSDecl {
                     return { stmt, ty: exportObjectTy };
                 };
 
-                return [JSDecl.Stmt(moduleToStmt(name, decls).stmt)];
+                return [JSDecl.Stmt(moduleToStmt(name, decls, scope.realChild()).stmt)];
             },
             _: () => panic('Declaration outside of a module'),
         });

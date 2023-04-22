@@ -478,6 +478,7 @@ export class TypeEnv {
                 const exprTy = this.inferExpr(expr);
                 this.unify(funRet.ty, exprTy);
             },
+            Break: () => { },
             _Many: ({ stmts }) => {
                 for (const stmt of stmts) {
                     this.inferStmt(stmt);
@@ -661,14 +662,20 @@ export class TypeEnv {
                 };
 
                 path.forEach((name, index) => {
-                    mod = mod.env.modules.lookup(name).unwrap();
+                    mod = mod.env.modules
+                        .lookup(name)
+                        .unwrap(() => `Module ${path.slice(0, index).join('.')} not found`);
 
                     if (!mod.local && !mod.pub) {
                         panic(`Module ${path.slice(0, index).join('.')} is private`);
                     }
                 });
 
-                const { pub, ty } = mod.env.variables.lookup(member).unwrap();
+                const { pub, ty } = mod
+                    .env
+                    .variables
+                    .lookup(member)
+                    .unwrap(() => `Member ${path.join('.')}.${member} not found`);
 
                 if (!mod.local && !pub) {
                     panic(`Member ${path.join('.')}.${member} is private`);

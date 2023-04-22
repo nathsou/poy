@@ -27,16 +27,28 @@ export const jsStmtOf = (bitter: BitterStmt, scope: JSScope): JSStmt => {
         },
         While: ({ cond, body }) => {
             const jsCond = jsExprOf(cond, scope);
-            const bodyScope = scope.realChild();
-            const jsBody = body.map(stmt => jsStmtOf(stmt, bodyScope));
-            return JSStmt.While(jsCond, [...bodyScope.statements, ...jsBody]);
+            const stmts: JSStmt[] = [];
+
+            for (const bitterStmt of body) {
+                const jsScope = scope.realChild();
+                const jsStmt = jsStmtOf(bitterStmt, jsScope);
+                stmts.push(...jsScope.statements, jsStmt);
+            }
+
+            return JSStmt.While(jsCond, stmts);
         },
         For: ({ name, iterator, body }) => {
             const declaredName = scope.declare(name);
             const jsIterator = jsExprOf(iterator, scope);
-            const bodyScope = scope.realChild();
-            const jsBody = body.map(stmt => jsStmtOf(stmt, bodyScope));
-            return JSStmt.For(declaredName, jsIterator, [...bodyScope.statements, ...jsBody]);
+            const stmts: JSStmt[] = [];
+
+            for (const bitterStmt of body) {
+                const jsScope = scope.realChild();
+                const jsStmt = jsStmtOf(bitterStmt, jsScope);
+                stmts.push(...jsScope.statements, jsStmt);
+            }
+
+            return JSStmt.For(declaredName, jsIterator, stmts);
         },
         Return: ({ expr }) => {
             const jsExpr = jsExprOf(expr, scope);
@@ -46,5 +58,6 @@ export const jsStmtOf = (bitter: BitterStmt, scope: JSScope): JSStmt => {
             const jsExpr = jsExprOf(expr, scope);
             return JSStmt.Yield(jsExpr);
         },
+        Break: () => JSStmt.Break(),
     });
 }

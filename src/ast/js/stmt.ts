@@ -12,6 +12,7 @@ export type Stmt = DataType<{
     Assign: { lhs: Expr, op: AssignmentOp, rhs: Expr },
     Return: { value: Expr },
     Yield: { value: Expr },
+    Break: {},
     While: { cond: Expr, body: Stmt[] },
     For: { name: Name, iterator: Expr, body: Stmt[] },
 }>;
@@ -21,6 +22,7 @@ export const Stmt = {
     Expr: (expr: Expr) => ({ variant: 'Expr', expr }) satisfies Stmt,
     Return: (value: Expr) => ({ variant: 'Return', value }) satisfies Stmt,
     Yield: (value: Expr) => ({ variant: 'Yield', value }) satisfies Stmt,
+    Break: () => ({ variant: 'Break' }) satisfies Stmt,
     Assign: (lhs: Expr, op: AssignmentOp, rhs: Expr) => ({ variant: 'Assign', lhs, op, rhs }) satisfies Stmt,
     While: (cond: Expr, body: Stmt[]) => ({ variant: 'While', cond, body }) satisfies Stmt,
     For: (name: Name, iterator: Expr, body: Stmt[]) => ({ variant: 'For', name, iterator, body }) satisfies Stmt,
@@ -62,6 +64,7 @@ function show(stmt: Stmt, indentLevel: number = 0): string {
         Assign: ({ lhs, op, rhs }) => `${indent}${Expr.show(lhs)} ${op} ${Expr.show(rhs)};`,
         Return: ({ value }) => `${indent}return ${Expr.show(value)};`,
         Yield: ({ value }) => `${indent}yield ${Expr.show(value)};`,
+        Break: () => `${indent}break;`,
         While: ({ cond, body }) => {
             const body_ = showStmts(body, indentLevel + 1);
             return `${indent}while (${Expr.show(cond)}) {\n${body_}\n${indent}}`;

@@ -746,6 +746,9 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
                     case 'yield':
                         next();
                         return yieldStmt();
+                    case 'break':
+                        next();
+                        return breakStmt();
                     default:
                         return assignmentStmt();
                 }
@@ -755,6 +758,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     }
 
     function funStmt(): Stmt {
+        const as = attrs.ref.as;
         const name = identifier();
         const value = funExpr(false);
         consumeIfPresent(Token.Symbol(';'));
@@ -764,11 +768,13 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             static: modifiers.static,
             mutable: false,
             name,
-            value
+            value,
+            as,
         });
     }
 
     function letStmt(mutable: boolean): Stmt {
+        const as = attrs.ref.as;
         const name = identifier();
         const ann = typeAnnotation();
         consume(Token.Symbol('='));
@@ -782,7 +788,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             name,
             ann,
             value,
-            as: attrs.ref.as,
+            as,
         });
     }
 
@@ -828,6 +834,12 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         consumeIfPresent(Token.Symbol(';'));
 
         return Stmt.Yield(value);
+    }
+
+    function breakStmt(): Stmt {
+        consumeIfPresent(Token.Symbol(';'));
+
+        return Stmt.Break();
     }
 
     const ASSIGNMENT_OPERATORS = new Set<AssignmentOp>(['=', '+=', '-=', '*=', '/=', 'mod=', '**=', 'or=', 'and=', '&=', '|=']);

@@ -17,5 +17,6 @@ export const bitterStmtOf = (sweet: SweetStmt): BitterStmt[] => match(sweet, {
     For: ({ name, iterator, body }) => [BitterStmt.For(name, bitterExprOf(iterator.ref), body.flatMap(bitterStmtOf))],
     Return: ({ expr }) => [BitterStmt.Return(bitterExprOf(expr))],
     Yield: ({ expr }) => [BitterStmt.Yield(bitterExprOf(expr))],
+    Break: () => [BitterStmt.Break()],
     _Many: ({ stmts }) => stmts.flatMap(bitterStmtOf),
 });

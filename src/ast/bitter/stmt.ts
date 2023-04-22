@@ -10,6 +10,7 @@ export type Stmt = DataType<{
     For: { name: string, iterator: Expr, body: Stmt[] },
     Return: { expr: Expr },
     Yield: { expr: Expr },
+    Break: {},
 }>;
 
 export const Stmt = {
@@ -20,4 +21,5 @@ export const Stmt = {
     For: (name: string, iterator: Expr, body: Stmt[]) => ({ variant: 'For', name, iterator, body }) satisfies Stmt,
     Return: (expr: Expr) => ({ variant: 'Return', expr }) satisfies Stmt,
     Yield: (expr: Expr) => ({ variant: 'Yield', expr }) satisfies Stmt,
+    Break: () => ({ variant: 'Break' }) satisfies Stmt,
 };

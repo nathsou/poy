@@ -55,7 +55,7 @@ export const lex = (source: string): Token[] => {
             next();
         }
 
-        if (peek() === '.' && isDigit(peek(2))) {
+        if (peek() === '.' && isDigit(peek(1))) {
             next();
 
             while (isDigit(peek())) {
