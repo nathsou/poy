@@ -408,7 +408,7 @@ function unify(a: Type, b: Type, params?: Scope<Type>, subst?: Subst): boolean {
     const eqs: [Type, Type][] = [[a, b]];
 
     while (eqs.length > 0) {
-        const [s, t] = eqs.pop()!;
+        const [s, t] = eqs.pop()!.map(unlink);
         if (config.debug.unification) {
             console.log(`unify '${show(s)}' with '${show(t)}'`);
         }

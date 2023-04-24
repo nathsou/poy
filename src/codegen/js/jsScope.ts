@@ -33,6 +33,10 @@ export class JSScope {
         return this.stmts;
     }
 
+    public clearStatements() {
+        this.stmts = [];
+    }
+
     public realChild(): JSScope {
         return new JSScope(false, this);
     }

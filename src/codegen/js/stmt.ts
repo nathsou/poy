@@ -27,10 +27,11 @@ export const jsStmtOf = (bitter: BitterStmt, scope: JSScope): JSStmt => {
         },
         While: ({ cond, body }) => {
             const jsCond = jsExprOf(cond, scope);
+            const jsScope = scope.realChild();
             const stmts: JSStmt[] = [];
 
             for (const bitterStmt of body) {
-                const jsScope = scope.realChild();
+                jsScope.clearStatements();
                 const jsStmt = jsStmtOf(bitterStmt, jsScope);
                 stmts.push(...jsScope.statements, jsStmt);
             }
@@ -40,10 +41,11 @@ export const jsStmtOf = (bitter: BitterStmt, scope: JSScope): JSStmt => {
         For: ({ name, iterator, body }) => {
             const declaredName = scope.declare(name);
             const jsIterator = jsExprOf(iterator, scope);
+            const jsScope = scope.realChild();
             const stmts: JSStmt[] = [];
 
             for (const bitterStmt of body) {
-                const jsScope = scope.realChild();
+                jsScope.clearStatements();
                 const jsStmt = jsStmtOf(bitterStmt, jsScope);
                 stmts.push(...jsScope.statements, jsStmt);
             }
