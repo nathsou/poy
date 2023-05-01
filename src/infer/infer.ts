@@ -5,7 +5,7 @@ import { Stmt } from "../ast/sweet/stmt";
 import { Maybe } from "../misc/maybe";
 import { Scope, TypeParamScope } from "../misc/scope";
 import { setDifference, uniq } from "../misc/sets";
-import { last, panic, proj, zip } from "../misc/utils";
+import { gen, last, panic, proj, zip } from "../misc/utils";
 import { AssignmentOp, BinaryOp, UnaryOp } from "../parse/token";
 import { Module, ModulePath, Resolver } from "../resolve/resolve";
 import { ExtensionScope } from "./extensions";
@@ -743,11 +743,11 @@ export class TypeEnv {
                         }
 
                         const typeParamScope = this.generics.child();
-                        typeParamScope.declareMany([...params.entries()]);
-                        typeParamScope.declareMany(zip(
-                            generics,
-                            this.validateTypeParameters('Member', field, generics, typeParams)
-                        ));
+                        typeParamScope.declareMany(params.entries());
+                        // typeParamScope.declareMany(zip(
+                        //     generics,
+                        //     this.validateTypeParameters('Member', field, generics, typeParams)
+                        // ));
                         const subjectInst = Type.instantiate(Type.substitute(subject, subst), this.letLevel, typeParamScope);
                         const extInst = Type.instantiate(Type.substituteMany(memberTy, [subjectInst.subst, subst]), this.letLevel, typeParamScope);
                         this.unify(lhsTy, subjectInst.ty);
@@ -803,7 +803,11 @@ export class TypeEnv {
 
                     return elemTys[index];
                 } else {
-                    return panic(`Expected tuple type, got '${Type.show(lhsTy)}'`);
+                    const elems = gen(index + 1, () => Type.fresh(this.letLevel));
+                    const tail = this.freshType();
+                    const expectedLhsTy = Type.Fun('Tuple', [Type.utils.list(elems, tail)]);
+                    this.unify(lhsTy, expectedLhsTy);
+                    return elems[index];
                 }
             },
         });

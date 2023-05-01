@@ -2,7 +2,7 @@ import { Attributes } from "../ast/sweet/attribute";
 import { config } from "../config";
 import { Err, Ok, Result } from "../misc/result";
 import { uniq } from "../misc/sets";
-import { pushMap, zip } from "../misc/utils";
+import { proj, pushMap, zip } from "../misc/utils";
 import { TypeEnv } from "./infer";
 import { Subst, Type } from "./type";
 
@@ -82,7 +82,7 @@ export class ExtensionScope {
             specificity: Subst.specificity(subst),
         }));
 
-        const minSpecificity = Math.min(...bySpecificity.map(({ specificity }) => specificity));
+        const minSpecificity = Math.min(...bySpecificity.map(proj('specificity')));
         const allBest = bySpecificity.filter(({ specificity }) => specificity === minSpecificity);
 
         if (allBest.length > 1) {

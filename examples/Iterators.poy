@@ -96,14 +96,14 @@ fun solve(a: Num) {
 }
 
 #new("Map")
-declare fun createMap(): Map<_, _>
+declare fun initMap(): Map<_, _>
 
 #new("Map")
-declare fun createMapFromEntries<k, v>(entries: Iterator<(k, v)>): Map<k, v>
+declare fun initMapFromEntries<k, v>(entries: Iterator<(k, v)>): Map<k, v>
 
 extend Map {
     static fun init() {
-        createMap()
+        initMap()
     }
 }
 
@@ -119,19 +119,19 @@ extend<k, v> Map<k, v> {
     }
 
     static fun init() {
-        createMap()
+        initMap()
     }
 
     static fun fromEntries(entries) {
-        createMapFromEntries(entries)
+        initMapFromEntries(entries)
     }
 
-    fun map<k2, v2>(f: (k, v) -> (k2, v2)) {
-        createMapFromEntries(self.entries().map((kv: (k, v)) -> f(kv.0, kv.1)))
+    fun map<k2, v2>(f: (k, v) -> (k2, v2)): Map<k2, v2> {
+        initMapFromEntries(self.entries().map(kv -> f(kv.0, kv.1)))
     }
 
-    fun mapKeys<k2>(f: (k, v) -> k2) {
-        createMapFromEntries(self.entries().map((kv: (k, v)) -> {
+    fun mapKeys<k2>(f: (k, v) -> k2): Map<k2, v> {
+        initMapFromEntries(self.entries().map(kv -> {
             let k = kv.0
             let v = kv.1
             let k2 = f(k, v)
@@ -140,8 +140,8 @@ extend<k, v> Map<k, v> {
         }))
     }
 
-    fun mapValues<v2>(f: (k, v) -> v2) {
-        createMapFromEntries(self.entries().map((kv: (k, v)) -> {
+    fun mapValues<v2>(f: (k, v) -> v2): Map<k, v2> {
+        initMapFromEntries(self.entries().map(kv -> {
             let k = kv.0
             let v = kv.1
             let v2 = f(k, v)

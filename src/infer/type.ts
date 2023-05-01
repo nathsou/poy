@@ -559,8 +559,8 @@ function fresh(level: number, name?: string): Type {
     return Type.Var(TypeVar.fresh(level, name));
 }
 
-function list(elems: Type[]): Type {
-    return elems.reduceRight((tail, head) => Type.Cons(head, tail), Type.Nil);
+function list(elems: Type[], tail: Type = Type.Nil): Type {
+    return elems.reduceRight((tail, head) => Type.Cons(head, tail), tail);
 }
 
 function unlist(ty: Type): Type[] {

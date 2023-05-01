@@ -24,7 +24,7 @@ export class Scope<T> {
         this.members.set(name, value);
     }
 
-    public declareMany(decls: [name: string, value: T][]): void {
+    public declareMany(decls: Iterable<[name: string, value: T]>): void {
         for (const [name, value] of decls) {
             this.declare(name, value);
         }
