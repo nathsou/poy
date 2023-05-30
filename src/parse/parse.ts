@@ -6,7 +6,7 @@ import { Expr, FunctionArgument } from "../ast/sweet/expr";
 import { Stmt } from "../ast/sweet/stmt";
 import { Type, TypeVar } from "../infer/type";
 import { Maybe, None, Some } from "../misc/maybe";
-import { isLowerCase, isUpperCase } from "../misc/strings";
+import { isLowerCase, isUpperCase, Backtick } from "../misc/strings";
 import { assert, block, last, letIn, panic } from "../misc/utils";
 import { AssignmentOp, BinaryOp, Keyword, Literal, Symbol, Token, UnaryOp } from "./token";
 
@@ -109,11 +109,13 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     function sepBy<T>(rule: () => T, separator: Token, closingToken = Token.Symbol(')')): T[] {
         let terms: T[] = [];
 
-        if (!check(closingToken)) {
-            do {
-                terms.push(rule());
-            } while (matches(separator));
-        }
+        do {
+            if (check(closingToken)) {
+                break;
+            }
+
+            terms.push(rule());
+        } while (matches(separator));
 
         consumeIfPresent(Token.Symbol(';'));
 
@@ -504,11 +506,32 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
 
         if (token.variant === 'Symbol' && ['-', '+', '!'].includes(token.$value)) {
             next();
-            const expr = callExpr();
+            const expr = elementAccessExpr();
             return Expr.Unary({ op: token.$value as UnaryOp, expr });
         }
 
-        return callExpr();
+        return elementAccessExpr();
+    }
+
+    function elementAccessExpr(): Expr {
+        let lhs = callExpr();
+
+        while (matches(Token.Symbol('['))) {
+            const key = expr();
+            consume(Token.Symbol(']'));
+            lhs = Expr.Call({
+                fun: Expr.VariableAccess({
+                    lhs,
+                    field: Backtick.encode('[]'),
+                    typeParams: [],
+                    isCalled: true,
+                    isNative: false
+                }),
+                args: [key],
+            });
+        }
+
+        return lhs;
     }
 
     function callExpr(): Expr {

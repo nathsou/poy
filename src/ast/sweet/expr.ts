@@ -1,4 +1,5 @@
-import { DataType, genConstructors } from 'itsamatch';
+import { DataType, genConstructors, match } from 'itsamatch';
+import { TypeEnv } from '../../infer/infer';
 import { Type } from '../../infer/type';
 import { BinaryOp, Literal, UnaryOp } from '../../parse/token';
 import { Stmt } from './stmt';
@@ -31,4 +32,27 @@ export const Expr = {
         'TupleAccess',
     ]),
     Literal: (literal: Literal): Expr => ({ variant: 'Literal', literal }) as const,
+    isMutable: (expr: Expr, env: TypeEnv): boolean => {
+        return match(expr, {
+            Variable: ({ name }) => env.variables.lookup(name).unwrap().mut ?? false,
+            VariableAccess: ({ lhs, field }) => {
+                if (!Expr.isMutable(lhs, env)) return false;
+                if (lhs.ty === undefined) return false;
+                if (lhs.ty.variant === 'Fun') {
+                    return env.structs.lookup(lhs.ty.name).match({
+                        Some: struct => {
+                            const fieldInfo = struct.fields.find(f => f.name === field);
+                            return fieldInfo?.mut ?? false;
+                        },
+                        None: () => false,
+                    });
+                }
+
+                return false;
+            },
+            Array: () => true,
+            Struct: () => true,
+            _: () => false,
+        });
+    },
 };

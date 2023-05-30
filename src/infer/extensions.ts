@@ -2,6 +2,7 @@ import { Attributes } from "../ast/sweet/attribute";
 import { config } from "../config";
 import { Err, Ok, Result } from "../misc/result";
 import { uniq } from "../misc/sets";
+import { Backtick } from "../misc/strings";
 import { proj, pushMap, zip } from "../misc/utils";
 import { TypeEnv } from "./infer";
 import { Subst, Type } from "./type";
@@ -68,7 +69,7 @@ export class ExtensionScope {
         const candidates = this.matchingCandidates(subject, member, env);
 
         if (candidates.length === 0) {
-            return Err(`No extension found for ${Type.show(subject)}::${member}`);
+            return Err(`No extension found for ${Type.show(subject)}::${Backtick.decode(member)}`);
         }
 
         if (candidates.length === 1) {
@@ -90,7 +91,7 @@ export class ExtensionScope {
                 .map(({ ext }) => Type.show(ext.subject))
                 .join('\n');
 
-            return Err(`Ambiguous extension for ${Type.show(subject)}::${member}, candidates:\n${fmt}`);
+            return Err(`Ambiguous extension for ${Type.show(subject)}::${Backtick.decode(member)}, candidates:\n${fmt}`);
         }
 
         return Ok(allBest[0]);

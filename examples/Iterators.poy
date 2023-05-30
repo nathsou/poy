@@ -9,6 +9,9 @@ extend<a> a[] {
 
     #as("Symbol.iterator")
     declare fun iter(): Iterator<a>
+
+    #as("at")
+    declare fun `[]`(index: Num): a
 }
 
 extend<a> Iterator<a> {
@@ -161,9 +164,19 @@ extend <k, e> Map<k, e[]> {
     }
 }
 
+extend Num {
+    fun `+`(n) {
+        self + n
+    }
+}
+
 mut m = Map()
 m.push("hello", 1)
 m.push("world", 2)
 m.push("hello", 7)
 
-print(use x = solve(5.9722 * 10 ** 24) in (x, x ** x))
+// print(use x = solve(5.9722 * 10 ** 24) in (x, x ** x))
+print([1, 2, 3][-1])
+print(3.`+`(7))
+print(Num::`+`(3, 7))
+print([[1, 2, 3]][0][0])

@@ -1,5 +1,6 @@
 import { match } from "itsamatch";
 import { Keyword, Literal, Token } from "./token";
+import { Backtick } from "../misc/strings";
 
 type Char = string;
 
@@ -108,6 +109,21 @@ export const lex = (source: string): Token[] => {
         }
     }
 
+    function parseBacktickIdentifier(): Token {
+        while (peek() !== '`' && !isAtEnd()) {
+            next();
+        }
+
+        if (isAtEnd()) {
+            throw new Error('Unterminated backtick identifier.');
+        }
+
+        next();
+
+        const identifier = source.slice(startIndex + 1, index - 1);
+        return Token.Identifier(Backtick.encode(identifier));
+    }
+
     function shouldInsertSemicolon(): boolean {
         if (tokens.length > 0) {
             return match(tokens[tokens.length - 1], {
@@ -192,6 +208,7 @@ export const lex = (source: string): Token[] => {
             case '@': return Token.Symbol('@');
             case '#': return Token.Symbol('#');
             case '"': return parseStr();
+            case '`': return parseBacktickIdentifier();
             default:
                 if (isDigit(char)) {
                     return parseNum();

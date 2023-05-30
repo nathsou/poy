@@ -1,0 +1,54 @@
+import Foundations { print }
+
+let a = [1, 2, 3]
+mut b = [a]
+
+extend<a> a[] {
+    declare let length: Num
+    declare fun push(elem: a): ()
+}
+
+struct City {
+    name: Str,
+    population: Num,
+}
+
+mut cities = [
+    City {
+        name: "Gueberschwihr",
+        population: 838,
+    },
+    City {
+        name: "Eguisheim",
+        population: 1734,
+    },
+    City {
+        name: "Colmar",
+        population: 70284,
+    },
+    City {
+        name: "Obermorschwihr",
+        population: 362,
+    },
+    City {
+        name: "Troyes",
+        population: 60928,
+    },
+    City {
+        name: "Champaign",
+        population: 89114,
+    },
+    City {
+        name: "Paris",
+        population: 2102650,
+    },
+]
+
+let sg = City {
+    name: "Saint-Genis-Pouilly",
+    population: 10824,
+}
+
+cities.push(sg)
+
+print(cities.length)

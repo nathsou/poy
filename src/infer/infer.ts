@@ -25,7 +25,7 @@ type ModuleInfo = Module & { local: boolean, native?: boolean };
 export class TypeEnv {
     public variables: Scope<VarInfo>;
     public modules: Scope<ModuleInfo>;
-    private structs: Scope<StructDecl>;
+    public structs: Scope<StructDecl>;
     public generics: TypeParamScope;
     public typeRules: TRS;
     private typeImports: Map<string, ModulePath>;
@@ -392,7 +392,7 @@ export class TypeEnv {
                 this.inferLet(pub, mutable, name, ann, value);
             },
             Assign: ({ lhs, op, rhs }) => {
-                const alpha = Type.Var(TypeVar.Generic({ id: 0 }));
+                const alpha = Type.alpha();
                 const ASSIGNMENT_OP_TYPE: Record<AssignmentOp, [Type, Type]> = {
                     '=': [alpha, alpha],
                     '+=': [Type.Num, Type.Num],
@@ -418,6 +418,12 @@ export class TypeEnv {
                 this.unify(rhsTy, expectedRhsTy.ty);
 
                 this.unify(lhsTy, rhsTy);
+
+                const isLhsMutable = Expr.isMutable(lhs, this);
+
+                if (!isLhsMutable) {
+                    panic('Left-hand side of assignment is immutable');
+                }
             },
             While: ({ cond, body }) => {
                 this.unify(this.inferExpr(cond), Type.Bool);
@@ -705,8 +711,13 @@ export class TypeEnv {
                 const params = this.validateTypeParameters('Struct', name, decl.params, typeParams);
                 structParamsScope.declareMany(zip(decl.params, params));
 
-                for (const { name, ty } of decl.fields) {
+                const structName = name;
+                for (const { mut, name, ty } of decl.fields) {
                     this.unify(fieldTys.get(name)!, Type.instantiate(ty, this.letLevel, structParamsScope).ty);
+                    const value = fields.find(({ name: fieldName }) => fieldName === name)!.value;
+                    if (mut && !Type.utils.isValueType(ty) && !Expr.isMutable(value, this)) {
+                        panic(`Cannot use an immutable value in place of the mutable field '${name}' of struct '${structName}'`);
+                    }
                 }
 
                 return Type.Fun(name, params, { file: this.modulePath, subpath: [], env: this });
@@ -744,10 +755,10 @@ export class TypeEnv {
 
                         const typeParamScope = this.generics.child();
                         typeParamScope.declareMany(params.entries());
-                        // typeParamScope.declareMany(zip(
-                        //     generics,
-                        //     this.validateTypeParameters('Member', field, generics, typeParams)
-                        // ));
+                        typeParamScope.declareMany(zip(
+                            generics,
+                            this.validateTypeParameters('Member', field, generics, typeParams)
+                        ));
                         const subjectInst = Type.instantiate(Type.substitute(subject, subst), this.letLevel, typeParamScope);
                         const extInst = Type.instantiate(Type.substituteMany(memberTy, [subjectInst.subst, subst]), this.letLevel, typeParamScope);
                         this.unify(lhsTy, subjectInst.ty);
@@ -789,26 +800,12 @@ export class TypeEnv {
                 });
             },
             TupleAccess: ({ lhs, index }) => {
-                let elems = Type.fresh(this.letLevel);
-                const expectedLhsTy = Type.Fun('Tuple', [elems]);
                 const lhsTy = this.inferExpr(lhs);
+                const elems = gen(index + 1, () => Type.fresh(this.letLevel));
+                const tail = this.freshType();
+                const expectedLhsTy = Type.Tuple(Type.utils.list(elems, tail));
                 this.unify(lhsTy, expectedLhsTy);
-                elems = Type.utils.unlink(elems);
-
-                if (Type.utils.isList(elems)) {
-                    const elemTys = Type.utils.unlist(elems);
-                    if (index >= elemTys.length) {
-                        return panic(`Tuple index out of bounds: ${index} >= ${elemTys.length}`);
-                    }
-
-                    return elemTys[index];
-                } else {
-                    const elems = gen(index + 1, () => Type.fresh(this.letLevel));
-                    const tail = this.freshType();
-                    const expectedLhsTy = Type.Fun('Tuple', [Type.utils.list(elems, tail)]);
-                    this.unify(lhsTy, expectedLhsTy);
-                    return elems[index];
-                }
+                return elems[index];
             },
         });
 

@@ -48,14 +48,23 @@ Rules:
 - A sub-member of a mutable value can only be mutated if
   the reference to the value is mutable and the sub-member is mutable.
 
+  Values become mutable when bound to a mutable variable
+  Immutable variables cannot be used where an mutable value is expected, but
+  mutable variables can be used when an immutable value is expected.
+
 Example:
 ```poy
-let d1 = { a: 1, b: 2 }
-mut d2 = { c: 3, d: 4 }
-mut a = [d1, d2]
+let a = [1, 2, 3]
+mut b = [a] // Num[][]
+b[0][0] = 7 // error
 
-a[0].a += 1 // error
-a[1].d += 1 // ok
+mut a = [1, 2, 3]
+mut b = [a] // mut Num[][]
+b[0][0] = 7 // ok
+
+mut a = [1, 2, 3]
+let b = [4, 5, 6]
+mut c = [a, b] // mut Num[] is not compatible with Num[]
 ```
 
 ### 8. Enums and Pattern Matching

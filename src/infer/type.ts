@@ -13,10 +13,16 @@ export type Type = DataType<{
 }>;
 
 export const Type = {
+    alpha: () => Type.Var(TypeVar.Generic({ id: 0 })),
+    beta: () => Type.Var(TypeVar.Generic({ id: 1 })),
     Var: (ref: TypeVar): Type => ({ variant: 'Var', ref }),
     Fun: (name: string, args: Type[], path?: ModulePath): Type => ({ variant: 'Fun', name, args, path }),
     Array: (elem: Type): Type => Type.Fun('Array', [elem]),
-    Tuple: (elems: Type[]): Type => elems.length === 1 ? elems[0] : Type.Fun('Tuple', [list(elems)]),
+    Tuple: (elems: Type[] | Type): Type =>
+        Array.isArray(elems) ?
+            elems.length === 1 ? elems[0] :
+                Type.Fun('Tuple', [list(elems)]) :
+            Type.Fun('Tuple', [elems]),
     Function: (args: Type[], ret: Type): Type => Type.Fun('Function', [list(args), ret]),
     Bool: Object.freeze<Type>({ variant: 'Fun', name: 'Bool', args: [] }),
     Num: Object.freeze<Type>({ variant: 'Fun', name: 'Num', args: [] }),
@@ -58,6 +64,17 @@ export const Type = {
         unlist,
         isList,
         unlink,
+        isValueType(ty: Type): boolean {
+            if (ty.variant === 'Var') return false;
+            switch (ty.name) {
+                case 'Bool': return true;
+                case 'Num': return true;
+                case 'Str': return true;
+                case 'Nil': return true;
+            }
+
+            return false;
+        }
     },
 } satisfies Impl<Show<Type> & Eq<Type> & Rewrite<Type>>;
 
