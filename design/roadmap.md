@@ -40,32 +40,34 @@
 - [ ] Support declared initializers
 
 ### 7. Mutability
-- [ ] Require `mut` keyword for any mutable function argument / variable / struct member 
-- [ ] Prevent mutation of immutable structures and nested elements
+- [x] Require `mut` keyword for any reassignable function argument / variable / struct member 
+- [x] Prevent reassignment of immutable variables / arguments / struct members
 
-Rules:
-- An immutable value cannot be mutated.
-- A sub-member of a mutable value can only be mutated if
-  the reference to the value is mutable and the sub-member is mutable.
+ideally (this would require a more advanced type system, where mutability is attached to types directly) {
+  Rules:
+  - An immutable value cannot be mutated.
+  - A sub-member of a mutable value can only be mutated if
+    the reference to the value is mutable and the sub-member is mutable.
 
-  Values become mutable when bound to a mutable variable
-  Immutable variables cannot be used where an mutable value is expected, but
-  mutable variables can be used when an immutable value is expected.
+    Values become mutable when bound to a mutable variable
+    Immutable variables cannot be used where an mutable value is expected, but
+    mutable variables can be used when an immutable value is expected.
 
-Example:
-```poy
-let a = [1, 2, 3]
-mut b = [a] // Num[][]
-b[0][0] = 7 // error
+  Example:
+  ```poy
+  let a = [1, 2, 3]
+  mut b = [a] // Num[][]
+  b[0][0] = 7 // error
 
-mut a = [1, 2, 3]
-mut b = [a] // mut Num[][]
-b[0][0] = 7 // ok
+  mut a = [1, 2, 3]
+  mut b = [a] // mut Num[][]
+  b[0][0] = 7 // ok
 
-mut a = [1, 2, 3]
-let b = [4, 5, 6]
-mut c = [a, b] // mut Num[] is not compatible with Num[]
-```
+  mut a = [1, 2, 3]
+  let b = [4, 5, 6]
+  mut c = [a, b] // mut Num[] is not compatible with Num[]
+  ```
+}
 
 ### 8. Enums and Pattern Matching
 - [ ] Enum declarations
@@ -94,11 +96,11 @@ Inclusion of the following features is not guaranteed as it may overcomplexify t
 ### 12. Array Comprehension
 - [ ] Find a clean way to build and represent array / dict comprehensions.
 
-### 13. Interfaces (aka traits / protocols)
+### 13. Traits (aka interfaces / protocols)
 - [ ] Decide between monomorphization and dictionary passing.
-- [ ] Extend the type system to support interface contexts.
+- [ ] Extend the type system to support trait contexts.
 - [ ] Rewrite interface calls.
-- [ ] Define standard interfaces (Show, Eq, ...)
+- [ ] Define standard traits (Show, Eq, ...)
 
 ### 14. Argument labels
 

@@ -49,6 +49,8 @@ let sg = City {
     population: 10824,
 }
 
+// sg.name = "yo" // Error: Left-hand side of assignment is immutable
+
 cities.push(sg)
 
-print(cities.length)
+print(cities)

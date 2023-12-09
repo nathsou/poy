@@ -15,8 +15,12 @@ extend Person {
     }
 }
 
-extend Tuple<[]> {
+extend () {
     let isUnit = true
+}
+
+extend<a> Tuple<a> {
+    let isUnit = false
 }
 
 extend Person {
