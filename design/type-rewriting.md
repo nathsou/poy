@@ -19,7 +19,7 @@ Type declarations form a Term Rewriting System (TRS).
 Path = Str 
 ```
 
-### Subtype extraction
+### Type parameter extraction
 
 ```
 ReturnType<Function<_, ret>> = ret

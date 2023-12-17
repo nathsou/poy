@@ -116,6 +116,16 @@ export class Maybe<T> {
     static wrap<T>(value?: T): Maybe<T> {
         return value === undefined ? None : Some(value);
     }
+
+    static keepSome<T>(elems: Maybe<T>[]): T[] {
+        const kept: T[] = [];
+
+        for (const elem of elems) {
+            elem.do(val => kept.push(val));
+        }
+
+        return kept;
+    }
 }
 
 export const { None, NoneAs, Some } = Maybe;

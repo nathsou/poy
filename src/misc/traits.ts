@@ -8,3 +8,4 @@ export type Show<T> = { show: (self: T) => string };
 export type From<Source, Target> = { from: (self: Source) => Target };
 
 export type Rewrite<T, Into = T> = { rewrite: (self: T, f: (v: T) => Into) => Into };
+

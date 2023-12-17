@@ -97,3 +97,32 @@ export function gen<T>(count: number, f: (i: number) => T): T[] {
 
     return elems;
 }
+
+export function repeat<T>(elem: T, count: number): T[] {
+    const elems: T[] = [];
+
+    for (let i = 0; i < count; i++) {
+        elems.push(elem);
+    }
+
+    return elems;
+}
+
+export function swapMut<T>(vals: T[], i: number, j: number): void {
+    if (i !== j) {
+        if (i < 0 || j < 0 || i >= vals.length || j >= vals.length) {
+          panic(`invalid swap indices, len: ${vals.length}, i: ${i}, j: ${j}`);
+        }
+        const tmp = vals[i];
+        vals[i] = vals[j];
+        vals[j] = tmp;
+    }
+}
+
+export function some<T>(it: Iterable<T>, pred: (val: T) => boolean): boolean {
+    for (const val of it) {
+        if (pred(val)) return true;
+    }
+
+    return false;
+}

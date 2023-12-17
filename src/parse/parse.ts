@@ -506,33 +506,13 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
 
         if (token.variant === 'Symbol' && ['-', '+', '!'].includes(token.$value)) {
             next();
-            const expr = elementAccessExpr();
+            const expr = callExpr();
             return Expr.Unary({ op: token.$value as UnaryOp, expr });
         }
 
-        return elementAccessExpr();
+        return callExpr();
     }
 
-    function elementAccessExpr(): Expr {
-        let lhs = callExpr();
-
-        while (matches(Token.Symbol('['))) {
-            const key = expr();
-            consume(Token.Symbol(']'));
-            lhs = Expr.Call({
-                fun: Expr.VariableAccess({
-                    lhs,
-                    field: Backtick.encode('[]'),
-                    typeParams: [],
-                    isCalled: true,
-                    isNative: false
-                }),
-                args: [key],
-            });
-        }
-
-        return lhs;
-    }
 
     function callExpr(): Expr {
         let lhs = extensionAccessExpr();
@@ -606,7 +586,28 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             const member = identifier();
             const params = typeParamsInst();
             return Expr.ExtensionAccess({ member, typeParams: params, subject });
-        }).orDefault(primaryExpr);
+        }).orDefault(elementAccessExpr);
+    }
+
+    function elementAccessExpr(): Expr {
+        let lhs = primaryExpr();
+
+        while (matches(Token.Symbol('['))) {
+            const key = expr();
+            consume(Token.Symbol(']'));
+            lhs = Expr.Call({
+                fun: Expr.VariableAccess({
+                    lhs,
+                    field: Backtick.encode('[]'),
+                    typeParams: [],
+                    isCalled: true,
+                    isNative: false
+                }),
+                args: [key],
+            });
+        }
+
+        return lhs;
     }
 
     function primaryExpr(): Expr {

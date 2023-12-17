@@ -32,3 +32,4 @@ export const Decl = {
     Stmt: (stmt: Stmt): Decl => ({ variant: 'Stmt', stmt }),
     Type: (lhs: Type, rhs: Type): Decl => ({ variant: 'Type', lhs, rhs }),
 };
+
