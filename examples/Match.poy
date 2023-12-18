@@ -1,0 +1,20 @@
+import Foundations { print }
+
+let a = match 3 {
+    1 => "a",
+    2 => "b",
+    3 => "c",
+}
+
+let b = match (2, 3) {
+    (2, 3) => "yo"
+}
+
+let c = match "yolo" {
+    "yo" => 1,
+    "lo" => 2,
+    "yolo" => 3,
+    _ => 4,
+}
+
+print((a, b, c))

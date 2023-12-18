@@ -11,6 +11,7 @@ import { Module, ModulePath, Resolver } from "../resolve/resolve";
 import { ExtensionScope } from "./extensions";
 import { TRS } from "./rewrite";
 import { Subst, Type, TypeVar } from "./type";
+import { Pattern } from "../ast/sweet/pattern";
 
 type VarInfo = {
     pub?: boolean,
@@ -659,6 +660,24 @@ export class TypeEnv {
                 rhsEnv.inferLet(false, false, name, ann, value);
                 return rhsEnv.inferExpr(rhs);
             },
+            Match: ({ subject, cases }) => {
+                const subjectTy = this.inferExpr(subject);
+                const retTy = this.freshType();
+
+                for (const { pattern, body } of cases) {
+                    const caseEnv = this.child();
+                    const patternTy = caseEnv.inferPattern(pattern);
+                    for (const [name, ty] of patternTy.vars) {
+                        caseEnv.variables.declare(name, { pub: false, mut: false, ty });
+                    }
+
+                    this.unify(subjectTy, patternTy.ty);
+                    const caseTy = caseEnv.inferExpr(body);
+                    this.unify(caseTy, retTy);
+                }
+
+                return retTy;
+            },
             ModuleAccess: moduleAccessExpr => {
                 const { path, member } = moduleAccessExpr;
                 let mod: ModuleInfo = {
@@ -811,6 +830,40 @@ export class TypeEnv {
 
         expr.ty = ty;
         return ty;
+    }
+
+    public inferPattern(pattern: Pattern): { ty: Type, vars: Map<string, Type> } {
+        const vars = new Map<string, Type>();
+
+        const aux = (pat: Pattern): Type => {
+            switch (pat.variant) {
+                case 'Any':
+                    return this.freshType();
+                case 'Variable':
+                    const ty = this.freshType();
+                    vars.set(pat.name, ty);
+                    return ty;
+                case 'Ctor': {
+                    if (pat.meta !== undefined) {
+                        switch (pat.meta) {
+                            case 'Bool': return Type.Bool;
+                            case 'Num': return Type.Num;
+                            case 'Str': return Type.Str;
+                            case 'Unit': return Type.Unit;
+                            case 'Tuple': return Type.Tuple(pat.args.map(aux));
+                            default: return panic(`Unknown meta type: '${pat.meta}'`);
+                        }
+                    } else {
+                        return Type.Fun(
+                            pat.name,
+                            pat.args.map(aux),
+                        );
+                    }
+                }
+            }
+        };
+
+        return { ty: aux(pattern), vars };
     }
 
     public show(indent = 0): string {

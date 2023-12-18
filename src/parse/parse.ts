@@ -9,6 +9,7 @@ import { Maybe, None, Some } from "../misc/maybe";
 import { isLowerCase, isUpperCase, Backtick } from "../misc/strings";
 import { assert, block, last, letIn, panic } from "../misc/utils";
 import { AssignmentOp, BinaryOp, Keyword, Literal, Symbol, Token, UnaryOp } from "./token";
+import { Pattern } from "../ast/sweet/pattern";
 
 export const parse = (tokens: Token[], newlines: number[], filePath: string) => {
     let index = 0;
@@ -63,7 +64,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         if (check(token)) {
             next();
         } else {
-            reportError(error);
+            raise(error);
         }
     }
 
@@ -80,7 +81,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
                 return name;
             },
             _: () => {
-                reportError('Expected identifier');
+                raise('Expected identifier');
             },
         });
     }
@@ -92,12 +93,12 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
                 return value;
             },
             _: () => {
-                reportError('Expected literal');
+                raise('Expected literal');
             },
         });
     }
 
-    function reportError(message: string): never {
+    function raise(message: string): never {
         const { loc } = tokens[index];
         const start = loc?.start ?? 0;
         const line = (newlines.findIndex(pos => pos > start) ?? 1) - 1;
@@ -337,7 +338,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         while (matches(Token.Symbol('.'))) {
             const moduleName = identifier();
             if (!isUpperCase(moduleName[0])) {
-                reportError('Expected a module name in Type path');
+                raise('Expected a module name in Type path');
             }
 
             path.push(moduleName);
@@ -372,7 +373,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     function typeAnnotationRequired(): Type {
         const ann = typeAnnotation();
         if (ann === undefined) {
-            reportError('Expected type annotation');
+            raise('Expected type annotation');
         }
 
         return ann;
@@ -391,6 +392,9 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
                 case 'use':
                     next();
                     return useInExpr();
+                case 'match':
+                    next();
+                    return matchExpr();
             }
         }
 
@@ -456,6 +460,23 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         return Expr.If({ cond, then });
     }
 
+    function matchExpr(): Expr {
+        const subject = expr();
+        consume(Token.Symbol('{'));
+        const cases: { pattern: Pattern, body: Expr }[] = [];
+
+        while (!matches(Token.Symbol('}'))) {
+            const pat = pattern();
+            consume(Token.Symbol('=>'));
+            const body = expr();
+            cases.push({ pattern: pat, body });
+            consumeIfPresent(Token.Symbol(','));
+            consumeIfPresent(Token.Symbol(';'));
+        }
+
+        return Expr.Match({ subject, cases });
+    }
+
     function structExpr(path: string[], name: string, typeParams: Type[]): Expr {
         consumeIfPresent(Token.Symbol('{'));
         const fields: { name: string, value: Expr }[] = [];
@@ -513,7 +534,6 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         return callExpr();
     }
 
-
     function callExpr(): Expr {
         let lhs = extensionAccessExpr();
 
@@ -545,7 +565,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
                 }
 
                 if (!matched) {
-                    reportError('Expected identifier or number literal');
+                    raise('Expected identifier or number literal');
                 }
             } else if (matches(Token.Symbol('('))) {
                 const args = commas(expr);
@@ -636,12 +656,10 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
                     case '[':
                         return arrayExpr();
                     default:
-                        reportError(`Unexpected symbol '${symb}'`);
+                        raise(`Unexpected symbol '${symb}'`);
                 }
             },
-            _: () => {
-                reportError('Expected expression');
-            },
+            _: () => raise('Expected expression'),
         });
     }
 
@@ -657,7 +675,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
                 next();
                 parts.push(token.$value);
             } else {
-                reportError('Expected identifier');
+                raise('Expected identifier');
             }
         }
 
@@ -717,6 +735,47 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         }
 
         return Expr.Block({ stmts });
+    }
+
+    // patterns
+
+    function pattern(): Pattern {
+        return match(peek(), {
+            Identifier: name => {
+                next();
+                if (name[0].toUpperCase() === name[0]) {
+                    return Pattern.Ctor(name, []);
+                } else {
+                    return Pattern.Variable(name);
+                }
+            },
+            Literal: ({ value }) => {
+                next();
+                return Pattern.Literal(value);
+            },
+            Symbol: symb => {
+                switch (symb) {
+                    case '_':
+                        next();
+                        return Pattern.Any;
+                    case '(':
+                        return tuplePattern();
+                    default:
+                        raise(`Unexpected symbol in pattern '${symb}'`);
+                }
+            },
+            _: () => {
+                raise('Expected pattern');
+            },
+        });
+    }
+
+    function tuplePattern(): Pattern {
+        consume(Token.Symbol('('));
+        const elems = commas(pattern);
+        consume(Token.Symbol(')'));
+
+        return Pattern.Tuple(elems);
     }
 
     // ------ statements ------
@@ -964,7 +1023,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
                     } else if (sym === '{' || sym === ';') {
                         continue_ = false;
                     } else {
-                        reportError(`Unexpected symbol in import path: '${sym}'`);
+                        raise(`Unexpected symbol in import path: '${sym}'`);
                     }
                 },
                 _: () => {
@@ -980,7 +1039,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         const path = importPath();
 
         if (path.length === 0) {
-            reportError('Expected import path');
+            raise('Expected import path');
         }
 
         let members: string[] | undefined;
@@ -1063,7 +1122,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         consumeIfPresent(Token.Symbol(';'));
 
         if (args.some(arg => arg.ann === undefined)) {
-            reportError('All arguments in a function signature must have a type annotation');
+            raise('All arguments in a function signature must have a type annotation');
         }
 
         const funTy = Type.Function(args.map(arg => arg.ann!), ret);
@@ -1133,7 +1192,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             }
         }
 
-        reportError('Expected a signature');
+        raise('Expected a signature');
     }
 
     function declareDecl(): Decl {

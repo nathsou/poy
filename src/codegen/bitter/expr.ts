@@ -1,9 +1,12 @@
-import { match } from 'itsamatch';
+import { VariantOf, match } from 'itsamatch';
 import { Expr as BitterExpr } from '../../ast/bitter/expr';
 import { Expr as SweetExpr } from '../../ast/sweet/expr';
 import { Type } from '../../infer/type';
-import { assert } from '../../misc/utils';
+import { assert, panic } from '../../misc/utils';
 import { bitterStmtOf } from './stmt';
+import { ClauseMatrix, DecisionTree, Occurrence, showDecisionTree } from '../decision-trees/ClauseMatrix';
+import { Pattern } from '../../ast/sweet/pattern';
+import { Literal } from '../../parse/token';
 
 export function bitterExprOf(sweet: SweetExpr): BitterExpr {
     assert(sweet.ty != null);
@@ -116,5 +119,144 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
             isCalled: false,
             ty,
         }),
+        Match: ({ subject, cases }) => {
+            const cm = new ClauseMatrix({
+                rows: cases.map(({ pattern }) => [pattern.variant === 'Variable' ? Pattern.Any : pattern]),
+                actions: cases.map((_, index) => index),
+            });
+
+            const signature = new Set<string>();
+
+            for (const { pattern } of cases) {
+                if (pattern.variant === 'Ctor') {
+                    signature.add(pattern.name);
+                }
+            }
+
+            const dt = cm.compile(cm.actions.map(() => []), signature, m => {
+                for (let i = 0; i < m.width; i++) {
+                    const col = m.getColumn(i);
+                    if (col.some(p => p.variant !== 'Any')) {
+                        return i;
+                    }
+                }
+
+                return panic('no column found');
+            });
+
+            if (dt.variant === 'Switch') {
+                return bitterExprOf(SweetExpr.UseIn({
+                    name: 'x',
+                    value: subject,
+                    rhs: exprOfDecisionTree(
+                        SweetExpr.Variable({
+                            name: 'x',
+                            typeParams: [],
+                            ty: subject.ty!,
+                        }),
+                        dt,
+                        cases,
+                        sweet.ty!,
+                    ),
+                    ty: sweet.ty!,
+                }));
+            }
+
+            return bitterExprOf(exprOfDecisionTree(subject, dt, cases, sweet.ty!));
+        },
+    });
+}
+
+function exprOfOccurence(occ: Occurrence, subject: SweetExpr): SweetExpr {
+    if (occ.length === 0) return subject;
+
+    const [head, ...tail] = occ;
+    return exprOfOccurence(
+        tail,
+        SweetExpr.TupleAccess({
+            lhs: subject,
+            index: head,
+            ty: subject.ty,
+        })
+    );
+}
+
+function getPatternTest(lhs: SweetExpr, ctor: string, meta: string | undefined): SweetExpr | null {
+    switch (meta) {
+        case 'Unit':
+            return SweetExpr.Binary({
+                op: '==',
+                lhs,
+                rhs: { ...SweetExpr.Literal(Literal.Unit), ty: Type.Unit },
+                ty: Type.Unit,
+            });
+        case 'Bool':
+            return SweetExpr.Binary({
+                op: '==',
+                lhs,
+                rhs: { ...SweetExpr.Literal(Literal.Bool(ctor === 'true')), ty: Type.Bool },
+                ty: Type.Bool,
+            });
+        case 'Num':
+            return SweetExpr.Binary({
+                op: '==',
+                lhs,
+                rhs: { ...SweetExpr.Literal(Literal.Num(Number(ctor))), ty: Type.Num },
+                ty: Type.Num,
+            });
+        case 'Str':
+            return SweetExpr.Binary({
+                op: '==',
+                lhs,
+                rhs: { ...SweetExpr.Literal(Literal.Str(ctor)), ty: Type.Str },
+                ty: Type.Str,
+            });
+        case 'Tuple':
+            // the type checker ensures that the type of the lhs is a tuple of the same length
+            return null;
+    }
+
+    return panic(`Unknown ctor: ${meta}(${ctor})`);
+}
+
+function exprOfDecisionTree(
+    subject: SweetExpr,
+    dt: DecisionTree,
+    cases: VariantOf<SweetExpr, 'Match'>['cases'],
+    retTy: Type,
+): SweetExpr {
+    return match(dt, {
+        'Leaf': ({ action }) => cases[action].body,
+        'Switch': ({ occurrence, tests }) => {
+            if (tests.length === 0) {
+                return exprOfDecisionTree(subject, DecisionTree.Fail(), cases, retTy);
+            }
+
+            const [head, ...tail] = tests;
+
+            if (head.ctor === '_') {
+                return exprOfDecisionTree(subject, head.dt, cases, retTy);
+            }
+
+            const lhs = exprOfOccurence(occurrence, subject);
+            const cond = getPatternTest(lhs, head.ctor, head.meta);
+
+            if (cond == null) {
+                return exprOfDecisionTree(subject, head.dt, cases, retTy);
+            } else {
+                return SweetExpr.If({
+                    cond,
+                    then: exprOfDecisionTree(subject, head.dt, cases, retTy),
+                    otherwise: exprOfDecisionTree(
+                        subject,
+                        DecisionTree.Switch({ occurrence, tests: tail }),
+                        cases,
+                        retTy,
+                    ),
+                    ty: retTy,
+                });
+            }
+        },
+        Fail: () => ({ ...SweetExpr.Literal(Literal.Str('Match fail')), ty: Type.Str }),
     });
 }

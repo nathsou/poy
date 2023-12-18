@@ -7,14 +7,14 @@ import { setEquals } from '../../misc/sets';
 // Based on Compiling Pattern Matching to Good Decision Trees
 // http://moscova.inria.fr/~maranget/papers/ml05e-maranget.pdf
 
-type Occurrence = number[];
+export type Occurrence = number[];
 
 export type DecisionTree = DataType<{
-    Leaf: { action: Occurrence },
+    Leaf: { action: number },
     Fail: {},
     Switch: {
         occurrence: Occurrence,
-        tests: { ctor: string, dt: DecisionTree }[],
+        tests: { ctor: string, meta?: string, dt: DecisionTree }[],
     },
 }>;
 
@@ -35,14 +35,14 @@ export const DecisionTree = {
 
 type ClauseMatrixConstructor = {
     rows: Pattern[][],
-    actions: Occurrence[],
+    actions: number[],
 };
 
 export class ClauseMatrix {
     width: number;
     height: number;
     rows: Pattern[][];
-    actions: Occurrence[];
+    actions: number[];
 
     constructor(args: ClauseMatrixConstructor) {
         this.rows = args.rows;
@@ -63,14 +63,14 @@ export class ClauseMatrix {
         swapMut(this.actions, i, j);
     }
 
-    public heads(column: number): Map<string, number> {
-        const heads = new Map<string, number>();
+    public heads(column: number): Map<string, { arity: number, meta?: string }> {
+        const heads = new Map<string, { arity: number, meta?: string }>();
 
         for (const row of this.rows) {
             const head = row[column];
 
             if (head.variant === 'Ctor') {
-                heads.set(head.name, head.args.length);
+                heads.set(head.name, { arity: head.args.length, meta: head.meta });
             }
         }
 
@@ -90,16 +90,17 @@ export class ClauseMatrix {
     private specialized(ctor: string, arity: number): ClauseMatrix {
         function specializeRow(row: Pattern[]): Maybe<Pattern[]> {
             const [p, ...ps] = row;
-            return match(p, {
-                Any: () => Some([...repeat(Pattern.Any(), arity), ...ps]),
-                Ctor: ({ name, args }) => {
-                    if (name === ctor) {
-                        return Some([...args, ...ps]);
+            switch (p.variant) {
+                case 'Any':
+                case 'Variable':
+                    return Some([...repeat(Pattern.Any, arity), ...ps]);
+                case 'Ctor':
+                    if (p.name === ctor) {
+                        return Some([...p.args, ...ps]);
                     }
 
                     return None;
-                },
-            });
+            }
         }
 
         return this.build(specializeRow);
@@ -110,6 +111,7 @@ export class ClauseMatrix {
             const [p, ...ps] = row;
             return match(p, {
                 Any: () => Some(ps),
+                Variable: () => Some(ps),
                 Ctor: () => None,
             });
         }
@@ -136,17 +138,19 @@ export class ClauseMatrix {
         const heads = this.heads(0);
         const tests: VariantOf<DecisionTree, 'Switch'>['tests'] = [];
 
-        for (const [ctor, arity] of heads) {
+        for (const [ctor, { arity, meta }] of heads) {
             const specialized = this.specialized(ctor, arity);
             const subOccurrences = [
                 ...gen(arity, i => [...occurrences[0], i]),
                 ...occurrences.slice(1),
             ];
             const Ak = specialized.compile(subOccurrences, signature, selectColumn);
-            tests.push({ ctor, dt: Ak });
+            tests.push({ ctor, meta, dt: Ak });
         }
-        
-        if (!setEquals(heads, signature)) {
+
+        const isSignature = setEquals(heads, signature);
+
+        if (!isSignature) {
             const subOccurrences = occurrences.slice(1);
             const Ad = this.defaulted().compile(subOccurrences, signature, selectColumn);
             tests.push({ ctor: '_', dt: Ad });

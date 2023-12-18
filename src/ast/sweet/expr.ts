@@ -3,6 +3,7 @@ import { TypeEnv } from '../../infer/infer';
 import { Type } from '../../infer/type';
 import { BinaryOp, Literal, UnaryOp } from '../../parse/token';
 import { Stmt } from './stmt';
+import { Pattern } from './pattern';
 
 export type Expr = DataType<{
     Literal: { literal: Literal },
@@ -21,6 +22,7 @@ export type Expr = DataType<{
     ModuleAccess: { path: string[], member: string, extensionUuid?: string },
     ExtensionAccess: { subject: Type, member: string, typeParams: Type[], extensionUuid?: string },
     TupleAccess: { lhs: Expr, index: number },
+    Match: { subject: Expr, cases: { pattern: Pattern, body: Expr }[] },
 }> & { ty?: Type };
 
 export type FunctionArgument = { name: string, ann?: Type };
@@ -29,7 +31,7 @@ export const Expr = {
     ...genConstructors<Expr>([
         'Variable', 'Unary', 'Binary', 'Block', 'If', 'Tuple', 'Array',
         'UseIn', 'Fun', 'Call', 'Struct', 'VariableAccess', 'ExtensionAccess', 'ModuleAccess',
-        'TupleAccess',
+        'TupleAccess', 'Match',
     ]),
     Literal: (literal: Literal): Expr => ({ variant: 'Literal', literal }) as const,
     isMutable: (expr: Expr, env: TypeEnv): boolean => {

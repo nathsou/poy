@@ -92,6 +92,14 @@ export class Result<T, E> {
 
         return [undefined, this.raw.data];
     }
+
+    try<T>(action: () => T): Result<T, unknown> {
+        try {
+            return Result.Ok(action());
+        } catch (e) {
+            return Result.Error(e);
+        }
+    }
 }
 
 export const { Ok, Error: Err } = Result;
