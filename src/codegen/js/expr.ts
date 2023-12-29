@@ -75,7 +75,7 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
                 return ternary;
             }
 
-            const returnsUndefined = ty.variant === 'Undefined';
+            const returnsUndefined = Type.unify(bitter.ty, Type.Unit);
             let lastStmtFn = (val: JSExpr): JSStmt => JSStmt.Expr(val);
             let resultVar: JSExpr | undefined;
 
