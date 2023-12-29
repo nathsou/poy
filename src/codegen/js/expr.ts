@@ -3,7 +3,6 @@ import { Expr as BitterExpr } from '../../ast/bitter/expr';
 import { Stmt as BitterStmt } from '../../ast/bitter/stmt';
 import { Expr as JSExpr, BinaryOp as JSBinaryOp } from '../../ast/js/expr';
 import { Stmt as JSStmt } from '../../ast/js/stmt';
-import { TSType } from '../../ast/js/tsType';
 import { Type } from '../../infer/type';
 import { assert } from '../../misc/utils';
 import { Literal, BinaryOp } from '../../parse/token';
@@ -12,22 +11,20 @@ import { jsStmtOf } from './stmt';
 
 export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
     assert(bitter.ty != null);
-    const ty = TSType.from(bitter.ty);
 
     return match(bitter, {
-        Literal: ({ literal }) => JSExpr.Literal({ literal, ty }),
-        Variable: ({ name }) => JSExpr.Variable(scope.lookup(name), ty),
-        Unary: ({ op, expr }) => JSExpr.Unary({ op, expr: jsExprOf(expr, scope), ty }),
+        Literal: ({ literal }) => JSExpr.Literal({ literal }),
+        Variable: ({ name }) => JSExpr.Variable(scope.lookup(name)),
+        Unary: ({ op, expr }) => JSExpr.Unary({ op, expr: jsExprOf(expr, scope) }),
         Binary: ({ lhs, op, rhs }) => JSExpr.Binary({
             lhs: jsExprOf(lhs, scope),
             op: jsBinaryOpOf(op),
             rhs: jsExprOf(rhs, scope),
-            ty
         }),
         Block: ({ stmts, ret }) => {
             const blockScope = scope.virtualChild();
             blockScope.add(...stmts.map(stmt => jsStmtOf(stmt, blockScope)));
-            return ret ? jsExprOf(ret, blockScope) : JSExpr.Literal({ literal: Literal.Unit, ty });
+            return ret ? jsExprOf(ret, blockScope) : JSExpr.Literal({ literal: Literal.Unit });
         },
         If: () => {
             const branches: { cond?: BitterExpr, then: BitterExpr }[] = [];
@@ -68,7 +65,6 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
                         cond: cond!,
                         then: val,
                         otherwise: ternary,
-                        ty,
                     });
                 }
 
@@ -81,7 +77,7 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
 
             if (!returnsUndefined) {
                 const resultName = scope.declareUnused('result');
-                resultVar = JSExpr.Variable(resultName, ty);
+                resultVar = JSExpr.Variable(resultName);
                 scope.add(JSStmt.Let({ name: resultName }));
                 lastStmtFn = (val: JSExpr) => JSStmt.Assign(resultVar!, '=', val);
             } 
@@ -93,10 +89,10 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
                 })
             )}));
 
-            return resultVar ?? JSExpr.Literal({ literal: Literal.Unit, ty });
+            return resultVar ?? JSExpr.Literal({ literal: Literal.Unit });
         },
-        Tuple: ({ elems }) => JSExpr.Array({ elems: elems.map(expr => jsExprOf(expr, scope)), ty }),
-        Array: ({ elems }) => JSExpr.Array({ elems: elems.map(expr => jsExprOf(expr, scope)), ty }),
+        Tuple: ({ elems }) => JSExpr.Array({ elems: elems.map(expr => jsExprOf(expr, scope)) }),
+        Array: ({ elems }) => JSExpr.Array({ elems: elems.map(expr => jsExprOf(expr, scope)) }),
         UseIn: ({ name, value, rhs }) => {
             return jsExprOf(BitterExpr.Block({
                 stmts: [BitterStmt.Let({ mutable: false, static: false, name, value, attrs: {} })],
@@ -106,19 +102,18 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
         },
         Fun: ({ args, body, isIterator }) => {
             const bodyScope = scope.realChild();
-            const declaredArgs = args.map(arg => ({ name: bodyScope.declare(arg.name), ty: TSType.from(arg.ty) }));
+            const declaredArgs = args.map(arg => ({ name: bodyScope.declare(arg.name) }));
             const ret = jsExprOf(body, bodyScope);
 
             return (JSExpr[isIterator ? 'Generator' : 'Closure'])({
                 args: declaredArgs,
                 stmts: [...bodyScope.statements, JSStmt.Return(ret)],
-                ty: TSType.Function({ args: args.map(arg => TSType.from(arg.ty)), ret: ty }),
             });
         },
         Call: ({ fun, args }) => {
             // TODO: remove once types can be represented with enums inside poy itself 
             if (fun.variant === 'Variable' && fun.name === 'showType' && args.length === 1) {
-                return JSExpr.Literal({ literal: Literal.Str(Type.show(args[0].ty)), ty: TSType.String() });
+                return JSExpr.Literal({ literal: Literal.Str(Type.show(args[0].ty)) });
             }
 
             return JSExpr.Call(jsExprOf(fun, scope), args.map(arg => jsExprOf(arg, scope)));
@@ -127,14 +122,13 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
             assert(path.length > 0);
             const pathExpr = path.slice(1).reduce(
                 (lhs, name) => JSExpr.Dot(lhs, name),
-                JSExpr.Variable(scope.lookup(path[0]), ty),
+                JSExpr.Variable(scope.lookup(path[0])),
             );
 
             return JSExpr.Dot(pathExpr, member);
         },
         Struct: ({ fields }) => JSExpr.Object({
             entries: fields.map(({ name, value }) => ({ key: name, value: jsExprOf(value, scope) })),
-            ty
         }),
         VariableAccess: ({ lhs, field }) => JSExpr.Dot(jsExprOf(lhs, scope), field),
     });

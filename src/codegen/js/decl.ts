@@ -3,7 +3,6 @@ import { Decl as BitterDecl } from '../../ast/bitter/decl';
 import { Decl as JSDecl } from '../../ast/js/decl';
 import { Expr as JSExpr } from '../../ast/js/expr';
 import { Stmt as JSStmt } from '../../ast/js/stmt';
-import { TSType } from '../../ast/js/tsType';
 import { assert, panic } from '../../misc/utils';
 import { JSScope } from './jsScope';
 import { jsStmtOf } from './stmt';
@@ -12,9 +11,9 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSDecl {
     const aux = (decl: BitterDecl): JSDecl[] => {
         return match(decl, {
             Module: ({ name, decls }) => {
-                const moduleToStmt = (name: string, decls: BitterDecl[], moduleScope: JSScope): { stmt: JSStmt, ty: TSType } => {
+                const moduleToStmt = (name: string, decls: BitterDecl[], moduleScope: JSScope): { stmt: JSStmt } => {
                     scope.declare(name);
-                    const members: { name: string, ty: TSType }[] = [];
+                    const members: { name: string }[] = [];
 
                     for (const decl of decls) {
                         match(decl, {
@@ -22,21 +21,18 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSDecl {
                                 moduleScope.add(jsStmtOf(stmt, moduleScope));
 
                                 if (stmt.variant === 'Let') {
-                                    members.push({
-                                        name: stmt.name,
-                                        ty: TSType.from(stmt.value.ty)
-                                    });
+                                    members.push({ name: stmt.name });
                                 }
                             },
                             Module: ({ name, decls }) => {
-                                const { stmt, ty } = moduleToStmt(
+                                const { stmt } = moduleToStmt(
                                     name,
                                     decls,
                                     moduleScope.realChild()
                                 );
 
                                 moduleScope.add(stmt);
-                                members.push({ name, ty });
+                                members.push({ name });
                             },
                             Type: () => { },
                             Struct: () => { },
@@ -47,10 +43,7 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSDecl {
                                         moduleScope.add(jsStmtOf(stmt, moduleScope));
 
                                         if (stmt.variant === 'Let') {
-                                            members.push({
-                                                name: stmt.name,
-                                                ty: TSType.from(stmt.value.ty)
-                                            });
+                                            members.push({ name: stmt.name });
                                         }
                                     }
                                 }
@@ -77,7 +70,7 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSDecl {
                                                 moduleScope.add(JSStmt.Const({
                                                     name: memberName,
                                                     value: JSExpr.Dot(
-                                                        JSExpr.Variable(moduleName, TSType.Any()),
+                                                        JSExpr.Variable(moduleName),
                                                         name,
                                                     ),
                                                 }));
@@ -88,9 +81,6 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSDecl {
                             },
                         });
                     }
-                    const exportObjectTy = TSType.Record({
-                        fields: Object.fromEntries(members.map(({ name, ty }) => [name, ty])),
-                    });
 
                     const stmt = JSStmt.Const({
                         name: moduleScope.declare(name),
@@ -102,18 +92,16 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSDecl {
                                     JSStmt.Return(JSExpr.Object({
                                         entries: members.map(member => ({
                                             key: member.name,
-                                            value: JSExpr.Variable(moduleScope.lookup(member.name), member.ty),
+                                            value: JSExpr.Variable(moduleScope.lookup(member.name)),
                                         })),
-                                        ty: exportObjectTy,
                                     })),
                                 ],
-                                ty: exportObjectTy,
                             }),
                             [],
                         ),
                     });
 
-                    return { stmt, ty: exportObjectTy };
+                    return { stmt };
                 };
 
                 return [JSDecl.Stmt(moduleToStmt(name, decls, scope.realChild()).stmt)];
