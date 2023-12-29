@@ -29,53 +29,71 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
             blockScope.add(...stmts.map(stmt => jsStmtOf(stmt, blockScope)));
             return ret ? jsExprOf(ret, blockScope) : JSExpr.Literal({ literal: Literal.Unit, ty });
         },
-        If: ({ cond, then, otherwise }) => {
-            const condVal = jsExprOf(cond, scope);
-            const thenScope = scope.realChild();
-            const thenVal = jsExprOf(then, thenScope);
+        If: () => {
+            const branches: { cond?: BitterExpr, then: BitterExpr }[] = [];
 
-            if (otherwise === undefined) {
-                scope.add(JSStmt.If({
-                    cond: condVal,
-                    then: [...thenScope.statements, JSStmt.Expr(thenVal)],
-                }));
-
-                return JSExpr.Literal({ literal: Literal.Unit, ty });
-            }
-
-            const elseScope = scope.realChild();
-            const elseVal = jsExprOf(otherwise, elseScope);
-
-            if (thenScope.statements.length === 0 && elseScope.statements.length === 0) {
-                return JSExpr.Ternary({
-                    cond: condVal,
-                    then: thenVal,
-                    otherwise: elseVal,
-                    ty,
-                });
-            } else {
-                if (Type.unify(bitter.ty, Type.Unit)) {
-                    scope.add(JSStmt.If({
-                        cond: condVal,
-                        then: [...thenScope.statements, JSStmt.Expr(thenVal)],
-                        otherwise: [...elseScope.statements, JSStmt.Expr(elseVal)],
-                    }));
-
-                    return JSExpr.Literal({ literal: Literal.Unit, ty });
+            const getBranches = (expr: BitterExpr) => {
+                if (expr.variant === 'If') {
+                    branches.push({ cond: expr.cond, then: expr.then });
+                    if (expr.otherwise) {
+                        getBranches(expr.otherwise);
+                    }
                 } else {
-                    const resultName = scope.declareUnused('result');
-                    const resultVar = JSExpr.Variable(resultName, ty);
-
-                    scope.add(JSStmt.Let({ name: resultName }));
-                    scope.add(JSStmt.If({
-                        cond: condVal,
-                        then: [...thenScope.statements, JSStmt.Assign(resultVar, '=', thenVal)],
-                        otherwise: [...elseScope.statements, JSStmt.Assign(resultVar, '=', elseVal)],
-                    }));
-
-                    return resultVar;
+                    branches.push({ then: expr });
                 }
+            };
+
+            getBranches(bitter);
+
+            const compiledBranches = branches.map(({ cond, then }) => {
+                const condVal = cond ? jsExprOf(cond, scope) : undefined;
+                const thenScope = scope.realChild();
+                const thenVal = jsExprOf(then, thenScope);
+
+                return { cond: condVal, scope: thenScope, val: thenVal };
+            });
+            
+            const lastBranch = compiledBranches[compiledBranches.length - 1];
+
+            if (
+                lastBranch.cond == null &&
+                compiledBranches.every(({ scope }) => scope.statements.length === 0
+            )) {
+                // build a ternary expression
+                let ternary = lastBranch.val;
+
+                for (let i = compiledBranches.length - 2; i >= 0; i--) {
+                    const { cond, val } = compiledBranches[i];
+                    ternary = JSExpr.Ternary({
+                        cond: cond!,
+                        then: val,
+                        otherwise: ternary,
+                        ty,
+                    });
+                }
+
+                return ternary;
             }
+
+            const returnsUndefined = ty.variant === 'Undefined';
+            let lastStmtFn = (val: JSExpr): JSStmt => JSStmt.Expr(val);
+            let resultVar: JSExpr | undefined;
+
+            if (!returnsUndefined) {
+                const resultName = scope.declareUnused('result');
+                resultVar = JSExpr.Variable(resultName, ty);
+                scope.add(JSStmt.Let({ name: resultName }));
+                lastStmtFn = (val: JSExpr) => JSStmt.Assign(resultVar!, '=', val);
+            } 
+
+            scope.add(JSStmt.If({
+                branches: compiledBranches.map(({ cond, scope, val }) => ({
+                    cond,
+                    then: [...scope.statements, lastStmtFn(val)],
+                })
+            )}));
+
+            return resultVar ?? JSExpr.Literal({ literal: Literal.Unit, ty });
         },
         Tuple: ({ elems }) => JSExpr.Array({ elems: elems.map(expr => jsExprOf(expr, scope)), ty }),
         Array: ({ elems }) => JSExpr.Array({ elems: elems.map(expr => jsExprOf(expr, scope)), ty }),

@@ -4,7 +4,7 @@ import { Expr as SweetExpr } from '../../ast/sweet/expr';
 import { Type } from '../../infer/type';
 import { assert, panic } from '../../misc/utils';
 import { bitterStmtOf } from './stmt';
-import { ClauseMatrix, DecisionTree, Occurrence, showDecisionTree } from '../decision-trees/ClauseMatrix';
+import { ClauseMatrix, DecisionTree, Occurrence } from '../decision-trees/ClauseMatrix';
 import { Pattern } from '../../ast/sweet/pattern';
 import { Literal } from '../../parse/token';
 
@@ -133,16 +133,18 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
                 }
             }
 
-            const dt = cm.compile(cm.actions.map(() => []), signature, m => {
-                for (let i = 0; i < m.width; i++) {
-                    const col = m.getColumn(i);
+            const selectColumn = (matrix: ClauseMatrix) => {
+                for (let i = 0; i < matrix.width; i++) {
+                    const col = matrix.getColumn(i);
                     if (col.some(p => p.variant !== 'Any')) {
                         return i;
                     }
                 }
 
                 return panic('no column found');
-            });
+            };
+
+            const dt = cm.compile(cm.actions.map(() => []), selectColumn, isSignature);
 
             if (dt.variant === 'Switch') {
                 return bitterExprOf(SweetExpr.UseIn({
@@ -191,12 +193,11 @@ function getPatternTest(lhs: SweetExpr, ctor: string, meta: string | undefined):
                 ty: Type.Unit,
             });
         case 'Bool':
-            return SweetExpr.Binary({
-                op: '==',
-                lhs,
-                rhs: { ...SweetExpr.Literal(Literal.Bool(ctor === 'true')), ty: Type.Bool },
-                ty: Type.Bool,
-            });
+            if (ctor === 'true') {
+                return lhs;
+            } else {
+                return SweetExpr.Unary({ op: '!', expr: lhs, ty: Type.Bool });
+            }
         case 'Num':
             return SweetExpr.Binary({
                 op: '==',
@@ -247,16 +248,40 @@ function exprOfDecisionTree(
                 return SweetExpr.If({
                     cond,
                     then: exprOfDecisionTree(subject, head.dt, cases, retTy),
-                    otherwise: exprOfDecisionTree(
+                    otherwise: tail.length > 0 ? exprOfDecisionTree(
                         subject,
                         DecisionTree.Switch({ occurrence, tests: tail }),
                         cases,
                         retTy,
-                    ),
+                    ) : undefined,
                     ty: retTy,
                 });
             }
         },
         Fail: () => ({ ...SweetExpr.Literal(Literal.Str('Match fail')), ty: Type.Str }),
     });
+}
+
+// returns wether the given set of heads is a signature for the given constructor kind
+function isSignature(heads: Map<string, { arity: number, meta?: string }>): boolean {
+    if (heads.size === 0) return false;
+
+    const entries = [...heads.entries()];
+    const kind = entries[0][1].meta;
+    assert(entries.every(([_, { meta }]) => meta === kind));
+
+    switch (kind) {
+        case 'Unit':
+            return true;
+        case 'Bool':
+            return heads.has('true') && heads.has('false');
+        case 'Num':
+            return false;
+        case 'Str':
+            return false;
+        case 'Tuple':
+            return true;
+        default:
+            return panic(`Unknown ctor kind: ${kind}`);
+    }
 }

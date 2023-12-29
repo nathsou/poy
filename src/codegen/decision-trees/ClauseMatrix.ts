@@ -2,7 +2,6 @@ import { DataType, VariantOf, genConstructors, match } from 'itsamatch';
 import { Pattern } from '../../ast/sweet/pattern';
 import { gen, repeat, swapMut } from '../../misc/utils';
 import { Maybe, None, Some } from '../../misc/maybe';
-import { setEquals } from '../../misc/sets';
 
 // Based on Compiling Pattern Matching to Good Decision Trees
 // http://moscova.inria.fr/~maranget/papers/ml05e-maranget.pdf
@@ -121,8 +120,8 @@ export class ClauseMatrix {
 
     public compile(
         occurrences: Occurrence[],
-        signature: Set<string>,
         selectColumn: (matrix: ClauseMatrix) => number,
+        isSignature: (heads: Map<string, { arity: number, meta?: string }>) => boolean,
     ): DecisionTree {
         if (this.height === 0) {
             return DecisionTree.Fail();
@@ -144,15 +143,13 @@ export class ClauseMatrix {
                 ...gen(arity, i => [...occurrences[0], i]),
                 ...occurrences.slice(1),
             ];
-            const Ak = specialized.compile(subOccurrences, signature, selectColumn);
+            const Ak = specialized.compile(subOccurrences, selectColumn, isSignature);
             tests.push({ ctor, meta, dt: Ak });
         }
 
-        const isSignature = setEquals(heads, signature);
-
-        if (!isSignature) {
+        if (!isSignature(heads)) {
             const subOccurrences = occurrences.slice(1);
-            const Ad = this.defaulted().compile(subOccurrences, signature, selectColumn);
+            const Ad = this.defaulted().compile(subOccurrences, selectColumn, isSignature);
             tests.push({ ctor: '_', dt: Ad });
         }
 

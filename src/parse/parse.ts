@@ -453,8 +453,11 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         const then = blockExpr();
 
         if (matches(Token.Keyword('else'))) {
-            const otherwise = blockExpr();
-            return Expr.If({ cond, then, otherwise });
+            if (matches(Token.Keyword('if'))) {
+                return Expr.If({ cond, then, otherwise: ifExpr() });
+            } else {
+                return Expr.If({ cond, then, otherwise: blockExpr() });
+            }
         }
 
         return Expr.If({ cond, then });

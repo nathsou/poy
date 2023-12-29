@@ -126,3 +126,15 @@ export function some<T>(it: Iterable<T>, pred: (val: T) => boolean): boolean {
 
     return false;
 }
+
+export function count<T>(it: Iterable<T>, pred: (val: T) => boolean): number {
+    let count = 0;
+
+    for (const val of it) {
+        if (pred(val)) {
+            count += 1;
+        }
+    }
+
+    return count;
+}

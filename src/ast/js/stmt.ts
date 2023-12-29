@@ -8,7 +8,7 @@ export type Stmt = DataType<{
     Expr: { expr: Expr },
     Const: { name: Name, value: Expr },
     Let: { name: Name, value?: Expr },
-    If: { cond: Expr, then: Stmt[], otherwise?: Stmt[] },
+    If: { branches: { cond?: Expr, then: Stmt[] }[] },
     Assign: { lhs: Expr, op: AssignmentOp, rhs: Expr },
     Return: { value: Expr },
     Yield: { value: Expr },
@@ -53,13 +53,18 @@ function show(stmt: Stmt, indentLevel: number = 0): string {
             return `${indent}const ${name.mangled} = ${Expr.show(value)};`;
         },
         Let: ({ name, value }) => `${indent}let ${name.mangled}${value ? ` = ${Expr.show(value)}` : ''};`,
-        If: ({ cond, then, otherwise }) => {
-            const then_ = showStmts(then, indentLevel + 1);
-            if (!otherwise) {
-                return `${indent}if (${Expr.show(cond)}) {\n${then_}\n${indent}}`;
-            }
-            const otherwise_ = showStmts(otherwise, indentLevel + 1);
-            return `${indent}if (${Expr.show(cond)}) {\n${then_}\n${indent}} else {\n${otherwise_}\n${indent}}`;
+        If: ({ branches }) => {
+            const parts = branches.map(({ cond, then }, index) => {
+                const then_ = showStmts(then, indentLevel + 1);
+
+                if (!cond) {
+                    return `{\n${then_}\n${indent}}`;
+                }
+
+                return `${index === 0 ? indent : ''}if (${Expr.show(cond)}) {\n${then_}\n${indent}}`;
+            });
+
+            return parts.join(' else ');
         },
         Assign: ({ lhs, op, rhs }) => `${indent}${Expr.show(lhs)} ${op} ${Expr.show(rhs)};`,
         Return: ({ value }) => `${indent}return ${Expr.show(value)};`,

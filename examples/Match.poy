@@ -6,8 +6,9 @@ let a = match 3 {
     3 => "c",
 }
 
-let b = match (2, 3) {
-    (2, 3) => "yo"
+let b = match (2, 7) {
+    (2, 3) => "yo",
+    (2, _) => "lo",
 }
 
 let c = match "yolo" {
@@ -17,4 +18,11 @@ let c = match "yolo" {
     _ => 4,
 }
 
-print((a, b, c))
+let d = match 3 * 7 == 21 {
+    true => (2, 3, 5),
+    false => (7, 11, 13),
+}
+
+let e = if 1 == 0 { 1 } else if 1 == 1 { 2 } else { 3 }
+
+print((a, b, c, d, e))

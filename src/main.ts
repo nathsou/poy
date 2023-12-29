@@ -1,8 +1,5 @@
-import { Pattern } from "./ast/sweet/pattern";
 import { bundle } from "./bundle/bundle";
-import { ClauseMatrix, showDecisionTree } from "./codegen/decision-trees/ClauseMatrix";
 import { createFileSystem, type FileSystem } from "./misc/fs";
-import { panic } from "./misc/utils";
 import { Resolver } from "./resolve/resolve";
 
 async function compile(sourceFile: string, fs: FileSystem): Promise<string> {
@@ -12,29 +9,6 @@ async function compile(sourceFile: string, fs: FileSystem): Promise<string> {
 }
 
 async function main() {
-    // const { Any, Ctor } = Pattern;
-
-    // const cm = new ClauseMatrix({
-    //     rows: [
-    //         [Any(), Ctor({ name: 'Cons', args: [Any(), Any()] })],
-    //         [Ctor({ name: 'Nil', args: [] }), Any()],
-    //     ],
-    //     actions: [[0], [1]],
-    // });
-
-    // const dt = cm.compile([[0], [1]], new Set(['Cons', 'Nil']), m => {
-    //     for (let i = 0; i < m.width; i++) {
-    //         const col = m.getColumn(i);
-    //         if (col.some(p => p.variant !== 'Any')) {
-    //             return i;
-    //         }
-    //     }
-
-    //     return panic('no column found');
-    // });
-
-    // console.log(showDecisionTree(dt));
-    
     const fs = await createFileSystem();
     const args = process.argv.slice(2);
     const sourceFile = args[0];
