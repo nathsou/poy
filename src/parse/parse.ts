@@ -1,13 +1,13 @@
 import { match, VariantOf } from "itsamatch";
 import { v4 as uuidv4 } from 'uuid';
 import { Attribute, Attributes } from "../ast/sweet/attribute";
-import { Decl, ModuleDecl, Signature, StructDecl } from "../ast/sweet/decl";
+import { Decl, EnumVariant, ModuleDecl, Signature, StructDecl } from "../ast/sweet/decl";
 import { Expr, FunctionArgument } from "../ast/sweet/expr";
 import { Stmt } from "../ast/sweet/stmt";
 import { Type, TypeVar } from "../infer/type";
 import { Maybe, None, Some } from "../misc/maybe";
 import { isLowerCase, isUpperCase, Backtick } from "../misc/strings";
-import { assert, block, last, letIn, panic } from "../misc/utils";
+import { array, assert, block, last, letIn, panic } from "../misc/utils";
 import { AssignmentOp, BinaryOp, Keyword, Literal, Symbol, Token, UnaryOp } from "./token";
 import { Pattern } from "../ast/sweet/pattern";
 
@@ -226,6 +226,12 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         consumeIfPresent(Token.Symbol(';'));
 
         return attrs;
+    }
+
+    function consumeSeparatorIfPresent() {
+        if (check(Token.Symbol(',')) || check(Token.Symbol(';'))) {
+            next();
+        }
     }
 
     // ------ types ------
@@ -473,8 +479,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             consume(Token.Symbol('=>'));
             const body = expr();
             cases.push({ pattern: pat, body });
-            consumeIfPresent(Token.Symbol(','));
-            consumeIfPresent(Token.Symbol(';'));
+            consumeSeparatorIfPresent();
         }
 
         return Expr.Match({ subject, cases });
@@ -490,8 +495,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             const value = expr();
             fields.push({ name, value });
 
-            consumeIfPresent(Token.Symbol(','));
-            consumeIfPresent(Token.Symbol(';'));
+            consumeSeparatorIfPresent();
         }
 
         return Expr.Struct({ path, name, typeParams, fields });
@@ -959,6 +963,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         import: importDecl,
         struct: structDecl,
         extend: extendDecl,
+        enum: enumDecl,
     };
 
     function decl(): Decl {
@@ -997,8 +1002,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             consumeIfPresent(Token.Symbol(','));
         }
 
-        consumeIfPresent(Token.Symbol(';'));
-        consumeIfPresent(Token.Symbol(','));
+        consumeSeparatorIfPresent();
 
         return Decl._Many({ decls });
     }
@@ -1093,9 +1097,9 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     function extendDecl(): VariantOf<Decl, 'Extend'> {
         const params = typeParams();
         const subject = type();
-        consume(Token.Symbol('{'));
+        const decls = array<Decl>();
 
-        const decls: Decl[] = [];
+        consume(Token.Symbol('{'));
 
         while (!matches(Token.Symbol('}'))) {
             decls.push(decl());
@@ -1105,6 +1109,40 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         consumeIfPresent(Token.Symbol(';'));
 
         return Decl.Extend({ params, subject, decls, uuid: uuidv4().replace(/-/g, '_') });
+    }
+
+    function enumDecl(): VariantOf<Decl, 'Enum'> {
+        const name = identifier();
+        const params = typeParams();
+        const variants = array<EnumVariant>();
+
+        consume(Token.Symbol('{'));
+
+        while (!matches(Token.Symbol('}'))) {
+            const variantName = identifier();
+
+            if (matches(Token.Symbol('{'))) {
+                const fields = commas(() => {
+                    const name = identifier();
+                    const ty = typeAnnotationRequired();
+                    return { name, ty };
+                });
+
+                consume(Token.Symbol('}'));
+                variants.push(EnumVariant.Struct({ name: variantName, fields }));
+            } else if (matches(Token.Symbol('('))) {
+                const args = commas(type);
+                consume(Token.Symbol(')'));
+                variants.push(EnumVariant.Tuple({ name: variantName, args }));
+            } else {
+                variants.push(EnumVariant.Empty({ name: variantName }));
+            }
+
+            consumeSeparatorIfPresent();
+        }
+
+
+        return Decl.Enum({ pub: modifiers.pub, name, params, variants });
     }
 
     function variableSignature(mut: boolean): VariantOf<Signature, 'Variable'> {
@@ -1212,6 +1250,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     function moduleDecl(): VariantOf<Decl, 'Module'> {
         consumeIfPresent(Token.Keyword('module'));
         const name = identifier();
+        const params = typeParams();
         const decls: Decl[] = [];
         consume(Token.Symbol('{'));
 
@@ -1221,7 +1260,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
 
         consumeIfPresent(Token.Symbol(';'));
 
-        return Decl.Module({ pub: modifiers.pub, name, decls });
+        return Decl.Module({ pub: modifiers.pub, name, params, decls });
     }
 
     function topModule(name: string): ModuleDecl {
@@ -1231,7 +1270,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             decls.push(decl());
         }
 
-        return { pub: true, name, decls };
+        return { pub: true, name, params: [], decls };
     }
 
     return { expr, stmt, decl, module: moduleDecl, topModule };

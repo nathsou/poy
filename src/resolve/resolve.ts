@@ -9,6 +9,7 @@ import { parse } from "../parse/parse";
 export type Module = {
     pub: boolean,
     name: string,
+    params: string[],
     env: TypeEnv,
     decls: Decl[],
 };

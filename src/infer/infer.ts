@@ -1,5 +1,5 @@
 import { match, VariantOf } from "itsamatch";
-import { Decl, StructDecl } from "../ast/sweet/decl";
+import { Decl, EnumDecl, StructDecl } from "../ast/sweet/decl";
 import { Expr } from "../ast/sweet/expr";
 import { Stmt } from "../ast/sweet/stmt";
 import { Maybe } from "../misc/maybe";
@@ -27,6 +27,7 @@ export class TypeEnv {
     public variables: Scope<VarInfo>;
     public modules: Scope<ModuleInfo>;
     public structs: Scope<StructDecl>;
+    public enums: Scope<EnumDecl>;
     public generics: TypeParamScope;
     public typeRules: TRS;
     private typeImports: Map<string, ModulePath>;
@@ -42,6 +43,7 @@ export class TypeEnv {
         this.variables = new Scope(parent?.variables);
         this.modules = new Scope(parent?.modules);
         this.structs = new Scope(parent?.structs);
+        this.enums = new Scope(parent?.enums);
         this.generics = new TypeParamScope(parent?.generics);
         this.typeRules = TRS.create(parent?.typeRules);
         this.typeImports = new Map(parent?.typeImports);
@@ -193,6 +195,7 @@ export class TypeEnv {
                         local: true,
                         native: true,
                         name,
+                        params: [],
                         env: moduleEnv,
                         decls
                     });
@@ -210,9 +213,13 @@ export class TypeEnv {
                     );
                 },
             }),
-            Module: ({ pub, name, decls }) => {
+            Module: ({ pub, name, params, decls }) => {
                 const moduleEnv = this.child();
-                this.modules.declare(name, { pub, local: true, name, env: moduleEnv, decls });
+                this.modules.declare(name, { pub, local: true, name, params, env: moduleEnv, decls });
+                
+                for (const param of params) {
+                    moduleEnv.generics.declare(param, Type.fresh(this.letLevel, param));
+                }
 
                 for (const decl of decls) {
                     moduleEnv.inferDecl(decl);
@@ -369,6 +376,12 @@ export class TypeEnv {
 
                     decls.forEach(extend);
                 });
+            },
+            Enum: ({ pub, name, params, variants }) => {
+                const enumEnv = this.child();
+                const enumParams = zip(params, params.map(name => Type.fresh(this.letLevel, name)));
+                enumEnv.generics.declareMany(enumParams);
+                this.enums.declare(name, { pub, name, params, variants });
             },
             _Many: ({ decls }) => {
                 for (const decl of decls) {
@@ -684,6 +697,7 @@ export class TypeEnv {
                     pub: true,
                     local: true,
                     name: this.moduleName,
+                    params: [],
                     env: this,
                     decls: [],
                 };
@@ -691,10 +705,10 @@ export class TypeEnv {
                 path.forEach((name, index) => {
                     mod = mod.env.modules
                         .lookup(name)
-                        .unwrap(() => `Module ${path.slice(0, index).join('.')} not found`);
+                        .unwrap(() => `Module '${path.slice(0, index + 1).join('.')}' not found`);
 
                     if (!mod.local && !mod.pub) {
-                        panic(`Module ${path.slice(0, index).join('.')} is private`);
+                        panic(`Module '${path.slice(0, index + 1).join('.')}' is private`);
                     }
                 });
 

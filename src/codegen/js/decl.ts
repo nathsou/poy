@@ -79,6 +79,7 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSDecl {
                                     }
                                 }
                             },
+                            Enum: () => {},
                         });
                     }
 

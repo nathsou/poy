@@ -17,11 +17,12 @@ export type Decl = DataType<{
     },
     Struct: StructDecl,
     Extend: ExtendDecl,
+    Enum: EnumDecl,
     _Many: { decls: Decl[] },
 }>;
 
 export const Decl = {
-    ...genConstructors<Decl>(['Module', 'Import', 'Type', 'Struct', 'Extend', '_Many']),
+    ...genConstructors<Decl>(['Module', 'Import', 'Type', 'Struct', 'Extend', 'Enum', '_Many']),
     Stmt: (stmt: Stmt) => ({ variant: 'Stmt', stmt }) satisfies Decl,
     Declare: (sig: Signature, attrs: Attributes) => ({ variant: 'Declare', sig, attrs }) satisfies Decl,
 };
@@ -35,6 +36,7 @@ export type TypeDecl = {
 export type ModuleDecl = {
     pub: boolean,
     name: string,
+    params: string[],
     decls: Decl[],
 };
 
@@ -56,4 +58,19 @@ export type ExtendDecl = {
     subject: Type,
     decls: Decl[],
     uuid: string,
+};
+
+export type EnumVariant = DataType<{
+    Empty: { name: string },
+    Tuple: { name: string, args: Type[] },
+    Struct: { name: string, fields: { name: string, ty: Type }[] },
+}>;
+
+export const EnumVariant = genConstructors<EnumVariant>(['Empty', 'Tuple', 'Struct']);
+
+export type EnumDecl = {
+    pub: boolean,
+    name: string,
+    params: string[],
+    variants: EnumVariant[],
 };

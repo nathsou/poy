@@ -25,4 +25,19 @@ let d = match 3 * 7 == 21 {
 
 let e = if 1 == 0 { 1 } else if 1 == 1 { 2 } else { 3 }
 
+// enum Option<t> {
+//     None,
+//     Some(t),
+// }
+
+// let f = Option.Some(3)
+
+module Option<t> {
+    struct None { variant: Num }
+    struct Some { variant: Num, arg0: t }
+
+    let None = None { variant: 0 }
+    fun Some(arg0: t) { Some { variant: 1, arg0: arg0 } }
+}
+
 print((a, b, c, d, e))

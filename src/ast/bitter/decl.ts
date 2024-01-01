@@ -1,6 +1,6 @@
 import { DataType, genConstructors, VariantOf } from 'itsamatch';
 import { Type } from '../../infer/type';
-import { Decl as SweetDecl, Signature } from '../sweet/decl';
+import { Decl as SweetDecl, Signature, EnumVariant } from '../sweet/decl';
 import { Stmt } from './stmt';
 import { Attributes } from '../sweet/attribute';
 
@@ -20,6 +20,11 @@ export type Decl = DataType<{
         fields: { mut: boolean, name: string, ty: Type }[],
     },
     Extend: { subject: Type, decls: Decl[], uuid: string },
+    Enum: {
+        pub: boolean,
+        name: string,
+        variants: EnumVariant[],
+    },
 }>;
 
 export type FunctionArgument = {
@@ -28,7 +33,7 @@ export type FunctionArgument = {
 };
 
 export const Decl = {
-    ...genConstructors<Decl>(['Module', 'Declare', 'Import', 'Struct', 'Extend']),
+    ...genConstructors<Decl>(['Module', 'Declare', 'Import', 'Struct', 'Extend', 'Enum']),
     Stmt: (stmt: Stmt): Decl => ({ variant: 'Stmt', stmt }),
     Type: (lhs: Type, rhs: Type): Decl => ({ variant: 'Type', lhs, rhs }),
 };

@@ -92,7 +92,7 @@ use n = 3 in n * 7 // 21
 
 ### Pattern Matching
 ```poy
-enum Option<T> { Some<T>, None }
+enum Option<T> { Some(T), None }
 
 // Option<T> <=> T?
 
@@ -281,7 +281,3 @@ fun primes(count) {
   sieve
 }
 ```
-
-### Interoperability with TypeScript (Nice to have)
-
-JS and TS files could be translated to Poy and then imported.

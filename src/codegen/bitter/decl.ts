@@ -44,5 +44,6 @@ export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] => match(sweet, {
 
         return [BitterDecl.Extend({ subject, uuid, decls: filteredDecls })];
     },
+    Enum: ({ pub, name, variants }) => [BitterDecl.Enum({ pub, name, variants })],
     _Many: ({ decls }) => decls.flatMap(bitterDeclsOf),
 });
