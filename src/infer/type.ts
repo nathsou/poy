@@ -18,6 +18,7 @@ export const Type = {
     Var: (ref: TypeVar): Type => ({ variant: 'Var', ref }),
     Fun: (name: string, args: Type[], path?: ModulePath): Type => ({ variant: 'Fun', name, args, path }),
     Array: (elem: Type): Type => Type.Fun('Array', [elem]),
+    Union: (elems: Type[]): Type => unifyUnions(Type.Fun('Union', elems)),
     Tuple: (elems: Type[] | Type): Type =>
         Array.isArray(elems) ?
             elems.length === 1 ? elems[0] :
@@ -41,6 +42,7 @@ export const Type = {
     fresh,
     vars,
     namedParams,
+    unifyUnions,
     rewrite,
     generalize,
     instantiate,
@@ -424,7 +426,7 @@ function unifyVar(v: { ref: TypeVar }, ty: Type, eqs: [Type, Type][], params?: S
 function unify(a: Type, b: Type, params?: Scope<Type>, subst?: Subst): boolean {
     const eqs: [Type, Type][] = [[a, b]];
 
-    while (eqs.length > 0) {
+    outer: while (eqs.length > 0) {
         const [s, t] = eqs.pop()!.map(unlink);
         if (config.debug.unification) {
             console.log(`unify '${show(s)}' with '${show(t)}'`);
@@ -437,7 +439,28 @@ function unify(a: Type, b: Type, params?: Scope<Type>, subst?: Subst): boolean {
         } else if (t.variant === 'Var') {
             unifyVar(t, s, eqs, params, subst);
         } else if (s.variant === 'Fun' && t.variant === 'Fun') {
-            if (s.name !== t.name || s.args.length !== t.args.length) {
+                    
+            if (s.name !== t.name) {
+                // Union check
+                // -----------------
+                if (s.name === 'Union' || t.name === 'Union') {
+                const [a, b] = s.name === 'Union' ? [s, t] : [t, s]
+
+                // console.log('union check', { a, b })
+                for (let i = 0; i < a.args.length; i++) {
+                    const arg = a.args[i]
+                    // console.log('union check -> ', { arg, bName: b.name })
+                    // check if matches or nested union if we find one
+                    if (arg.variant === 'Fun' && (arg.name === 'Union' || arg.name === b.name)) {
+                    eqs.push([arg, b])
+                    continue outer
+                    }
+                }
+                }
+                return false;
+            }
+
+            if (s.args.length !== t.args.length) {
                 return false;
             }
 
@@ -607,3 +630,45 @@ function unlink(ty: Type): Type {
 
     return ty;
 }
+
+function unifyUnions(ty: Type) {
+    if (ty.variant !== 'Fun' || ty.name !== 'Union') return ty
+  
+    // merge any unions nested unions into a single union
+    const combined: Type[] = []
+    const queue: Type[] = [...ty.args]
+    let counter = 0
+  
+    outer: while (queue.length > 0) {
+      if (counter++ > config.maxUnificationSteps) {
+        return panic(`Union of '${Type.show(ty)}' did not reach a normal form after ${config.maxUnificationSteps} reductions`)
+      }
+      const unionTy = queue.pop()!
+      if (unionTy.variant === 'Fun' && unionTy.name === 'Union') {
+        queue.push(...unionTy.args)
+      } else {
+        for (const ty2 of combined) {
+          if (Type.eq(unionTy, ty2)) continue outer
+        }
+        combined.push(unionTy)
+      }
+    }
+  
+    if (combined.length === 0) panic('Union of empty list')
+    if (combined.length === 1) {
+      return ty.args[0]
+    }
+    // sort by variant, name and arg count
+    const types = combined.sort((a, b) => {
+      if (a.variant !== b.variant) {
+        return a.variant.localeCompare(b.variant)
+      }
+      if (a.variant !== 'Fun' || b.variant !== 'Fun') return 0
+  
+      if (a.name !== b.name) {
+        return a.name.localeCompare(b.name)
+      }
+      return a.args.length - b.args.length
+    })
+    return Type.Fun('Union', types, ty.path)
+  }

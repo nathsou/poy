@@ -919,11 +919,11 @@ export class TypeEnv {
                 modulePath ??= { file: this.modulePath, subpath: [] };
                 modulePath.env = path?.env ?? this.resolveModuleEnv(modulePath.file, modulePath.subpath);
 
-                return Type.Fun(
+                return Type.unifyUnions(Type.Fun(
                     name,
                     args.map(arg => this.resolveType(arg)),
                     modulePath,
-                );
+                ));
             },
         }));
     }

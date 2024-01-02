@@ -237,8 +237,21 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     // ------ types ------
 
     function type(): Type {
-        return consType();
+        return unionType();
     }
+
+    function unionType(): Type {
+        const lhs = consType()
+        if (!matches(Token.Symbol('|'))) return lhs
+    
+        const types = [lhs] as Type[]
+    
+        do {
+          types.push(consType())
+        } while (matches(Token.Symbol('|')))
+    
+        return Type.Union(types)
+      }
 
     function consType(): Type {
         const lhs = arrayType();

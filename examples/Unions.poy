@@ -1,0 +1,26 @@
+declare let showType: _ -> Str
+
+type UnionTest = Union<Num, Str, Bool>
+type UnionTest2 = Num | Str | Bool
+
+let {
+  stry1: Str = "1.5"
+  numy1: Num = 4.5
+  bool1: Bool = true
+  union1: UnionTest = "1.5"
+  union2: UnionTest = 4.5
+  union3: UnionTest = true
+  stry2: Str = union1
+  numy2: Num = union2
+  bool2: Bool = union3
+  union4: UnionTest2 = stry2
+  union5: UnionTest2 = numy2
+  union6: UnionTest2 = bool2
+}
+
+showType(union1)
+showType(union2)
+showType(union3)
+showType(union4)
+showType(union5)
+showType(union6)
