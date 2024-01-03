@@ -66,6 +66,7 @@ export const Type = {
         unlink,
         isValueType(ty: Type): boolean {
             if (ty.variant === 'Var') return false;
+
             switch (ty.name) {
                 case 'Bool': return true;
                 case 'Num': return true;
@@ -532,8 +533,13 @@ function generalize(ty: Type, level: number): Type {
     });
 }
 
-function instantiate(ty: Type, level: number, params: Scope<Type>): { ty: Type, subst: Subst } {
+function instantiate(ty: Type, level: number, params: Scope<Type>): {
+    ty: Type,
+    subst: Subst,
+    paramsSubst: Map<string, Type>,
+} {
     const subst: Subst = new Map();
+    const paramsSubst = new Map<string, Type>();
 
     const aux = (ty: Type): Type => {
         return match(ty, {
@@ -550,16 +556,20 @@ function instantiate(ty: Type, level: number, params: Scope<Type>): { ty: Type, 
                     return freshTy;
                 },
                 Param: ({ name }) => {
-                    const res = params.lookup(name);
-
-                    return res.match({
+                    return params.lookup(name).match({
                         Some: aux,
                         None: () => {
                             if (name[0] === '_') {
                                 return Type.fresh(level);
                             }
 
-                            return panic(`Unknown type parameter '${name}'`);
+                            if (!paramsSubst.has(name)) {
+                                const freshTy = Type.fresh(level);
+                                paramsSubst.set(name, freshTy);
+                                return freshTy;
+                            }
+                            
+                            return paramsSubst.get(name)!;
                         },
                     });
                 },
@@ -569,7 +579,7 @@ function instantiate(ty: Type, level: number, params: Scope<Type>): { ty: Type, 
         });
     };
 
-    return { ty: aux(ty), subst };
+    return { ty: aux(ty), subst, paramsSubst };
 }
 
 function fresh(level: number, name?: string): Type {

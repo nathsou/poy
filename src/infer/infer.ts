@@ -118,8 +118,8 @@ export class TypeEnv {
 
     private inferFun(fun: VariantOf<Expr, 'Fun'>): Type {
         const { generics, args, body, ret } = fun;
-        const params = generics.map(() => this.freshType());
-        this.generics.declareMany(zip(generics, params));
+        const params = zip(generics, generics.map(() => this.freshType()));
+        this.generics.declareMany(params);
 
         const argTys = args.map(arg => arg.ann ?? this.freshType());
         const returnTy = this.resolveType(ret ?? this.freshType());
@@ -716,13 +716,13 @@ export class TypeEnv {
                     .env
                     .variables
                     .lookup(member)
-                    .unwrap(() => `Member ${path.join('.')}.${member} not found`);
+                    .unwrap(() => `Member '${path.join('.')}.${member}' not found`);
 
                 if (!mod.local && !pub) {
-                    panic(`Member ${path.join('.')}.${member} is private`);
+                    panic(`Member '${path.join('.')}.${member}' is private`);
                 }
 
-                return ty;
+                return Type.instantiate(ty, this.letLevel, this.generics).ty;
             },
             Struct: ({ name, typeParams, fields }) => {
                 const decl = this.structs.lookup(name).unwrap(`Struct '${name}' not found`);
