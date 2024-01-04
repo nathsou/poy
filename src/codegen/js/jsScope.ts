@@ -1,5 +1,6 @@
 import { Stmt } from "../../ast/js/stmt";
 import { assert, panic } from "../../misc/utils";
+import { sanitizeKeyword } from './normalize';
 
 export type Name = {
     name: string;
@@ -52,7 +53,7 @@ export class JSScope {
             return this.mangle(name, tries + 1);
         }
 
-        return mangledName;
+        return sanitizeKeyword(mangledName);
     }
 
     public declare(name: string, as_?: string): Name {
