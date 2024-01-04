@@ -216,7 +216,7 @@ export class TypeEnv {
             Module: ({ pub, name, params, decls }) => {
                 const moduleEnv = this.child();
                 this.modules.declare(name, { pub, local: true, name, params, env: moduleEnv, decls });
-                
+
                 for (const param of params) {
                     moduleEnv.generics.declare(param, Type.fresh(this.letLevel, param));
                 }
@@ -224,6 +224,25 @@ export class TypeEnv {
                 for (const decl of decls) {
                     moduleEnv.inferDecl(decl);
                 }
+            },
+            TestModule: async (test) => {
+              const { name, decls, fail } = test
+              const moduleEnv = this.child()
+              try {
+                for (const decl of decls) {
+                  await moduleEnv.inferDecl(decl)
+                }
+                test.succeeded = true
+              } catch (e) {
+                if (fail) {
+                  return
+                }
+                throw new Error(`Test \`${name}\` failed, at: ` + test.path, { cause: e })
+              }
+              if (fail) {
+                throw new Error(`Test \`${name}\` shoud've failed but it did not, at: ` + test.path)
+              }
+              test.succeeded = true
             },
             Import: async ({ path, module, members }) => {
                 const moduleDir = this.resolver.fs.directoryName(this.modulePath);

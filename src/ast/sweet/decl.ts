@@ -18,11 +18,12 @@ export type Decl = DataType<{
     Struct: StructDecl,
     Extend: ExtendDecl,
     Enum: EnumDecl,
+    TestModule: { name: string, path: string, decls: Decl[], fail: boolean, succeeded: boolean },
     _Many: { decls: Decl[] },
 }>;
 
 export const Decl = {
-    ...genConstructors<Decl>(['Module', 'Import', 'Type', 'Struct', 'Extend', 'Enum', '_Many']),
+    ...genConstructors<Decl>(['Module', 'TestModule', 'Import', 'Type', 'Struct', 'Extend', 'Enum', '_Many']),
     Stmt: (stmt: Stmt) => ({ variant: 'Stmt', stmt }) satisfies Decl,
     Declare: (sig: Signature, attrs: Attributes) => ({ variant: 'Declare', sig, attrs }) satisfies Decl,
 };

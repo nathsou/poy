@@ -1,0 +1,28 @@
+
+test NAMED {
+  mut a = 1
+  a = 2
+}
+
+
+test {
+  mut a = 1
+  a = 2
+}
+
+
+test FAIL {
+  let a = 1
+  a = 2
+}
+
+
+test YAY {
+  mut a = 1
+  a = 2
+
+  test FAIL {
+    let a = 1
+    a = 2
+  }
+}

@@ -98,12 +98,16 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         });
     }
 
-    function raise(message: string): never {
-        const { loc } = tokens[index];
+    function lineCol(): string {
+        const { loc } = tokens[Math.max(0,index)] ?? { loc: {start:0,end:0}};
         const start = loc?.start ?? 0;
         const line = (newlines.findIndex(pos => pos > start) ?? 1) - 1;
         const column = start - newlines[line] ?? 0;
-        return panic(`Parse error: ${message} at ${line}:${column}`);
+        return `${line}:${column}`
+    }
+
+    function raise(message: string): never {
+        return panic(`Parse error: ${message} at ${lineCol()}`);
     }
 
     // sepBy(rule, sep) -> (<rule> (sep <rule>)*)?
@@ -842,6 +846,9 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
                     case 'break':
                         next();
                         return breakStmt();
+                    case 'test':
+                      next()
+                      panic('Invalid use of test keyword')
                     default:
                         return assignmentStmt();
                 }
@@ -964,6 +971,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         struct: structDecl,
         extend: extendDecl,
         enum: enumDecl,
+        test: testDecl,
     };
 
     function decl(): Decl {
@@ -997,7 +1005,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         const decls: Decl[] = [];
         consumeIfPresent(Token.Symbol('{'));
 
-        while (!matches(Token.Symbol('}'))) {
+        while (!isAtEnd() && !matches(Token.Symbol('}'))) {
             decls.push(declParser());
             consumeIfPresent(Token.Symbol(','));
         }
@@ -1261,6 +1269,44 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         consumeIfPresent(Token.Symbol(';'));
 
         return Decl.Module({ pub: modifiers.pub, name, params, decls });
+    }
+
+    function testDecl(): VariantOf<Decl, 'TestModule'> {
+        const startWithTest = check(Token.Keyword('test'))
+        const earlyCurly = !startWithTest && matches(Token.Symbol('{'))
+        const location = filePath + ':' + lineCol()
+        consumeIfPresent(Token.Keyword('test'))
+
+        const randomId = Math.random().toString(36).substring(7) + Math.random().toString(36).substring(7)
+        let name = 'test_' + randomId
+
+        let fail = false
+
+        if (!earlyCurly) {
+            if (peek().variant === 'Identifier') {
+                const idname = identifier()
+                if (idname === 'FAIL') {
+                    fail = true
+                } else {
+                    name = idname
+                }
+            }
+            consumeIfPresent(Token.Symbol('{'));
+        }
+        const decls: Decl[] = []
+        while (!isAtEnd() && !matches(Token.Symbol('}'))) {
+            decls.push(decl())
+        }
+
+        consumeSeparatorIfPresent()
+
+        return Decl.TestModule({
+          name,
+          path: location,
+          decls,
+          fail,
+          succeeded: false,
+        })
     }
 
     function topModule(name: string): ModuleDecl {

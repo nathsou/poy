@@ -45,5 +45,24 @@ export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] => match(sweet, {
         return [BitterDecl.Extend({ subject, uuid, decls: filteredDecls })];
     },
     Enum: ({ pub, name, variants }) => [BitterDecl.Enum({ pub, name, variants })],
+    TestModule: (mod) => {
+      // These lines are used to mark the start and end of a test module
+      // in the generated code. This allows the test runner to find each test,
+      // and create separate test cases for each while leaving the rest of the code intact.
+
+      // const start = BitterDecl.Comment(`---> TEST:${mod.name} FAILED at: ${mod.path}`)
+      // const end = BitterDecl.Comment(`<--- end of TEST:${mod.name}`)
+      if (!mod.succeeded) {
+        return []
+        // return [start, end]
+      }
+      const val = BitterDecl.Module({
+        name:  mod.name,
+        decls: mod.decls.flatMap(bitterDeclsOf),
+      })
+
+      return [val]
+      // return [end, val, end]
+    },
     _Many: ({ decls }) => decls.flatMap(bitterDeclsOf),
 });
