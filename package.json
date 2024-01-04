@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "esbuild src/main.ts --bundle --outfile=build/poy.js --platform=node",
-    "watch": "esbuild src/main.ts --bundle --outfile=build/poy.js --platform=node --sourcemap --watch"
+    "watch": "esbuild src/main.ts --bundle --outfile=build/poy.js --platform=node --sourcemap --watch",
+    "start": "node watch.mjs"
   },
   "author": "Nathan Soufflet",
   "license": "MIT",
@@ -17,6 +18,8 @@
   "devDependencies": {
     "@types/node": "^18.15.11",
     "@types/uuid": "9.0.1",
+    "chokidar": "^3.5.3",
+    "consola": "^3.2.3",
     "esbuild": "^0.17.14",
     "itsamatch": "^1.2.0",
     "typescript": "^5.3.3",
