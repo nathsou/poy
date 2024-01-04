@@ -9,7 +9,7 @@ const WATCH_PATTERN = [
   './examples/*.poy',
 ]
 const BUILD_WATCHER_COMMAND = 'npm run watch --silent'
-const RUN_ON_CHANGE_COMMAND = 'node --enable-source-maps ./build/poy.js' // example file is appended to this command
+const RUN_ON_CHANGE_COMMAND = 'node --enable-source-maps ./build/poy.js {file}' // {file} is replaced by last example file
 
 consola.box('Compiler & Tests Watcher')
 // ----------------------------------------------------------------------
@@ -79,7 +79,7 @@ function execute() {
   building = true
   overrideLastLine()
   consola.start('Running...', exampleFile)
-  run(RUN_ON_CHANGE_COMMAND + ' ' + exampleFile, false, () => {
+  run(RUN_ON_CHANGE_COMMAND.replace('{file}', exampleFile), false, () => {
     building = false
   })
 }
