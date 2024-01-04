@@ -1,0 +1,106 @@
+declare let add: _ -> Num
+
+struct Json { have: _,  want: Str }
+
+let {
+  a = 1
+  b = 2
+  c = 3
+  d = 4
+  e = 5
+  f = 6
+}
+let t = [
+  Json {
+    have: 3 > 5 == false,
+    want: "((3 > 5) === false)"
+  },
+  Json {
+    have: 3 < 5 == true,
+    want: "((3 < 5) === true)"
+  },
+  Json {
+    have: -a * b,
+    want: "(-a * b)"
+  },
+  Json {
+    have: -a,
+    want: "(-a)"
+  },
+  Json {
+    have: -(-a),
+    want: "(-(-a))"
+  },
+  Json {
+    have: a + b + c,
+    want: "((a + b) + c)"
+  },
+  Json {
+    have: a + b - c,
+    want: "((a + b) - c)"
+  },
+  Json {
+    have: a * b * c,
+    want: "((a * b) * c)"
+  },
+  Json {
+    have: a * b / c,
+    want: "((a * b) / c)"
+  },
+  Json {
+    have: a + b / c,
+    want: "(a + (b / c))"
+  },
+  Json {
+    have: a + b * c + d / e - f,
+    want: "(((a + (b * c)) + (d / e)) - f)"
+  },
+  Json {
+    have: 5 > 4 == 3 < 4,
+    want: "((5 > 4) === (3 < 4))"
+  },
+  Json {
+    have: 5 < 4 != 3 > 4,
+    want: "((5 < 4) !== (3 > 4))"
+  },
+  Json {
+    have: 3 + 4 * 5 == 3 * 1 + 4 * 5,
+    want: "((3 + (4 * 5)) === ((3 * 1) + (4 * 5)))"
+  },
+  Json {
+    have: 1 + (2 + 3) + 4,
+    want: "((1 + (2 + 3)) + 4)"
+  },
+  Json {
+    have: (5 + 5) * 2,
+    want: "((5 + 5) * 2)"
+  },
+  Json {
+    have: 2 / (5 + 5),
+    want: "(2 / (5 + 5))"
+  },
+  Json {
+    have: -(5 + 5),
+    want: "-(5 + 5)"
+  },
+  Json {
+    have: a + add(b * c) + d,
+    want: "((a + add((b * c))) + d)"
+  },
+  Json {
+    have: add((a, b, 1, 2 * 3, 4 + 5, add((6, 7 * 8)))),
+    want: "add([a, b, 1, (2 * 3), (4 + 5), add([6, (7 * 8)])])"
+  },
+  Json {
+    have: add(a + b + c * d / f + e),
+    want: "add((((a + b) + ((c * d) / f)) + g))"
+  },
+  // Json {
+  //   have: 9 - 3 ^ 10 & 10 - 9,
+  //   want: "((9 - 3) ^ (10 & (10 - 9)))"
+  // },
+  // Json {
+  //   have: 5 | 6 & -6 ^ 7,
+  //   want: "(5 | ((6 & -6) ^ 7))"
+  // },
+]
