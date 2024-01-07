@@ -47,12 +47,8 @@ export class Resolver {
             const source = await this.fs.readFile(absolutePath);
             const tokens = lex(source);
             const newlines = indices(source.split(''), c => c === '\n');
-            const moduleName = camelCase(
-                last(absolutePath.split('/')).split('.')[0],
-            );
-            const topModule = parse(tokens, newlines, absolutePath).topModule(
-                moduleName,
-            );
+            const moduleName = camelCase(last(this.fs.normalize(absolutePath).split('/')).split('.')[0]);
+            const topModule = parse(tokens, newlines, absolutePath).topModule(moduleName);
             const env = new TypeEnv(this, absolutePath, moduleName);
 
             for (const decl of topModule.decls) {
