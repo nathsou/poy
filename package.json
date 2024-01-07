@@ -6,7 +6,8 @@
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
         "build": "esbuild src/main.ts --bundle --outfile=build/poy.js --platform=node",
-        "watch": "esbuild src/main.ts --bundle --outfile=build/poy.js --platform=node --sourcemap --watch"
+        "watch": "esbuild src/main.ts --bundle --outfile=build/poy.js --platform=node --sourcemap --watch",
+        "prettier": "prettier --write \"src/**/*.ts\""
     },
     "author": "Nathan Soufflet",
     "license": "MIT",

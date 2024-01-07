@@ -60,9 +60,7 @@ export const Type = {
     occurs,
     utils: {
         vars,
-        isFunction(
-            ty: Type,
-        ): ty is Type & {
+        isFunction(ty: Type): ty is Type & {
             variant: 'Fun';
             name: 'Function';
             args: [Type, Type];
