@@ -1,4 +1,3 @@
-
 export type Ref<T> = { ref: T };
 export const ref = <T>(ref: T): Ref<T> => ({ ref });
 
@@ -20,15 +19,22 @@ export const todo = (msg?: string): never => {
 
 export const id = <T>(x: T): T => x;
 
-export const noop = () => { };
+export const noop = () => {};
 
-export const proj = <T, K extends keyof T>(key: K): (data: T) => T[K] => {
+export const proj = <T, K extends keyof T>(key: K): ((data: T) => T[K]) => {
     return (data: T) => data[key];
 };
 
-export function assert(test: boolean, message: (string | (() => string)) = ''): asserts test {
+export function assert(
+    test: boolean,
+    message: string | (() => string) = '',
+): asserts test {
     if (!test) {
-        throw new Error(`assertion failed: ${typeof message === 'string' ? message : message()}`);
+        throw new Error(
+            `assertion failed: ${
+                typeof message === 'string' ? message : message()
+            }`,
+        );
     }
 }
 
@@ -46,9 +52,15 @@ export const last = <T>(elems: T[]): T => {
     return elems[elems.length - 1];
 };
 
-export const zip = <A, B>(as: readonly A[], bs: readonly B[], checkSameLength = true): [A, B][] => {
+export const zip = <A, B>(
+    as: readonly A[],
+    bs: readonly B[],
+    checkSameLength = true,
+): [A, B][] => {
     if (checkSameLength && as.length !== bs.length) {
-        panic(`called zip with arrays of different lengths: ${as.length} and ${bs.length}`);
+        panic(
+            `called zip with arrays of different lengths: ${as.length} and ${bs.length}`,
+        );
     }
 
     const zipped: [A, B][] = [];
@@ -111,7 +123,9 @@ export function repeat<T>(elem: T, count: number): T[] {
 export function swapMut<T>(vals: T[], i: number, j: number): void {
     if (i !== j) {
         if (i < 0 || j < 0 || i >= vals.length || j >= vals.length) {
-          panic(`invalid swap indices, len: ${vals.length}, i: ${i}, j: ${j}`);
+            panic(
+                `invalid swap indices, len: ${vals.length}, i: ${i}, j: ${j}`,
+            );
         }
         const tmp = vals[i];
         vals[i] = vals[j];

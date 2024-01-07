@@ -1,4 +1,3 @@
-
 export function isUpperCase(str: string): boolean {
     return str.toUpperCase() === str;
 }
@@ -8,7 +7,7 @@ export function isLowerCase(str: string): boolean {
 }
 
 export function camelCase(str: string): string {
-    return str.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+    return str.replace(/-([a-z])/g, g => g[1].toUpperCase());
 }
 
 export const Backtick = {
@@ -33,7 +32,7 @@ export const Backtick = {
             : escapeChar(firstChar);
         const sanitizedRestOfString = restOfString
             .split('')
-            .map((char) => (isValidChar(char) ? char : escapeChar(char)))
+            .map(char => (isValidChar(char) ? char : escapeChar(char)))
             .join('');
 
         return sanitizedFirstChar + sanitizedRestOfString;
@@ -41,7 +40,7 @@ export const Backtick = {
     decode(ident: string): string {
         const regex = /_[0-9a-fA-F]{4}/g;
 
-        return ident.replace(regex, (match) => {
+        return ident.replace(regex, match => {
             const codePoint = parseInt(match.slice(1), 16);
             return String.fromCharCode(codePoint);
         });

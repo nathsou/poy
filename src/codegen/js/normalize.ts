@@ -1,0 +1,115 @@
+const SANITIZE_PREFIX = 'safe_';
+
+export function sanitizeKeyword(name: string) {
+    if (!reservedWord.includes(name)) return name;
+
+    return SANITIZE_PREFIX + name;
+}
+
+export function sanitizeProperty(name: string) {
+    if (reservedWord.includes(name)) return SANITIZE_PREFIX + name;
+    if (!reservedProperty.includes(name)) return name;
+
+    return `["${name}"]`;
+}
+
+const reservedProperty = [
+    '__proto__',
+    'prototype',
+    'constructor',
+    'hasOwnProperty',
+    'isPrototypeOf',
+    'propertyIsEnumerable',
+    'toLocaleString',
+    'toString',
+    'valueOf',
+    'Array',
+    'Date',
+    'eval',
+    'function',
+    'Infinity',
+    'isFinite',
+    'isNaN',
+    'length',
+    'Math',
+    'NaN',
+    'name',
+    'Number',
+    'Object',
+    'String',
+    'undefined',
+];
+
+const reservedWord = [
+    'do',
+    'if',
+    'in',
+    'for',
+    'let',
+    'new',
+    'try',
+    'var',
+    'case',
+    'else',
+    'enum',
+    'eval',
+    'false',
+    'null',
+    'this',
+    'true',
+    'void',
+    'with',
+    'break',
+    'catch',
+    'class',
+    'const',
+    'super',
+    'throw',
+    'while',
+    'yield',
+    'delete',
+    'export',
+    'import',
+    'public',
+    'return',
+    'static',
+    'switch',
+    'typeof',
+    'default',
+    'extends',
+    'finally',
+    'package',
+    'private',
+    'continue',
+    'debugger',
+    'function',
+    'arguments',
+    'interface',
+    'protected',
+    'implements',
+    'instanceof',
+    // future reserved words
+    'abstract',
+    'boolean',
+    'byte',
+    'char',
+    'double',
+    'final',
+    'float',
+    'goto',
+    'int',
+    'long',
+    'native',
+    'short',
+    'synchronized',
+    'throws',
+    'transient',
+    'volatile',
+    // special
+    'as',
+    'async',
+    'from',
+    'get',
+    'of',
+    'set',
+];

@@ -1,9 +1,9 @@
-import { DataType, match } from "itsamatch";
-import { Impl, Show } from "../../misc/traits";
-import { Stmt } from "./stmt";
+import { DataType, match } from 'itsamatch';
+import { Impl, Show } from '../../misc/traits';
+import { Stmt } from './stmt';
 
 export type Decl = DataType<{
-    Stmt: { stmt: Stmt },
+    Stmt: { stmt: Stmt };
 }>;
 
 export const Decl = {

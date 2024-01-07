@@ -1,17 +1,35 @@
-import { match, VariantOf } from "itsamatch";
+import { match, VariantOf } from 'itsamatch';
 import { v4 as uuidv4 } from 'uuid';
-import { Attribute, Attributes } from "../ast/sweet/attribute";
-import { Decl, EnumVariant, ModuleDecl, Signature, StructDecl } from "../ast/sweet/decl";
-import { Expr, FunctionArgument } from "../ast/sweet/expr";
-import { Stmt } from "../ast/sweet/stmt";
-import { Type, TypeVar } from "../infer/type";
-import { Maybe, None, Some } from "../misc/maybe";
-import { isLowerCase, isUpperCase, Backtick } from "../misc/strings";
-import { array, assert, block, last, letIn, panic } from "../misc/utils";
-import { AssignmentOp, BinaryOp, Keyword, Literal, Symbol, Token, UnaryOp } from "./token";
-import { Pattern } from "../ast/sweet/pattern";
+import { Attribute, Attributes } from '../ast/sweet/attribute';
+import {
+    Decl,
+    EnumVariant,
+    ModuleDecl,
+    Signature,
+    StructDecl,
+} from '../ast/sweet/decl';
+import { Expr, FunctionArgument } from '../ast/sweet/expr';
+import { Stmt } from '../ast/sweet/stmt';
+import { Type, TypeVar } from '../infer/type';
+import { Maybe, None, Some } from '../misc/maybe';
+import { isLowerCase, isUpperCase, Backtick } from '../misc/strings';
+import { array, assert, block, last, letIn, panic } from '../misc/utils';
+import {
+    AssignmentOp,
+    BinaryOp,
+    Keyword,
+    Literal,
+    Symbol,
+    Token,
+    UnaryOp,
+} from './token';
+import { Pattern } from '../ast/sweet/pattern';
 
-export const parse = (tokens: Token[], newlines: number[], filePath: string) => {
+export const parse = (
+    tokens: Token[],
+    newlines: number[],
+    filePath: string,
+) => {
     let index = 0;
     const modifiers = { pub: false, static: false };
     const attribs = {
@@ -60,7 +78,10 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         index += 1;
     }
 
-    function consume(token: Token, error: string = `Expected '${Token.show(token)}'`) {
+    function consume(
+        token: Token,
+        error: string = `Expected '${Token.show(token)}'`,
+    ) {
         if (check(token)) {
             next();
         } else {
@@ -107,7 +128,11 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     }
 
     // sepBy(rule, sep) -> (<rule> (sep <rule>)*)?
-    function sepBy<T>(rule: () => T, separator: Token, closingToken = Token.Symbol(')')): T[] {
+    function sepBy<T>(
+        rule: () => T,
+        separator: Token,
+        closingToken = Token.Symbol(')'),
+    ): T[] {
         let terms: T[] = [];
 
         do {
@@ -133,7 +158,10 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
 
         while (true) {
             const token = peek();
-            if (token.variant === 'Symbol' && (ops as Symbol[]).includes(token.$value)) {
+            if (
+                token.variant === 'Symbol' &&
+                (ops as Symbol[]).includes(token.$value)
+            ) {
                 next();
                 const rhs = p();
                 lhs = Expr.Binary({ lhs, op: token.$value as BinaryOp, rhs });
@@ -211,17 +239,19 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     }
 
     function attributes(): Attributes {
-        const attrs = Attributes.parse(block(() => {
-            if (matches(Token.Symbol('#'))) {
-                if (check(Token.Symbol('['))) {
-                    return brackets(() => commas(attribute));
-                } else {
-                    return [attribute()];
+        const attrs = Attributes.parse(
+            block(() => {
+                if (matches(Token.Symbol('#'))) {
+                    if (check(Token.Symbol('['))) {
+                        return brackets(() => commas(attribute));
+                    } else {
+                        return [attribute()];
+                    }
                 }
-            }
 
-            return [];
-        }));
+                return [];
+            }),
+        );
 
         consumeIfPresent(Token.Symbol(';'));
 
@@ -285,7 +315,6 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         }
     }
 
-
     function typeList(): Type {
         if (matches(Token.Symbol('['))) {
             if (matches(Token.Symbol(']'))) {
@@ -323,11 +352,12 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
                 if (token.variant === 'Identifier') {
                     next();
                     return constructorType('@' + token.$value);
-                } else if (token.variant === 'Keyword' && (
-                    token.$value === 'if' ||
-                    token.$value === 'let' ||
-                    token.$value === 'fun'
-                )) {
+                } else if (
+                    token.variant === 'Keyword' &&
+                    (token.$value === 'if' ||
+                        token.$value === 'let' ||
+                        token.$value === 'fun')
+                ) {
                     next();
                     return constructorType('@' + token.$value);
                 }
@@ -360,7 +390,10 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
 
         if (path.length > 0) {
             const typeName = path.pop()!;
-            return Type.Fun(typeName, args, { file: filePath, subpath: [name, ...path] });
+            return Type.Fun(typeName, args, {
+                file: filePath,
+                subpath: [name, ...path],
+            });
         }
 
         return Type.Fun(name, args);
@@ -472,7 +505,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     function matchExpr(): Expr {
         const subject = expr();
         consume(Token.Symbol('{'));
-        const cases: { pattern: Pattern, body: Expr }[] = [];
+        const cases: { pattern: Pattern; body: Expr }[] = [];
 
         while (!matches(Token.Symbol('}'))) {
             const pat = pattern();
@@ -485,9 +518,13 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         return Expr.Match({ subject, cases });
     }
 
-    function structExpr(path: string[], name: string, typeParams: Type[]): Expr {
+    function structExpr(
+        path: string[],
+        name: string,
+        typeParams: Type[],
+    ): Expr {
         consumeIfPresent(Token.Symbol('{'));
-        const fields: { name: string, value: Expr }[] = [];
+        const fields: { name: string; value: Expr }[] = [];
 
         while (!matches(Token.Symbol('}'))) {
             const name = identifier();
@@ -532,7 +569,10 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     function unaryExpr(): Expr {
         const token = peek();
 
-        if (token.variant === 'Symbol' && ['-', '+', '!'].includes(token.$value)) {
+        if (
+            token.variant === 'Symbol' &&
+            ['-', '+', '!'].includes(token.$value)
+        ) {
             next();
             const expr = callExpr();
             return Expr.Unary({ op: token.$value as UnaryOp, expr });
@@ -558,14 +598,17 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
                             field: token.$value,
                             typeParams: params,
                             isCalled: false,
-                            isNative: false
+                            isNative: false,
                         });
                         matched = true;
                         break;
                     case 'Literal':
                         if (token.value.variant === 'Num') {
                             next();
-                            lhs = Expr.TupleAccess({ lhs, index: token.value.$value });
+                            lhs = Expr.TupleAccess({
+                                lhs,
+                                index: token.value.$value,
+                            });
                             matched = true;
                         }
                         break;
@@ -605,14 +648,18 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
                         typeParams: [],
                         subject,
                     }),
-                    args
+                    args,
                 });
             }
 
             consume(Token.Symbol('::'));
             const member = identifier();
             const params = typeParamsInst();
-            return Expr.ExtensionAccess({ member, typeParams: params, subject });
+            return Expr.ExtensionAccess({
+                member,
+                typeParams: params,
+                subject,
+            });
         }).orDefault(elementAccessExpr);
     }
 
@@ -628,7 +675,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
                     field: Backtick.encode('[]'),
                     typeParams: [],
                     isCalled: true,
-                    isNative: false
+                    isNative: false,
                 }),
                 args: [key],
             });
@@ -935,13 +982,28 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         return Stmt.Break();
     }
 
-    const ASSIGNMENT_OPERATORS = new Set<AssignmentOp>(['=', '+=', '-=', '*=', '/=', 'mod=', '**=', 'or=', 'and=', '&=', '|=']);
+    const ASSIGNMENT_OPERATORS = new Set<AssignmentOp>([
+        '=',
+        '+=',
+        '-=',
+        '*=',
+        '/=',
+        'mod=',
+        '**=',
+        'or=',
+        'and=',
+        '&=',
+        '|=',
+    ]);
 
     function assignmentStmt(): Stmt {
         const lhs = expr();
 
         const token = peek();
-        if (token.variant === 'Symbol' && (ASSIGNMENT_OPERATORS as Set<string>).has(token.$value)) {
+        if (
+            token.variant === 'Symbol' &&
+            (ASSIGNMENT_OPERATORS as Set<string>).has(token.$value)
+        ) {
             next();
 
             const value = expr();
@@ -1108,7 +1170,12 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
 
         consumeIfPresent(Token.Symbol(';'));
 
-        return Decl.Extend({ params, subject, decls, uuid: uuidv4().replace(/-/g, '_') });
+        return Decl.Extend({
+            params,
+            subject,
+            decls,
+            uuid: uuidv4().replace(/-/g, '_'),
+        });
     }
 
     function enumDecl(): VariantOf<Decl, 'Enum'> {
@@ -1129,7 +1196,9 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
                 });
 
                 consume(Token.Symbol('}'));
-                variants.push(EnumVariant.Struct({ name: variantName, fields }));
+                variants.push(
+                    EnumVariant.Struct({ name: variantName, fields }),
+                );
             } else if (matches(Token.Symbol('('))) {
                 const args = commas(type);
                 consume(Token.Symbol(')'));
@@ -1141,7 +1210,6 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             consumeSeparatorIfPresent();
         }
 
-
         return Decl.Enum({ pub: modifiers.pub, name, params, variants });
     }
 
@@ -1150,7 +1218,14 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         const ty = typeAnnotationRequired();
         consumeIfPresent(Token.Symbol(';'));
 
-        return { variant: 'Variable', static: modifiers.static, mut, params: [], name, ty };
+        return {
+            variant: 'Variable',
+            static: modifiers.static,
+            mut,
+            params: [],
+            name,
+            ty,
+        };
     }
 
     function functionSignature(): VariantOf<Signature, 'Variable'> {
@@ -1163,10 +1238,15 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         consumeIfPresent(Token.Symbol(';'));
 
         if (args.some(arg => arg.ann === undefined)) {
-            raise('All arguments in a function signature must have a type annotation');
+            raise(
+                'All arguments in a function signature must have a type annotation',
+            );
         }
 
-        const funTy = Type.Function(args.map(arg => arg.ann!), ret);
+        const funTy = Type.Function(
+            args.map(arg => arg.ann!),
+            ret,
+        );
 
         return {
             variant: 'Variable',
@@ -1197,12 +1277,13 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             let: () => variableSignature(false),
             mut: () => variableSignature(true),
             fun: functionSignature,
-            type: () => letIn(typeDecl(), td => ({
-                variant: 'Type',
-                pub: modifiers.pub,
-                lhs: td.lhs,
-                rhs: td.rhs,
-            })),
+            type: () =>
+                letIn(typeDecl(), td => ({
+                    variant: 'Type',
+                    pub: modifiers.pub,
+                    lhs: td.lhs,
+                    rhs: td.rhs,
+                })),
             module: moduleSignature,
         };
 

@@ -1,4 +1,4 @@
-import { some } from "./utils";
+import { some } from './utils';
 
 export function setDifference<T>(a: Set<T>, b: Set<T>): Set<T> {
     const result = new Set<T>();

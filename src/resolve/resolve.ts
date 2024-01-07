@@ -1,21 +1,21 @@
-import { Decl } from "../ast/sweet/decl";
-import { TypeEnv } from "../infer/infer";
-import { FileSystem } from "../misc/fs";
-import { camelCase } from "../misc/strings";
-import { indices, last, panic } from "../misc/utils";
-import { lex } from "../parse/lex";
-import { parse } from "../parse/parse";
+import { Decl } from '../ast/sweet/decl';
+import { TypeEnv } from '../infer/infer';
+import { FileSystem } from '../misc/fs';
+import { camelCase } from '../misc/strings';
+import { indices, last, panic } from '../misc/utils';
+import { lex } from '../parse/lex';
+import { parse } from '../parse/parse';
 
 export type Module = {
-    pub: boolean,
-    name: string,
-    params: string[],
-    env: TypeEnv,
-    decls: Decl[],
+    pub: boolean;
+    name: string;
+    params: string[];
+    env: TypeEnv;
+    decls: Decl[];
 };
 
 export type FilePath = string;
-export type ModulePath = { file: FilePath, subpath: string[], env?: TypeEnv };
+export type ModulePath = { file: FilePath; subpath: string[]; env?: TypeEnv };
 
 export class Resolver {
     public modules = new Map<FilePath, Module>();
@@ -29,7 +29,12 @@ export class Resolver {
     async resolve(file: FilePath, subpath?: string[]): Promise<Module> {
         const absolutePath = this.fs.absolutePath(file);
         if (this.beingResolved.has(absolutePath)) {
-            panic(`Circular module imports:\n${[...this.beingResolved, absolutePath].join(' ->\n')}`);
+            panic(
+                `Circular module imports:\n${[
+                    ...this.beingResolved,
+                    absolutePath,
+                ].join(' ->\n')}`,
+            );
         }
 
         this.beingResolved.add(absolutePath);
@@ -42,7 +47,7 @@ export class Resolver {
             const source = await this.fs.readFile(absolutePath);
             const tokens = lex(source);
             const newlines = indices(source.split(''), c => c === '\n');
-            const moduleName = camelCase(last(this.fs.normalize(absolutePath).split('/')).split('.')[0])
+            const moduleName = camelCase(last(this.fs.normalize(absolutePath).split('/')).split('.')[0]);
             const topModule = parse(tokens, newlines, absolutePath).topModule(moduleName);
             const env = new TypeEnv(this, absolutePath, moduleName);
 

@@ -11,7 +11,11 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSDecl {
     const aux = (decl: BitterDecl): JSDecl[] => {
         return match(decl, {
             Module: ({ name, decls }) => {
-                const moduleToStmt = (name: string, decls: BitterDecl[], moduleScope: JSScope): { stmt: JSStmt } => {
+                const moduleToStmt = (
+                    name: string,
+                    decls: BitterDecl[],
+                    moduleScope: JSScope,
+                ): { stmt: JSStmt } => {
                     scope.declare(name);
                     const members: { name: string }[] = [];
 
@@ -28,19 +32,21 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSDecl {
                                 const { stmt } = moduleToStmt(
                                     name,
                                     decls,
-                                    moduleScope.realChild()
+                                    moduleScope.realChild(),
                                 );
 
                                 moduleScope.add(stmt);
                                 members.push({ name });
                             },
-                            Type: () => { },
-                            Struct: () => { },
+                            Type: () => {},
+                            Struct: () => {},
                             Extend: ({ decls }) => {
                                 for (const decl of decls) {
                                     if (decl.variant === 'Stmt') {
                                         const stmt = decl.stmt;
-                                        moduleScope.add(jsStmtOf(stmt, moduleScope));
+                                        moduleScope.add(
+                                            jsStmtOf(stmt, moduleScope),
+                                        );
 
                                         if (stmt.variant === 'Let') {
                                             members.push({ name: stmt.name });
@@ -56,24 +62,36 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSDecl {
                                     Module: ({ name }) => {
                                         moduleScope.declare(name, attrs.as);
                                     },
-                                    Type: () => { },
+                                    Type: () => {},
                                 });
                             },
                             Import: ({ module, members }) => {
                                 const moduleName = moduleScope.declare(module);
 
                                 if (members) {
-                                    for (const { name, native, kind } of members) {
-                                        if (kind === 'value' || kind === 'module') {
-                                            const memberName = moduleScope.declare(name);
+                                    for (const {
+                                        name,
+                                        native,
+                                        kind,
+                                    } of members) {
+                                        if (
+                                            kind === 'value' ||
+                                            kind === 'module'
+                                        ) {
+                                            const memberName =
+                                                moduleScope.declare(name);
                                             if (!native) {
-                                                moduleScope.add(JSStmt.Const({
-                                                    name: memberName,
-                                                    value: JSExpr.Dot(
-                                                        JSExpr.Variable(moduleName),
-                                                        name,
-                                                    ),
-                                                }));
+                                                moduleScope.add(
+                                                    JSStmt.Const({
+                                                        name: memberName,
+                                                        value: JSExpr.Dot(
+                                                            JSExpr.Variable(
+                                                                moduleName,
+                                                            ),
+                                                            name,
+                                                        ),
+                                                    }),
+                                                );
                                             }
                                         }
                                     }
@@ -90,12 +108,18 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSDecl {
                                 args: [],
                                 stmts: [
                                     ...moduleScope.statements,
-                                    JSStmt.Return(JSExpr.Object({
-                                        entries: members.map(member => ({
-                                            key: member.name,
-                                            value: JSExpr.Variable(moduleScope.lookup(member.name)),
-                                        })),
-                                    })),
+                                    JSStmt.Return(
+                                        JSExpr.Object({
+                                            entries: members.map(member => ({
+                                                key: member.name,
+                                                value: JSExpr.Variable(
+                                                    moduleScope.lookup(
+                                                        member.name,
+                                                    ),
+                                                ),
+                                            })),
+                                        }),
+                                    ),
                                 ],
                             }),
                             [],
@@ -105,7 +129,11 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSDecl {
                     return { stmt };
                 };
 
-                return [JSDecl.Stmt(moduleToStmt(name, decls, scope.realChild()).stmt)];
+                return [
+                    JSDecl.Stmt(
+                        moduleToStmt(name, decls, scope.realChild()).stmt,
+                    ),
+                ];
             },
             _: () => panic('Declaration outside of a module'),
         });

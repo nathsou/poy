@@ -1,6 +1,6 @@
-import { bundle } from "./bundle/bundle";
-import { createFileSystem, type FileSystem } from "./misc/fs";
-import { Resolver } from "./resolve/resolve";
+import { bundle } from './bundle/bundle';
+import { createFileSystem, type FileSystem } from './misc/fs';
+import { Resolver } from './resolve/resolve';
 
 async function compile(sourceFile: string, fs: FileSystem): Promise<string> {
     const resolver = new Resolver(fs);
