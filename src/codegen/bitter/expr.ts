@@ -4,7 +4,11 @@ import { Expr as SweetExpr } from '../../ast/sweet/expr';
 import { Type } from '../../infer/type';
 import { assert, panic } from '../../misc/utils';
 import { bitterStmtOf } from './stmt';
-import { ClauseMatrix, DecisionTree, Occurrence } from '../decision-trees/ClauseMatrix';
+import {
+    ClauseMatrix,
+    DecisionTree,
+    Occurrence,
+} from '../decision-trees/ClauseMatrix';
 import { Pattern } from '../../ast/sweet/pattern';
 import { Literal } from '../../parse/token';
 
@@ -15,57 +19,80 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
     return match(sweet, {
         Literal: ({ literal }) => BitterExpr.Literal(literal, ty),
         Variable: ({ name }) => BitterExpr.Variable({ name, ty }),
-        Unary: ({ op, expr }) => BitterExpr.Unary({ op, expr: bitterExprOf(expr), ty }),
-        Binary: ({ lhs, op, rhs }) => BitterExpr.Binary({
-            lhs: bitterExprOf(lhs),
-            op,
-            rhs: bitterExprOf(rhs),
-            ty
-        }),
-        Block: ({ stmts, ret }) => BitterExpr.Block({
-            stmts: stmts.flatMap(bitterStmtOf),
-            ret: ret ? bitterExprOf(ret) : undefined,
-            ty
-        }),
-        If: ({ cond, then, otherwise }) => BitterExpr.If({
-            cond: bitterExprOf(cond),
-            then: bitterExprOf(then),
-            otherwise: otherwise ? bitterExprOf(otherwise) : undefined,
-            ty
-        }),
-        Tuple: ({ elems }) => BitterExpr.Tuple({ elems: elems.map(bitterExprOf), ty }),
-        Array: ({ elems }) => BitterExpr.Array({ elems: elems.map(bitterExprOf), ty }),
-        UseIn: ({ name, value, rhs }) => BitterExpr.UseIn({
-            name,
-            value: bitterExprOf(value),
-            rhs: bitterExprOf(rhs),
-            ty
-        }),
-        Fun: ({ args, body, isIterator }) => BitterExpr.Fun({
-            args: args.map(arg => ({ name: arg.name, ty: arg.ann! })),
-            body: bitterExprOf(body),
-            isIterator,
-            ty,
-        }),
+        Unary: ({ op, expr }) =>
+            BitterExpr.Unary({ op, expr: bitterExprOf(expr), ty }),
+        Binary: ({ lhs, op, rhs }) =>
+            BitterExpr.Binary({
+                lhs: bitterExprOf(lhs),
+                op,
+                rhs: bitterExprOf(rhs),
+                ty,
+            }),
+        Block: ({ stmts, ret }) =>
+            BitterExpr.Block({
+                stmts: stmts.flatMap(bitterStmtOf),
+                ret: ret ? bitterExprOf(ret) : undefined,
+                ty,
+            }),
+        If: ({ cond, then, otherwise }) =>
+            BitterExpr.If({
+                cond: bitterExprOf(cond),
+                then: bitterExprOf(then),
+                otherwise: otherwise ? bitterExprOf(otherwise) : undefined,
+                ty,
+            }),
+        Tuple: ({ elems }) =>
+            BitterExpr.Tuple({ elems: elems.map(bitterExprOf), ty }),
+        Array: ({ elems }) =>
+            BitterExpr.Array({ elems: elems.map(bitterExprOf), ty }),
+        UseIn: ({ name, value, rhs }) =>
+            BitterExpr.UseIn({
+                name,
+                value: bitterExprOf(value),
+                rhs: bitterExprOf(rhs),
+                ty,
+            }),
+        Fun: ({ args, body, isIterator }) =>
+            BitterExpr.Fun({
+                args: args.map(arg => ({ name: arg.name, ty: arg.ann! })),
+                body: bitterExprOf(body),
+                isIterator,
+                ty,
+            }),
         Call: ({ fun, args, ty }) => {
-            if (fun.variant === 'VariableAccess' && fun.extensionUuid != null && !fun.isNative) {
+            if (
+                fun.variant === 'VariableAccess' &&
+                fun.extensionUuid != null &&
+                !fun.isNative
+            ) {
                 const { lhs, field, extensionUuid } = fun;
                 return BitterExpr.Call({
                     fun: BitterExpr.Variable({
                         name: `${field}_${extensionUuid}`,
-                        ty: Type.Function([lhs.ty!, ...args.map(arg => arg.ty!)], ty!),
+                        ty: Type.Function(
+                            [lhs.ty!, ...args.map(arg => arg.ty!)],
+                            ty!,
+                        ),
                     }),
                     args: [lhs, ...args].map(bitterExprOf),
                     ty: ty!,
                 });
             }
 
-            return BitterExpr.Call({ fun: bitterExprOf(fun), args: args.map(bitterExprOf), ty: ty! });
+            return BitterExpr.Call({
+                fun: bitterExprOf(fun),
+                args: args.map(bitterExprOf),
+                ty: ty!,
+            });
         },
         ModuleAccess: ({ path, member, extensionUuid }) => {
             if (extensionUuid != null) {
                 if (path.length > 1) {
-                    return BitterExpr.ModuleAccess(path.slice(0, -1), `${member}_${extensionUuid}`, ty);
+                    return BitterExpr.ModuleAccess(
+                        path.slice(0, -1),
+                        `${member}_${extensionUuid}`,
+                        ty,
+                    );
                 }
 
                 return BitterExpr.Variable({
@@ -76,12 +103,16 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
 
             return BitterExpr.ModuleAccess(path, member, ty);
         },
-        Struct: ({ path, name, fields }) => BitterExpr.Struct({
-            path,
-            name,
-            fields: fields.map(field => ({ name: field.name, value: bitterExprOf(field.value) })),
-            ty
-        }),
+        Struct: ({ path, name, fields }) =>
+            BitterExpr.Struct({
+                path,
+                name,
+                fields: fields.map(field => ({
+                    name: field.name,
+                    value: bitterExprOf(field.value),
+                })),
+                ty,
+            }),
         VariableAccess: ({ lhs, field, extensionUuid, isCalled, isNative }) => {
             if (isNative) {
                 return BitterExpr.VariableAccess({
@@ -107,21 +138,27 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
             });
         },
         ExtensionAccess: ({ member, extensionUuid }) => {
-            assert(extensionUuid != null, 'Extension uuid must be present in extension access');
+            assert(
+                extensionUuid != null,
+                'Extension uuid must be present in extension access',
+            );
             return BitterExpr.Variable({
                 name: `${member}_${extensionUuid}`,
                 ty: sweet.ty!,
             });
         },
-        TupleAccess: ({ lhs, index }) => BitterExpr.VariableAccess({
-            lhs: bitterExprOf(lhs),
-            field: index,
-            isCalled: false,
-            ty,
-        }),
+        TupleAccess: ({ lhs, index }) =>
+            BitterExpr.VariableAccess({
+                lhs: bitterExprOf(lhs),
+                field: index,
+                isCalled: false,
+                ty,
+            }),
         Match: ({ subject, cases }) => {
             const cm = new ClauseMatrix({
-                rows: cases.map(({ pattern }) => [pattern.variant === 'Variable' ? Pattern.Any : pattern]),
+                rows: cases.map(({ pattern }) => [
+                    pattern.variant === 'Variable' ? Pattern.Any : pattern,
+                ]),
                 actions: cases.map((_, index) => index),
             });
 
@@ -144,27 +181,35 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
                 return panic('no column found');
             };
 
-            const dt = cm.compile(cm.actions.map(() => []), selectColumn, isSignature);
+            const dt = cm.compile(
+                cm.actions.map(() => []),
+                selectColumn,
+                isSignature,
+            );
 
             if (dt.variant === 'Switch') {
-                return bitterExprOf(SweetExpr.UseIn({
-                    name: 'x',
-                    value: subject,
-                    rhs: exprOfDecisionTree(
-                        SweetExpr.Variable({
-                            name: 'x',
-                            typeParams: [],
-                            ty: subject.ty!,
-                        }),
-                        dt,
-                        cases,
-                        sweet.ty!,
-                    ),
-                    ty: sweet.ty!,
-                }));
+                return bitterExprOf(
+                    SweetExpr.UseIn({
+                        name: 'x',
+                        value: subject,
+                        rhs: exprOfDecisionTree(
+                            SweetExpr.Variable({
+                                name: 'x',
+                                typeParams: [],
+                                ty: subject.ty!,
+                            }),
+                            dt,
+                            cases,
+                            sweet.ty!,
+                        ),
+                        ty: sweet.ty!,
+                    }),
+                );
             }
 
-            return bitterExprOf(exprOfDecisionTree(subject, dt, cases, sweet.ty!));
+            return bitterExprOf(
+                exprOfDecisionTree(subject, dt, cases, sweet.ty!),
+            );
         },
     });
 }
@@ -179,11 +224,15 @@ function exprOfOccurence(occ: Occurrence, subject: SweetExpr): SweetExpr {
             lhs: subject,
             index: head,
             ty: subject.ty,
-        })
+        }),
     );
 }
 
-function getPatternTest(lhs: SweetExpr, ctor: string, meta: string | undefined): SweetExpr | null {
+function getPatternTest(
+    lhs: SweetExpr,
+    ctor: string,
+    meta: string | undefined,
+): SweetExpr | null {
     switch (meta) {
         case 'Unit':
             return SweetExpr.Binary({
@@ -202,7 +251,10 @@ function getPatternTest(lhs: SweetExpr, ctor: string, meta: string | undefined):
             return SweetExpr.Binary({
                 op: '==',
                 lhs,
-                rhs: { ...SweetExpr.Literal(Literal.Num(Number(ctor))), ty: Type.Num },
+                rhs: {
+                    ...SweetExpr.Literal(Literal.Num(Number(ctor))),
+                    ty: Type.Num,
+                },
                 ty: Type.Num,
             });
         case 'Str':
@@ -227,10 +279,15 @@ function exprOfDecisionTree(
     retTy: Type,
 ): SweetExpr {
     return match(dt, {
-        'Leaf': ({ action }) => cases[action].body,
-        'Switch': ({ occurrence, tests }) => {
+        Leaf: ({ action }) => cases[action].body,
+        Switch: ({ occurrence, tests }) => {
             if (tests.length === 0) {
-                return exprOfDecisionTree(subject, DecisionTree.Fail(), cases, retTy);
+                return exprOfDecisionTree(
+                    subject,
+                    DecisionTree.Fail(),
+                    cases,
+                    retTy,
+                );
             }
 
             const [head, ...tail] = tests;
@@ -248,22 +305,33 @@ function exprOfDecisionTree(
                 return SweetExpr.If({
                     cond,
                     then: exprOfDecisionTree(subject, head.dt, cases, retTy),
-                    otherwise: tail.length > 0 ? exprOfDecisionTree(
-                        subject,
-                        DecisionTree.Switch({ occurrence, tests: tail }),
-                        cases,
-                        retTy,
-                    ) : undefined,
+                    otherwise:
+                        tail.length > 0
+                            ? exprOfDecisionTree(
+                                  subject,
+                                  DecisionTree.Switch({
+                                      occurrence,
+                                      tests: tail,
+                                  }),
+                                  cases,
+                                  retTy,
+                              )
+                            : undefined,
                     ty: retTy,
                 });
             }
         },
-        Fail: () => ({ ...SweetExpr.Literal(Literal.Str('Match fail')), ty: Type.Str }),
+        Fail: () => ({
+            ...SweetExpr.Literal(Literal.Str('Match fail')),
+            ty: Type.Str,
+        }),
     });
 }
 
 // returns wether the given set of heads is a signature for the given constructor kind
-function isSignature(heads: Map<string, { arity: number, meta?: string }>): boolean {
+function isSignature(
+    heads: Map<string, { arity: number; meta?: string }>,
+): boolean {
     if (heads.size === 0) return false;
 
     const entries = [...heads.entries()];

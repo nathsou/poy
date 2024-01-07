@@ -62,4 +62,4 @@ export const jsStmtOf = (bitter: BitterStmt, scope: JSScope): JSStmt => {
         },
         Break: () => JSStmt.Break(),
     });
-}
+};

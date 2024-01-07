@@ -1,7 +1,7 @@
-import { panic } from "./utils";
+import { panic } from './utils';
 
-type Ok<T> = { type: 'ok', data: T };
-type Err<E> = { type: 'error', data: E };
+type Ok<T> = { type: 'ok'; data: T };
+type Err<E> = { type: 'error'; data: E };
 type Res<T, E> = Ok<T> | Err<E>;
 
 export class Result<T, E> {
@@ -47,7 +47,7 @@ export class Result<T, E> {
         return Result.Error(this.raw.data);
     }
 
-    match<U>(actions: { Ok: (data: T) => U, Error: (error: E) => U }): U {
+    match<U>(actions: { Ok: (data: T) => U; Error: (error: E) => U }): U {
         if (this.raw.type === 'ok') {
             return actions.Ok(this.raw.data);
         }

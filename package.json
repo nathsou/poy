@@ -1,25 +1,26 @@
 {
-  "name": "poy",
-  "version": "1.0.0",
-  "description": "",
-  "main": "build/poy.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "esbuild src/main.ts --bundle --outfile=build/poy.js --platform=node",
-    "watch": "esbuild src/main.ts --bundle --outfile=build/poy.js --platform=node --sourcemap --watch"
-  },
-  "author": "Nathan Soufflet",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/nathsou/poy"
-  },
-  "devDependencies": {
-    "@types/node": "^18.15.11",
-    "@types/uuid": "9.0.1",
-    "esbuild": "^0.17.14",
-    "itsamatch": "^1.2.0",
-    "typescript": "^5.3.3",
-    "uuid": "^9.0.0"
-  }
+    "name": "poy",
+    "version": "1.0.0",
+    "description": "",
+    "main": "build/poy.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "build": "esbuild src/main.ts --bundle --outfile=build/poy.js --platform=node",
+        "watch": "esbuild src/main.ts --bundle --outfile=build/poy.js --platform=node --sourcemap --watch"
+    },
+    "author": "Nathan Soufflet",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/nathsou/poy"
+    },
+    "devDependencies": {
+        "@types/node": "^18.15.11",
+        "@types/uuid": "9.0.1",
+        "esbuild": "^0.17.14",
+        "itsamatch": "^1.2.0",
+        "prettier": "3.1.1",
+        "typescript": "^5.3.3",
+        "uuid": "^9.0.0"
+    }
 }
