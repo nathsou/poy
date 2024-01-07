@@ -1,7 +1,12 @@
 import { match, VariantOf } from 'itsamatch';
 import { Decl as BitterDecl } from '../../ast/bitter/decl';
+import { Stmt as BitterStmt } from '../../ast/bitter/stmt';
+import { Expr as BitterExpr } from '../../ast/bitter/expr';
 import { ModuleDecl, Decl as SweetDecl } from '../../ast/sweet/decl';
 import { bitterStmtOf } from './stmt';
+import { todo } from '../../misc/utils';
+import { Type } from '../../infer/type';
+import { Literal } from '../../parse/token';
 
 export const bitterModuleOf = (
     sweet: ModuleDecl,
@@ -53,8 +58,62 @@ export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] =>
 
             return [BitterDecl.Extend({ subject, uuid, decls: filteredDecls })];
         },
-        Enum: ({ pub, name, variants }) => [
-            BitterDecl.Enum({ pub, name, variants }),
-        ],
+        Enum: ({ name, variants }) => {
+            const mod = BitterDecl.Module({
+                name,
+                decls: variants.map(variant => match(variant, {
+                    Empty: ({ name }) => BitterDecl.Stmt(BitterStmt.Let({
+                        mutable: false,
+                        static: true,
+                        name,
+                        value: BitterExpr.Struct({
+                            name: '<anonymous>',
+                            path: [],
+                            fields: [{
+                                name: 'variant',
+                                value: BitterExpr.Literal(Literal.Str(name), Type.Str),
+                            }],
+                            ty: Type.Nil, // the type doesn't matter here
+                        }),
+                        attrs: {},
+                    })),
+                    Tuple: ({ name, args }) => BitterDecl.Stmt(BitterStmt.Let({
+                        mutable: false,
+                        static: true,
+                        name,
+                        value: BitterExpr.Fun({
+                            args: args.map((ty, idx) => ({
+                                name: `arg${idx}`,
+                                ty,
+                            })),
+                            isIterator: false,
+                            body: BitterExpr.Struct({
+                                name: '<anonymous>',
+                                path: [],
+                                fields: [
+                                    {
+                                        name: 'variant',
+                                        value: BitterExpr.Literal(Literal.Str(name), Type.Str),
+                                    },
+                                    ...args.map((ty, idx) => ({
+                                    name: `arg${idx}`,
+                                    value: BitterExpr.Variable({
+                                        name: `arg${idx}`,
+                                        ty,
+                                    }),
+                                })),
+                            ],
+                                ty: Type.Nil, // the type doesn't matter here
+                            }),
+                            ty: Type.Nil, // the type doesn't matter here
+                        }),
+                        attrs: {},
+                    })),
+                    _: () => todo(),
+                })),
+            });
+
+            return [mod];
+        },
         _Many: ({ decls }) => decls.flatMap(bitterDeclsOf),
     });

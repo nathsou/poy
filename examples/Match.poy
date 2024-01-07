@@ -25,16 +25,12 @@ let d = match 3 * 7 == 21 {
 
 let e = if 1 == 0 { 1 } else if 1 == 1 { 2 } else { 3 }
 
-// enum Option<t> {
-//     none,
-//     some(t),
-// }
-
-module Option<t> {
-    let none = ()
-    fun some(arg0: t) { arg0 }
+enum Option<t> {
+     none,
+     some(t),
 }
 
 let f = Option.some(3)
+let g = Option.none
 
-print((a, b, c, d, e, f))
+print((a, b, c, d, e, f, g))

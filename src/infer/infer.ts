@@ -1,11 +1,11 @@
 import { match, VariantOf } from 'itsamatch';
-import { Decl, EnumDecl, StructDecl } from '../ast/sweet/decl';
+import { Decl, EnumDecl, Signature, StructDecl } from '../ast/sweet/decl';
 import { Expr } from '../ast/sweet/expr';
 import { Stmt } from '../ast/sweet/stmt';
 import { Maybe } from '../misc/maybe';
 import { Scope, TypeParamScope } from '../misc/scope';
 import { setDifference, uniq } from '../misc/sets';
-import { gen, last, panic, proj, zip } from '../misc/utils';
+import { gen, last, panic, proj, todo, zip } from '../misc/utils';
 import { AssignmentOp, BinaryOp, UnaryOp } from '../parse/token';
 import { Module, ModulePath, Resolver } from '../resolve/resolve';
 import { ExtensionScope } from './extensions';
@@ -527,12 +527,39 @@ export class TypeEnv {
             },
             Enum: ({ pub, name, params, variants }) => {
                 const enumEnv = this.child();
-                const enumParams = zip(
-                    params,
-                    params.map(name => Type.fresh(this.letLevel, name)),
-                );
-                enumEnv.generics.declareMany(enumParams);
+                const paramInsts =  params.map(name => Type.fresh(this.letLevel, name));
+                enumEnv.generics.declareMany(zip(params, paramInsts));
                 this.enums.declare(name, { pub, name, params, variants });
+                const variantTy = Type.Fun(name, paramInsts);
+
+                for (const variant of variants) {
+                    match(variant, {
+                        Empty: () => {
+                            enumEnv.variables.declare(variant.name, {
+                                pub: false,
+                                mut: false,
+                                ty: variantTy,
+                            });
+                        },
+                        Tuple: ({ args }) => {
+                            enumEnv.variables.declare(variant.name, {
+                                pub: false,
+                                mut: false,
+                                ty: Type.Function(args, variantTy),
+                            });
+                        },
+                        Struct: () => todo('Enum struct variants are not supported yet'),
+                    });
+                }
+
+                this.modules.declare(name, {
+                    pub,
+                    name,
+                    env: enumEnv,
+                    params,
+                    local: true,
+                    decls: [],
+                });
             },
             _Many: ({ decls }) => {
                 for (const decl of decls) {

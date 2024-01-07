@@ -32,7 +32,7 @@ export const Decl = {
         '_Many',
     ]),
     Stmt: (stmt: Stmt) => ({ variant: 'Stmt', stmt }) satisfies Decl,
-    Declare: (sig: Signature, attrs: Attributes) =>
+    Declare: (sig: Signature, attrs: Attributes = {}) =>
         ({ variant: 'Declare', sig, attrs }) satisfies Decl,
 };
 
@@ -60,6 +60,12 @@ export type Signature = DataType<{
     Module: { name: string; signatures: Signature[] };
     Type: TypeDecl;
 }>;
+
+export const Signature = genConstructors<Signature>([
+    'Variable',
+    'Module',
+    'Type',
+]);
 
 export type StructDecl = {
     pub: boolean;

@@ -1,19 +1,19 @@
 const SANITIZE_PREFIX = 'safe_';
 
 export function sanitizeKeyword(name: string) {
-    if (!reservedWord.includes(name)) return name;
+    if (!reservedWord.has(name)) return name;
 
     return SANITIZE_PREFIX + name;
 }
 
 export function sanitizeProperty(name: string) {
-    if (reservedWord.includes(name)) return SANITIZE_PREFIX + name;
-    if (!reservedProperty.includes(name)) return name;
+    if (reservedWord.has(name)) return SANITIZE_PREFIX + name;
+    if (!reservedProperty.has(name)) return name;
 
     return `["${name}"]`;
 }
 
-const reservedProperty = [
+const reservedProperty = new Set([
     '__proto__',
     'prototype',
     'constructor',
@@ -38,9 +38,9 @@ const reservedProperty = [
     'Object',
     'String',
     'undefined',
-];
+]);
 
-const reservedWord = [
+const reservedWord = new Set([
     'do',
     'if',
     'in',
@@ -112,4 +112,4 @@ const reservedWord = [
     'get',
     'of',
     'set',
-];
+]);

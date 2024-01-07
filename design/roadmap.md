@@ -83,13 +83,15 @@ mut c = [a, b] // mut Num[] is not compatible with Num[]
 
 -   [ ] Enum declarations
 -   [ ] Destructuring in let declarations, use expressions and function arguments
--   [ ] Rewrite match expressions to decision trees
+-   [x] Rewrite match expressions to decision trees
 -   [ ] Resolve enums with the shorthand `.Member` syntax instead of `Struct.Member`
+-   [ ] Optimize decision trees
 
 ### 9. String template literals
 
 ### 10. Checkpoint I
 
+-   [ ] Implicitely import the foundations
 -   [ ] Improve error messages
 -   [ ] Identify improvement areas and clean up
 -   [ ] Optimize pattern matching (+ eliminate `Option` type overhead)
