@@ -1,5 +1,5 @@
-import { Stmt } from "../../ast/js/stmt";
-import { assert, panic } from "../../misc/utils";
+import { Stmt } from '../../ast/js/stmt';
+import { assert, panic } from '../../misc/utils';
 import { sanitizeKeyword } from './normalize';
 
 export type Name = {
