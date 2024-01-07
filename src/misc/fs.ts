@@ -1,4 +1,4 @@
-import { panic } from './utils.js'
+import { panic } from './utils'
 
 export type FileSystem = {
   readFile: (path: string) => Promise<string>
