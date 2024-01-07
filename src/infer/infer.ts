@@ -527,7 +527,9 @@ export class TypeEnv {
             },
             Enum: ({ pub, name, params, variants }) => {
                 const enumEnv = this.child();
-                const paramInsts =  params.map(name => Type.fresh(this.letLevel, name));
+                const paramInsts = params.map(name =>
+                    Type.fresh(this.letLevel, name),
+                );
                 enumEnv.generics.declareMany(zip(params, paramInsts));
                 this.enums.declare(name, { pub, name, params, variants });
                 const variantTy = Type.Fun(name, paramInsts);
@@ -548,7 +550,8 @@ export class TypeEnv {
                                 ty: Type.Function(args, variantTy),
                             });
                         },
-                        Struct: () => todo('Enum struct variants are not supported yet'),
+                        Struct: () =>
+                            todo('Enum struct variants are not supported yet'),
                     });
                 }
 

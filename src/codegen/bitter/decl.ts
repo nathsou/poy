@@ -61,56 +61,72 @@ export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] =>
         Enum: ({ name, variants }) => {
             const mod = BitterDecl.Module({
                 name,
-                decls: variants.map(variant => match(variant, {
-                    Empty: ({ name }) => BitterDecl.Stmt(BitterStmt.Let({
-                        mutable: false,
-                        static: true,
-                        name,
-                        value: BitterExpr.Struct({
-                            name: '<anonymous>',
-                            path: [],
-                            fields: [{
-                                name: 'variant',
-                                value: BitterExpr.Literal(Literal.Str(name), Type.Str),
-                            }],
-                            ty: Type.Nil, // the type doesn't matter here
-                        }),
-                        attrs: {},
-                    })),
-                    Tuple: ({ name, args }) => BitterDecl.Stmt(BitterStmt.Let({
-                        mutable: false,
-                        static: true,
-                        name,
-                        value: BitterExpr.Fun({
-                            args: args.map((ty, idx) => ({
-                                name: `arg${idx}`,
-                                ty,
-                            })),
-                            isIterator: false,
-                            body: BitterExpr.Struct({
-                                name: '<anonymous>',
-                                path: [],
-                                fields: [
-                                    {
-                                        name: 'variant',
-                                        value: BitterExpr.Literal(Literal.Str(name), Type.Str),
-                                    },
-                                    ...args.map((ty, idx) => ({
-                                    name: `arg${idx}`,
-                                    value: BitterExpr.Variable({
-                                        name: `arg${idx}`,
-                                        ty,
+                decls: variants.map(variant =>
+                    match(variant, {
+                        Empty: ({ name }) =>
+                            BitterDecl.Stmt(
+                                BitterStmt.Let({
+                                    mutable: false,
+                                    static: true,
+                                    name,
+                                    value: BitterExpr.Struct({
+                                        name: '<anonymous>',
+                                        path: [],
+                                        fields: [
+                                            {
+                                                name: 'variant',
+                                                value: BitterExpr.Literal(
+                                                    Literal.Str(name),
+                                                    Type.Str,
+                                                ),
+                                            },
+                                        ],
+                                        ty: Type.Nil, // the type doesn't matter here
                                     }),
-                                })),
-                            ],
-                                ty: Type.Nil, // the type doesn't matter here
-                            }),
-                            ty: Type.Nil, // the type doesn't matter here
-                        }),
-                        attrs: {},
-                    })),
-                    _: () => todo(),
-                })),
+                                    attrs: {},
+                                }),
+                            ),
+                        Tuple: ({ name, args }) =>
+                            BitterDecl.Stmt(
+                                BitterStmt.Let({
+                                    mutable: false,
+                                    static: true,
+                                    name,
+                                    value: BitterExpr.Fun({
+                                        args: args.map((ty, idx) => ({
+                                            name: `arg${idx}`,
+                                            ty,
+                                        })),
+                                        isIterator: false,
+                                        body: BitterExpr.Struct({
+                                            name: '<anonymous>',
+                                            path: [],
+                                            fields: [
+                                                {
+                                                    name: 'variant',
+                                                    value: BitterExpr.Literal(
+                                                        Literal.Str(name),
+                                                        Type.Str,
+                                                    ),
+                                                },
+                                                ...args.map((ty, idx) => ({
+                                                    name: `arg${idx}`,
+                                                    value: BitterExpr.Variable({
+                                                        name: `arg${idx}`,
+                                                        ty,
+                                                    }),
+                                                })),
+                                            ],
+                                            ty: Type.Nil, // the type doesn't matter here
+                                        }),
+                                        ty: Type.Nil, // the type doesn't matter here
+                                    }),
+                                    attrs: {},
+                                }),
+                            ),
+                        _: () => todo(),
+                    }),
+                ),
             });
 
             return [mod];
