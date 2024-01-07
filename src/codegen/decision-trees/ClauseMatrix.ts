@@ -9,12 +9,12 @@ import { Maybe, None, Some } from '../../misc/maybe';
 export type Occurrence = number[];
 
 export type DecisionTree = DataType<{
-    Leaf: { action: number },
-    Fail: {},
+    Leaf: { action: number };
+    Fail: {};
     Switch: {
-        occurrence: Occurrence,
-        tests: { ctor: string, meta?: string, dt: DecisionTree }[],
-    },
+        occurrence: Occurrence;
+        tests: { ctor: string; meta?: string; dt: DecisionTree }[];
+    };
 }>;
 
 export function showDecisionTree(dt: DecisionTree): string {
@@ -22,7 +22,9 @@ export function showDecisionTree(dt: DecisionTree): string {
         Leaf: ({ action }) => `Leaf(${action})`,
         Fail: () => 'Fail',
         Switch: ({ occurrence, tests }) => {
-            const testsStr = tests.map(({ ctor, dt }) => `${ctor} => ${showDecisionTree(dt)}`).join(', ');
+            const testsStr = tests
+                .map(({ ctor, dt }) => `${ctor} => ${showDecisionTree(dt)}`)
+                .join(', ');
             return `Switch(${occurrence}, [${testsStr}])`;
         },
     });
@@ -33,8 +35,8 @@ export const DecisionTree = {
 };
 
 type ClauseMatrixConstructor = {
-    rows: Pattern[][],
-    actions: number[],
+    rows: Pattern[][];
+    actions: number[];
 };
 
 export class ClauseMatrix {
@@ -62,23 +64,32 @@ export class ClauseMatrix {
         swapMut(this.actions, i, j);
     }
 
-    public heads(column: number): Map<string, { arity: number, meta?: string }> {
-        const heads = new Map<string, { arity: number, meta?: string }>();
+    public heads(
+        column: number,
+    ): Map<string, { arity: number; meta?: string }> {
+        const heads = new Map<string, { arity: number; meta?: string }>();
 
         for (const row of this.rows) {
             const head = row[column];
 
             if (head.variant === 'Ctor') {
-                heads.set(head.name, { arity: head.args.length, meta: head.meta });
+                heads.set(head.name, {
+                    arity: head.args.length,
+                    meta: head.meta,
+                });
             }
         }
 
         return heads;
     }
 
-    private build(transformRow: (row: Pattern[]) => Maybe<Pattern[]>): ClauseMatrix {
+    private build(
+        transformRow: (row: Pattern[]) => Maybe<Pattern[]>,
+    ): ClauseMatrix {
         const rows = this.rows.map(transformRow);
-        const actions = Maybe.keepSome(rows.map((row, i) => row.map(() => this.actions[i])));
+        const actions = Maybe.keepSome(
+            rows.map((row, i) => row.map(() => this.actions[i])),
+        );
 
         return new ClauseMatrix({
             rows: Maybe.keepSome(rows),
@@ -121,7 +132,9 @@ export class ClauseMatrix {
     public compile(
         occurrences: Occurrence[],
         selectColumn: (matrix: ClauseMatrix) => number,
-        isSignature: (heads: Map<string, { arity: number, meta?: string }>) => boolean,
+        isSignature: (
+            heads: Map<string, { arity: number; meta?: string }>,
+        ) => boolean,
     ): DecisionTree {
         if (this.height === 0) {
             return DecisionTree.Fail();
@@ -143,13 +156,21 @@ export class ClauseMatrix {
                 ...gen(arity, i => [...occurrences[0], i]),
                 ...occurrences.slice(1),
             ];
-            const Ak = specialized.compile(subOccurrences, selectColumn, isSignature);
+            const Ak = specialized.compile(
+                subOccurrences,
+                selectColumn,
+                isSignature,
+            );
             tests.push({ ctor, meta, dt: Ak });
         }
 
         if (!isSignature(heads)) {
             const subOccurrences = occurrences.slice(1);
-            const Ad = this.defaulted().compile(subOccurrences, selectColumn, isSignature);
+            const Ad = this.defaulted().compile(
+                subOccurrences,
+                selectColumn,
+                isSignature,
+            );
             tests.push({ ctor: '_', dt: Ad });
         }
 

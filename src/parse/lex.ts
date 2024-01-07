@@ -1,6 +1,6 @@
-import { match } from "itsamatch";
-import { Keyword, Literal, Token } from "./token";
-import { Backtick } from "../misc/strings";
+import { match } from 'itsamatch';
+import { Keyword, Literal, Token } from './token';
+import { Backtick } from '../misc/strings';
 
 type Char = string;
 
@@ -99,13 +99,20 @@ export const lex = (source: string): Token[] => {
         const identifier = source.slice(startIndex, index);
 
         switch (identifier) {
-            case 'true': return Token.Literal(Literal.Bool(true));
-            case 'false': return Token.Literal(Literal.Bool(false));
-            case 'and': return Token.Symbol(matches('=') ? 'and=' : 'and');
-            case 'or': return Token.Symbol(matches('=') ? 'or=' : 'or');
-            case 'mod': return Token.Symbol(matches('=') ? 'mod=' : 'mod');
+            case 'true':
+                return Token.Literal(Literal.Bool(true));
+            case 'false':
+                return Token.Literal(Literal.Bool(false));
+            case 'and':
+                return Token.Symbol(matches('=') ? 'and=' : 'and');
+            case 'or':
+                return Token.Symbol(matches('=') ? 'or=' : 'or');
+            case 'mod':
+                return Token.Symbol(matches('=') ? 'mod=' : 'mod');
             default:
-                return Keyword.is(identifier) ? Token.Keyword(identifier) : Token.Identifier(identifier);
+                return Keyword.is(identifier)
+                    ? Token.Keyword(identifier)
+                    : Token.Identifier(identifier);
         }
     }
 
@@ -129,32 +136,45 @@ export const lex = (source: string): Token[] => {
             return match(tokens[tokens.length - 1], {
                 Literal: lit => {
                     switch (lit.value.variant) {
-                        case 'Bool': return true;
-                        case 'Num': return true;
-                        case 'Str': return true;
-                        default: return false;
+                        case 'Bool':
+                            return true;
+                        case 'Num':
+                            return true;
+                        case 'Str':
+                            return true;
+                        default:
+                            return false;
                     }
                 },
                 Identifier: () => true,
                 Symbol: symb => {
                     switch (symb) {
-                        case ')': return true;
-                        case ']': return true;
-                        case '}': return true;
-                        case '>': return true;
-                        default: return false;
+                        case ')':
+                            return true;
+                        case ']':
+                            return true;
+                        case '}':
+                            return true;
+                        case '>':
+                            return true;
+                        default:
+                            return false;
                     }
                 },
                 Keyword: kw => {
                     switch (kw) {
-                        case 'return': return true;
-                        case 'yield': return true;
-                        case 'break': return true;
-                        default: return false;
+                        case 'return':
+                            return true;
+                        case 'yield':
+                            return true;
+                        case 'break':
+                            return true;
+                        default:
+                            return false;
                     }
                 },
                 _: () => false,
-            })
+            });
         }
 
         return false;
@@ -174,17 +194,38 @@ export const lex = (source: string): Token[] => {
         const char = next();
 
         switch (char) {
-            case '(': return Token.Symbol('(');
-            case ')': return Token.Symbol(')');
-            case '{': return Token.Symbol('{');
-            case '}': return Token.Symbol('}');
-            case '[': return Token.Symbol('[');
-            case ']': return Token.Symbol(']');
-            case ',': return Token.Symbol(',');
-            case ';': return Token.Symbol(';');
-            case '+': return Token.Symbol(matches('=') ? '+=' : '+');
-            case '-': return Token.Symbol(matches('>') ? '->' : matches('=') ? '-=' : '-');
-            case '*': return Token.Symbol(matches('*') ? matches('=') ? '**=' : '**' : matches('=') ? '*=' : '*');
+            case '(':
+                return Token.Symbol('(');
+            case ')':
+                return Token.Symbol(')');
+            case '{':
+                return Token.Symbol('{');
+            case '}':
+                return Token.Symbol('}');
+            case '[':
+                return Token.Symbol('[');
+            case ']':
+                return Token.Symbol(']');
+            case ',':
+                return Token.Symbol(',');
+            case ';':
+                return Token.Symbol(';');
+            case '+':
+                return Token.Symbol(matches('=') ? '+=' : '+');
+            case '-':
+                return Token.Symbol(
+                    matches('>') ? '->' : matches('=') ? '-=' : '-',
+                );
+            case '*':
+                return Token.Symbol(
+                    matches('*')
+                        ? matches('=')
+                            ? '**='
+                            : '**'
+                        : matches('=')
+                          ? '*='
+                          : '*',
+                );
             case '/': {
                 if (matches('/')) {
                     while (peek() !== '\n' && !isAtEnd()) {
@@ -196,19 +237,34 @@ export const lex = (source: string): Token[] => {
                     return Token.Symbol(matches('=') ? '/=' : '/');
                 }
             }
-            case '!': return Token.Symbol('!');
-            case '=': return Token.Symbol(matches('=') ? '==' : matches('>') ? '=>' : '=');
-            case '<': return Token.Symbol(matches('=') ? '<=' : '<');
-            case '>': return Token.Symbol(matches('=') ? '>=' : '>');
-            case '&': return Token.Symbol(matches('=') ? '&=' : '&');
-            case '|': return Token.Symbol(matches('=') ? '|=' : '|');
-            case ':': return Token.Symbol(matches(':') ? '::' : ':');
-            case '_': return Token.Symbol('_');
-            case '.': return Token.Symbol('.');
-            case '@': return Token.Symbol('@');
-            case '#': return Token.Symbol('#');
-            case '"': return parseStr();
-            case '`': return parseBacktickIdentifier();
+            case '!':
+                return Token.Symbol('!');
+            case '=':
+                return Token.Symbol(
+                    matches('=') ? '==' : matches('>') ? '=>' : '=',
+                );
+            case '<':
+                return Token.Symbol(matches('=') ? '<=' : '<');
+            case '>':
+                return Token.Symbol(matches('=') ? '>=' : '>');
+            case '&':
+                return Token.Symbol(matches('=') ? '&=' : '&');
+            case '|':
+                return Token.Symbol(matches('=') ? '|=' : '|');
+            case ':':
+                return Token.Symbol(matches(':') ? '::' : ':');
+            case '_':
+                return Token.Symbol('_');
+            case '.':
+                return Token.Symbol('.');
+            case '@':
+                return Token.Symbol('@');
+            case '#':
+                return Token.Symbol('#');
+            case '"':
+                return parseStr();
+            case '`':
+                return parseBacktickIdentifier();
             default:
                 if (isDigit(char)) {
                     return parseNum();

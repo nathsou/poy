@@ -1,4 +1,3 @@
-
 const context = {
     typeVarId: 0,
 };

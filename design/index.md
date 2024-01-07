@@ -1,14 +1,16 @@
-
 # Poy design spec
+
 ## Principles
-- Productive and pragmatic (Fast compile times, automatic memory management, ...)
-- Modern (Powerful type inference, ADTs & pattern matching, if expressions, controlled mutability)
-- Batteries included (bundler, formatter, package manager, docgen, ...)
-- Readable (Compiles to readable files)
+
+-   Productive and pragmatic (Fast compile times, automatic memory management, ...)
+-   Modern (Powerful type inference, ADTs & pattern matching, if expressions, controlled mutability)
+-   Batteries included (bundler, formatter, package manager, docgen, ...)
+-   Readable (Compiles to readable files)
 
 ## Examples
 
 ### Modules
+
 Each poy source file defines a module named after the file name.
 Submodules can be defined inside modules.
 
@@ -23,24 +25,25 @@ module B {
   fun odd(n) {
     if n == 0 { false } else { A.even(n - 1) }
   }
-} 
+}
 ```
 
 -->
 
 ```js
 const A = (() => {
-  const even = n => n == 0 ? true : B.odd(n - 1);
-  return { even };
+    const even = n => (n == 0 ? true : B.odd(n - 1));
+    return { even };
 })();
 
 const B = (() => {
-  const odd = n => n == 0 ? false : A.even(n - 1);
-  return { odd };
+    const odd = n => (n == 0 ? false : A.even(n - 1));
+    return { odd };
 })();
 ```
 
 ## Blocks
+
 ```poy
 let a = {
     let a = 3
@@ -52,6 +55,7 @@ let a = {
 ```
 
 ## Dot syntax
+
 ```poy
 enum Hobby {
   Unicycling,
@@ -69,7 +73,7 @@ extend Person {
   init(name, age, hobbies = []) {
     Person { name, age, hobbies }
   }
-  
+
   fun isYoung() {
     age < 100
   }
@@ -84,13 +88,15 @@ nath.addHobby(.Unicycling)
 ```
 
 ### Use..in expressions
+
 ```poy
 use n = 3 in n * 7 // 21
 
-// --> { let n = 3; n * 7 } 
+// --> { let n = 3; n * 7 }
 ```
 
 ### Pattern Matching
+
 ```poy
 enum Option<T> { Some(T), None }
 
@@ -114,6 +120,7 @@ extend Option<T> {
 ```
 
 ### Data Types
+
 ```poy
 // arrays
 [1, 2, 3]
@@ -143,6 +150,7 @@ let d2: { a: Num, b: Str, ...Str: Num[] } = { a: 1, b: true, c: [3] }
 ```
 
 ### Argument labels
+
 ```poy
 // argument labels are optional
 // and can be aliased inside the body of the function
@@ -169,10 +177,11 @@ fun fold<T, U>(elems: T[], f: (U, T) -> U, initial: U) {
   // ...
 }
 
-let len = xs -> xs |> fold((n, _) -> n + 1, initial: 0) 
+let len = xs -> xs |> fold((n, _) -> n + 1, initial: 0)
 ```
 
 ### Template literals
+
 ```poy
 let name = "Nathan"
 print("Hello {name}!") // Hello Nathan!
@@ -181,6 +190,7 @@ print("3 * 7 = {3 * 7}") // 3 * 7 = 21
 ```
 
 ### Raw JS
+
 ```poy
 extend Str[] {
   fun join(sep = ", ") {
@@ -190,6 +200,7 @@ extend Str[] {
 ```
 
 ### Monadic chaining
+
 ```poy
 enum Expr {
   Int(Number),
@@ -210,13 +221,14 @@ extend Expr {
           let a' = eval(a)?
           let b' = eval(b)?
           if b' == 0 { None } else { Some(a' / b') }
-      }, 
+      },
     }
   }
 }
 ```
 
 ### Interfaces - Dictionary passing
+
 ```poy
 interface Show {
   fun show(): String
@@ -244,13 +256,14 @@ extend Vec2: Add {
   fun add(other) {
     Vec2 {
       x: x + other.x,
-      y: y + other.y, 
+      y: y + other.y,
     }
-  }  
+  }
 }
 ```
 
 ### Array Comprehension
+
 ```poy
 extend<T> T[] {
   fun map(f) { [f(x) for x in self] }

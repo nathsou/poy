@@ -1,6 +1,6 @@
-import { showTypeVarId, Subst, Type, TypeVarId } from "../infer/type";
-import { Maybe, None, Some } from "./maybe";
-import { panic } from "./utils";
+import { showTypeVarId, Subst, Type, TypeVarId } from '../infer/type';
+import { Maybe, None, Some } from './maybe';
+import { panic } from './utils';
 
 export class Scope<T> {
     protected members: Map<string, T>;
@@ -13,7 +13,10 @@ export class Scope<T> {
     }
 
     public has(name: string): boolean {
-        return this.members.has(name) || (this.parent != null && this.parent.has(name));
+        return (
+            this.members.has(name) ||
+            (this.parent != null && this.parent.has(name))
+        );
     }
 
     public declare(name: string, value: T): void {
@@ -47,7 +50,9 @@ export class Scope<T> {
     }
 
     public show(showT: (val: T) => string): string {
-        return [...this.members.entries()].map(([name, val]) => `${name}: ${showT(val)}`).join('\n');
+        return [...this.members.entries()]
+            .map(([name, val]) => `${name}: ${showT(val)}`)
+            .join('\n');
     }
 }
 
@@ -96,7 +101,6 @@ export class TypeParamScope extends Scope<Type> {
             }
         }
 
-
         if (!fixpoint) {
             this.substitute(subst);
         }
@@ -107,6 +111,8 @@ export class TypeParamScope extends Scope<Type> {
     }
 
     public show(): string {
-        return [...this.typeVarIdMapping.entries()].map(([id, name]) => `${showTypeVarId(id)} -> ${name}`).join(', ');
+        return [...this.typeVarIdMapping.entries()]
+            .map(([id, name]) => `${showTypeVarId(id)} -> ${name}`)
+            .join(', ');
     }
 }

@@ -1,11 +1,11 @@
-import { match } from "itsamatch";
-import { config } from "../config";
-import { Impl, Show } from "../misc/traits";
-import { assert, last, panic, zip } from "../misc/utils";
-import { TypeEnv } from "./infer";
-import { Subst, Type } from "./type";
+import { match } from 'itsamatch';
+import { config } from '../config';
+import { Impl, Show } from '../misc/traits';
+import { assert, last, panic, zip } from '../misc/utils';
+import { TypeEnv } from './infer';
+import { Subst, Type } from './type';
 
-export type Rule = { lhs: Type, rhs: Type, pub: boolean };
+export type Rule = { lhs: Type; rhs: Type; pub: boolean };
 export type TRS = Map<string, Rule[]>;
 
 export const TRS = {
@@ -24,14 +24,21 @@ export const TRS = {
 } satisfies Impl<Show<TRS>>;
 
 function show(trs: TRS): string {
-    return [...trs.values()].map((rules) => {
-        return rules.map(({ lhs, rhs }) => `${Type.show(lhs)} -> ${Type.show(rhs)}`).join('\n');
-    }).join('\n');
+    return [...trs.values()]
+        .map(rules => {
+            return rules
+                .map(({ lhs, rhs }) => `${Type.show(lhs)} -> ${Type.show(rhs)}`)
+                .join('\n');
+        })
+        .join('\n');
 }
 
 type StepCounter = { steps: number };
 
-const externals: Record<string, (args: Type[], env: TypeEnv, counter: StepCounter) => Type | null> = {
+const externals: Record<
+    string,
+    (args: Type[], env: TypeEnv, counter: StepCounter) => Type | null
+> = {
     '@eq': (args, env, counter) => {
         assert(args.length === 2, '@equ expects exactly two arguments');
         const [lhs, rhs] = args;
@@ -61,15 +68,26 @@ const externals: Record<string, (args: Type[], env: TypeEnv, counter: StepCounte
     '@app': args => {
         assert(args.length > 0, '@app expects at least one argument');
         const [symb, ...callArgs] = args;
-        assert(symb.variant === 'Fun', '@app expects a symbol as first argument');
+        assert(
+            symb.variant === 'Fun',
+            '@app expects a symbol as first argument',
+        );
 
         if (symb.name === '@fun') {
             const lambdaArgs = symb.args.slice(0, -1);
             const body = last(symb.args);
-            const subst: Subst = new Map(zip(lambdaArgs.map(arg => {
-                assert(arg.variant === 'Var' && arg.ref.variant === 'Unbound');
-                return arg.ref.id;
-            }), callArgs));
+            const subst: Subst = new Map(
+                zip(
+                    lambdaArgs.map(arg => {
+                        assert(
+                            arg.variant === 'Var' &&
+                                arg.ref.variant === 'Unbound',
+                        );
+                        return arg.ref.id;
+                    }),
+                    callArgs,
+                ),
+            );
 
             return Type.substitute(body, subst);
         }
@@ -82,24 +100,37 @@ const externals: Record<string, (args: Type[], env: TypeEnv, counter: StepCounte
     },
     '@symb': args => {
         assert(args.length === 1, '@symb expects exactly one argument');
-        assert(args[0].variant === 'Fun', '@symb expects a symbol as first argument');
+        assert(
+            args[0].variant === 'Fun',
+            '@symb expects a symbol as first argument',
+        );
         return Type.Fun(args[0].name, [], args[0].path);
     },
     '@args': args => {
         assert(args.length === 1, '@args expects exactly one argument');
-        assert(args[0].variant === 'Fun', '@args expects a symbol as first argument');
+        assert(
+            args[0].variant === 'Fun',
+            '@args expects a symbol as first argument',
+        );
         return Type.utils.list(args[0].args);
     },
     '@let': (args, env, counter) => {
         assert(args.length === 3, '@let expects exactly three arguments');
         const [name, value, body] = args;
-        assert(name.variant === 'Var' && name.ref.variant === 'Unbound', '@let expects a variable as first argument');
+        assert(
+            name.variant === 'Var' && name.ref.variant === 'Unbound',
+            '@let expects a variable as first argument',
+        );
         const subst = new Map([[name.ref.id, normalize(env, value, counter)]]);
         return Type.substitute(body, subst);
     },
 };
 
-function reduce(env: TypeEnv, ty: Type, counter: StepCounter): { term: Type, matched: boolean } {
+function reduce(
+    env: TypeEnv,
+    ty: Type,
+    counter: StepCounter,
+): { term: Type; matched: boolean } {
     counter.steps += 1;
 
     return match(ty, {
@@ -117,7 +148,10 @@ function reduce(env: TypeEnv, ty: Type, counter: StepCounter): { term: Type, mat
             }
 
             const moduleEnv: TypeEnv = path?.env ?? env;
-            const newTy = Type.Fun(name, args.map(arg => normalize(env, arg, counter)));
+            const newTy = Type.Fun(
+                name,
+                args.map(arg => normalize(env, arg, counter)),
+            );
             const rules = moduleEnv.typeRules.get(name) ?? [];
 
             for (const { lhs, rhs } of rules) {
@@ -151,5 +185,9 @@ export function normalize(
         }
     }
 
-    return panic(`Type '${Type.show(ty)}' did not reach a normal form after ${config.maxReductionSteps} reductions`);
+    return panic(
+        `Type '${Type.show(ty)}' did not reach a normal form after ${
+            config.maxReductionSteps
+        } reductions`,
+    );
 }

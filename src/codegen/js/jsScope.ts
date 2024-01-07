@@ -10,7 +10,7 @@ export type Name = {
 // virtual scopes represent poy scopes like block expressions
 // which do not compile to an actual JS scope
 // adding a linearized statement to a virtual scope
-// will add it to the closest real parent scope  
+// will add it to the closest real parent scope
 export class JSScope {
     protected stmts: Stmt[];
     private members = new Map<string, Name>();

@@ -1,6 +1,6 @@
-import { panic } from "./utils";
+import { panic } from './utils';
 
-type M<T> = { type: 'some', data: T } | { type: 'none' };
+type M<T> = { type: 'some'; data: T } | { type: 'none' };
 
 export class Maybe<T> {
     private raw: M<T>;
@@ -45,7 +45,9 @@ export class Maybe<T> {
             return f(this.raw.data);
         }
 
-        return typeof defaultValue === 'function' ? (defaultValue as Function)() : defaultValue;
+        return typeof defaultValue === 'function'
+            ? (defaultValue as Function)()
+            : defaultValue;
     }
 
     flatMap<U>(f: (val: T) => Maybe<U>): Maybe<U> {
@@ -70,10 +72,12 @@ export class Maybe<T> {
         }
 
         /// @ts-ignore
-        return typeof defaultValue === 'function' ? defaultValue() : defaultValue;
+        return typeof defaultValue === 'function'
+            ? defaultValue()
+            : defaultValue;
     }
 
-    match<U>(actions: { Some: (data: T) => U, None: () => U }): U {
+    match<U>(actions: { Some: (data: T) => U; None: () => U }): U {
         if (this.raw.type === 'some') {
             return actions.Some(this.raw.data);
         }
@@ -102,7 +106,10 @@ export class Maybe<T> {
         return undefined;
     }
 
-    static firstSomeBy<T, U>(elems: T[], f: (elem: T) => Maybe<U>): Maybe<[U, number]> {
+    static firstSomeBy<T, U>(
+        elems: T[],
+        f: (elem: T) => Maybe<U>,
+    ): Maybe<[U, number]> {
         for (let i = 0; i < elems.length; i++) {
             const mapped = f(elems[i]);
             if (mapped.isSome()) {

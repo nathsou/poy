@@ -16,7 +16,7 @@ Type declarations form a Term Rewriting System (TRS).
 ### Type aliases
 
 ```
-Path = Str 
+Path = Str
 ```
 
 ### Type parameter extraction
@@ -63,11 +63,13 @@ fun isPrime<a>(n: a) where IsNumberLike<a>: a
 ### Usual data types
 
 Arrays
+
 ```
 a[] <=> Array<a>
 ```
 
 Lists
+
 ```
 [] <=> Nil
 head:tail <=> Cons<head, tail>
@@ -75,6 +77,7 @@ head:tail <=> Cons<head, tail>
 ```
 
 Tuples
+
 ```
 Unit <=> Tuple<[]>
 (a, b) <=> Tuple<[a, b]>
@@ -82,6 +85,7 @@ Unit <=> Tuple<[]>
 ```
 
 Functions
+
 ```
 Num -> Bool <=> Function<[Num], Bool>
 (Str, Num, Num) -> Str <=> Function<[Str, Num, Num], Str>
@@ -93,17 +97,21 @@ Structs
 Structs are nominally typed, struct declarations introduce new types.
 
 ```
+
 enum Option<a> { Some<a>, None }
+
 ```
 
 Literals
 Precise value-dependent literal types could be infered from let declarations:
 
 ```
+
 let n = 3 // Num<3> <=> Num<Type.Fun("3", [])>
 let str = "hello" // Str<"hello"> <=> Str<Type.Fun("hello", [])>
 let q = true // Bool<T>
 let cities = ["Strasbourg", "Colmar"] // Str[]<["Strasbourg", "Colmar"]>
+
 ```
 
 Records
@@ -111,6 +119,7 @@ Records might require specific unification rules to support fields in different 
 ```
 
 Person = { name: Str, age: Num, city: Str } <=> Record<[("name", Str), ("age", Num), ("city", Str)]>
+
 ```
 
 Unions
@@ -118,5 +127,9 @@ Unions can be represented by predicates but specific unification rules could be 
 to make them nicer to work with.
 
 ```
+
 Bool | Num | Str <=> Union<[Bool, Num, Str]>
+
+```
+
 ```
