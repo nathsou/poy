@@ -13,7 +13,7 @@ export type Decl = DataType<{
     Import: {
         path: string[];
         module: string;
-        members?: { name: string; native: boolean; kind?: ImportMemberKind }[];
+        members: { name: string; native: boolean; kind?: ImportMemberKind }[];
     };
     Struct: StructDecl;
     Extend: ExtendDecl;

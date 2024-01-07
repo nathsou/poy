@@ -97,4 +97,11 @@ export const Expr = {
             _: () => false,
         });
     },
+    // can this expression be copied without any side effects?
+    isPurelyCopyable: (expr: Expr): boolean =>
+        match(expr, {
+            Variable: () => true,
+            Literal: () => true,
+            _: () => false,
+        }),
 };

@@ -1,7 +1,7 @@
 import { DataType, VariantOf, genConstructors, match } from 'itsamatch';
 import { Pattern } from '../../ast/sweet/pattern';
 import { Maybe, None, Some } from '../../misc/maybe';
-import { assert, gen, repeat, swapMut } from '../../misc/utils';
+import { assert, count, gen, repeat, swapMut } from '../../misc/utils';
 import { EnumDecl } from '../../ast/sweet/decl';
 
 // Based on Compiling Pattern Matching to Good Decision Trees
@@ -40,6 +40,18 @@ export function showDecisionTree(dt: DecisionTree): string {
 
 export const DecisionTree = {
     ...genConstructors<DecisionTree>(['Leaf', 'Fail', 'Switch']),
+    totalTestsCount(dt: DecisionTree): number {
+        return match(dt, {
+            Leaf: () => 0,
+            Fail: () => 0,
+            Switch: ({ tests }) =>
+                count(tests, t => t.ctor !== '_') +
+                tests.reduce(
+                    (acc, { dt }) => acc + DecisionTree.totalTestsCount(dt),
+                    0,
+                ),
+        });
+    },
 };
 
 type ClauseMatrixConstructor = {

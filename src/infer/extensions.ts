@@ -42,6 +42,7 @@ export class ExtensionScope {
                 }: ${Type.show(info.ty)}`,
             );
         }
+
         pushMap(this.extensions, info.member, info);
     }
 
@@ -144,5 +145,13 @@ export class ExtensionScope {
         }
 
         return Ok(allBest[0]);
+    }
+
+    public *[Symbol.iterator](): IterableIterator<[string, ExtensionInfo[]]> {
+        yield* this.extensions;
+
+        if (this.parent) {
+            yield* this.parent;
+        }
     }
 }

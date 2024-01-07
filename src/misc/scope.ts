@@ -55,13 +55,11 @@ export class Scope<T> {
             .join('\n');
     }
 
-    public *getMembers(): IterableIterator<[string, T]> {
-        for (const [name, val] of this.members.entries()) {
-            yield [name, val];
-        }
+    public *[Symbol.iterator](): IterableIterator<[string, T]> {
+        yield* this.members;
 
         if (this.parent != null) {
-            yield* this.parent.getMembers();
+            yield* this.parent;
         }
     }
 }

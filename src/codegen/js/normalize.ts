@@ -1,4 +1,4 @@
-const SANITIZE_PREFIX = 'safe_';
+const SANITIZE_PREFIX = '$';
 
 export function sanitizeKeyword(name: string) {
     if (!reservedWord.has(name)) return name;

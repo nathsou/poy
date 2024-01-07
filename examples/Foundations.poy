@@ -44,6 +44,24 @@ pub declare module Math {
     fun sign(x: Num): Num
 }
 
+pub enum Option<t> { none, some(t) }
+
+extend<a> Option<a> {
+    fun isSome() {
+        match self {
+            .some(_) => true,
+            .none => false,
+        }
+    }
+
+    fun isNone() {
+        match self {
+            .none => true,
+            _ => false,
+        }
+    }
+}
+
 pub fun range(from: Num, to: Num) {
     mut i = from
 

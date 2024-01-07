@@ -1,17 +1,17 @@
 import { VariantOf, match } from 'itsamatch';
 import { Expr as BitterExpr } from '../../ast/bitter/expr';
 import { Expr as SweetExpr } from '../../ast/sweet/expr';
+import { Pattern } from '../../ast/sweet/pattern';
 import { Type } from '../../infer/type';
 import { assert, panic } from '../../misc/utils';
-import { bitterStmtOf } from './stmt';
+import { Literal } from '../../parse/token';
 import {
     ClauseMatrix,
     CtorMetadata,
     DecisionTree,
     Occurrence,
 } from '../decision-trees/ClauseMatrix';
-import { Pattern } from '../../ast/sweet/pattern';
-import { Literal } from '../../parse/token';
+import { bitterStmtOf } from './stmt';
 
 export function bitterExprOf(sweet: SweetExpr): BitterExpr {
     assert(sweet.ty != null, 'missing type after type inference');
@@ -188,7 +188,13 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
                 isSignature,
             );
 
-            if (dt.variant === 'Switch' && subject.variant !== 'Variable') {
+            if (
+                dt.variant === 'Switch' &&
+                !SweetExpr.isPurelyCopyable(subject) &&
+                DecisionTree.totalTestsCount(dt) > 1
+            ) {
+                // bind the subject to a variable
+                // to a void evaluating it multiple times
                 return bitterExprOf(
                     SweetExpr.UseIn({
                         name: 'x',

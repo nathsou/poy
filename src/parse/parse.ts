@@ -1,5 +1,4 @@
 import { match, VariantOf } from 'itsamatch';
-import { v4 as uuidv4 } from 'uuid';
 import { Attribute, Attributes } from '../ast/sweet/attribute';
 import {
     Decl,
@@ -13,7 +12,7 @@ import { Stmt } from '../ast/sweet/stmt';
 import { Type, TypeVar } from '../infer/type';
 import { Maybe, None, Some } from '../misc/maybe';
 import { isLowerCase, isUpperCase, Backtick } from '../misc/strings';
-import { array, assert, block, last, letIn, panic } from '../misc/utils';
+import { array, assert, block, last, letIn, panic, uuid } from '../misc/utils';
 import {
     AssignmentOp,
     BinaryOp,
@@ -1158,7 +1157,7 @@ export const parse = (
         return Decl.Import({
             path: path.slice(0, -1),
             module: last(path),
-            members: members?.map(name => ({ name, native: false })),
+            members: members?.map(name => ({ name, native: false })) ?? [],
         });
     }
 
@@ -1209,7 +1208,7 @@ export const parse = (
             params,
             subject,
             decls,
-            uuid: uuidv4().replace(/-/g, '_'),
+            uuid: uuid(),
         });
     }
 

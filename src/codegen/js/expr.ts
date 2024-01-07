@@ -46,6 +46,11 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
 
             getBranches(bitter);
 
+            // special case for if-else expressions that return a boolean
+            // if cond { true } else { false } ~> cond
+            // if cond { false } else { true } ~> !cond
+            // if !cond { true } else { false } ~> !cond
+            // if !cond { false } else { true } ~> cond
             if (branches.length === 2 && branches[1].cond == null) {
                 const cond = branches[0].cond;
 
@@ -59,9 +64,11 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
                     branches[0].then.literal.$value !==
                         branches[1].then.literal.$value
                 ) {
-                    const firstBranch = branches[0].then.literal.$value;
+                    const isFirstBranchTrue = branches[0].then.literal.$value;
                     const isNegated =
-                        cond.op === '==' ? !firstBranch : firstBranch;
+                        cond.op === '=='
+                            ? !isFirstBranchTrue
+                            : isFirstBranchTrue;
 
                     if (isNegated) {
                         return JSExpr.Unary({
