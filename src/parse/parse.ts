@@ -798,6 +798,24 @@ export const parse = (
             Identifier: name => {
                 next();
                 if (name[0].toUpperCase() === name[0]) {
+                    if (matches(Token.Symbol('.'))) {
+                        const variant = identifier();
+                        let args = array<Pattern>();
+
+                        if (matches(Token.Symbol('('))) {
+                            args = commas(pattern);
+                            consume(Token.Symbol(')'));
+                        } else {
+                            args = [];
+                        }
+
+                        return Pattern.Variant({
+                            enumName: name,
+                            variantName: variant,
+                            args,
+                        });
+                    }
+
                     return Pattern.Ctor(name, []);
                 } else {
                     return Pattern.Variable(name);
@@ -814,6 +832,23 @@ export const parse = (
                         return Pattern.Any;
                     case '(':
                         return tuplePattern();
+                    case '.': {
+                        next();
+                        const variant = identifier();
+                        let args = array<Pattern>();
+
+                        if (matches(Token.Symbol('('))) {
+                            args = commas(pattern);
+                            consume(Token.Symbol(')'));
+                        } else {
+                            args = [];
+                        }
+
+                        return Pattern.Variant({
+                            variantName: variant,
+                            args,
+                        });
+                    }
                     default:
                         raise(`Unexpected symbol in pattern '${symb}'`);
                 }

@@ -71,9 +71,9 @@ export class Maybe<T> {
             return this.raw.data;
         }
 
-        /// @ts-ignore
         return typeof defaultValue === 'function'
-            ? defaultValue()
+            ? /// @ts-ignore
+              defaultValue()
             : defaultValue;
     }
 

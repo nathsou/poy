@@ -1,4 +1,4 @@
-import { DataType, genConstructors } from 'itsamatch';
+import { DataType, genConstructors, match } from 'itsamatch';
 import { Type } from '../../infer/type';
 import { Stmt } from './stmt';
 import { Attributes } from './attribute';

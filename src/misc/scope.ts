@@ -54,6 +54,16 @@ export class Scope<T> {
             .map(([name, val]) => `${name}: ${showT(val)}`)
             .join('\n');
     }
+
+    public *getMembers(): IterableIterator<[string, T]> {
+        for (const [name, val] of this.members.entries()) {
+            yield [name, val];
+        }
+
+        if (this.parent != null) {
+            yield* this.parent.getMembers();
+        }
+    }
 }
 
 export class TypeParamScope extends Scope<Type> {

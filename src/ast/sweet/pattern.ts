@@ -1,13 +1,21 @@
-import { DataType } from 'itsamatch';
+import { DataType, genConstructors } from 'itsamatch';
 import { Literal } from '../../parse/token';
+import { EnumDecl } from './decl';
 
 export type Pattern = DataType<{
     Any: {};
     Variable: { name: string };
     Ctor: { name: string; args: Pattern[]; meta?: string };
+    Variant: {
+        enumName?: string;
+        variantName: string;
+        args: Pattern[];
+        resolvedEnum?: EnumDecl;
+    };
 }>;
 
 export const Pattern = {
+    ...genConstructors<Pattern>(['Variant']),
     Any: Object.freeze<Pattern>({ variant: 'Any' }),
     Variable: (name: string): Pattern =>
         ({ variant: 'Variable', name }) as const,

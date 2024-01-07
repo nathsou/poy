@@ -10,7 +10,7 @@ import { JSScope } from './jsScope';
 import { jsStmtOf } from './stmt';
 
 export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
-    assert(bitter.ty != null);
+    assert(bitter.ty != null, 'missing type after type inference');
 
     return match(bitter, {
         Literal: ({ literal }) => JSExpr.Literal({ literal }),
@@ -45,6 +45,34 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
             };
 
             getBranches(bitter);
+
+            if (branches.length === 2 && branches[1].cond == null) {
+                const cond = branches[0].cond;
+
+                if (
+                    cond?.variant === 'Binary' &&
+                    (cond.op === '==' || cond.op === '!=') &&
+                    branches[0].then.variant === 'Literal' &&
+                    branches[0].then.literal.variant === 'Bool' &&
+                    branches[1].then.variant === 'Literal' &&
+                    branches[1].then.literal.variant === 'Bool' &&
+                    branches[0].then.literal.$value !==
+                        branches[1].then.literal.$value
+                ) {
+                    const firstBranch = branches[0].then.literal.$value;
+                    const isNegated =
+                        cond.op === '==' ? !firstBranch : firstBranch;
+
+                    if (isNegated) {
+                        return JSExpr.Unary({
+                            op: '!',
+                            expr: jsExprOf(cond, scope),
+                        });
+                    }
+
+                    return jsExprOf(cond, scope);
+                }
+            }
 
             const compiledBranches = branches.map(({ cond, then }) => {
                 const condVal = cond ? jsExprOf(cond, scope) : undefined;

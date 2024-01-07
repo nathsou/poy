@@ -6,6 +6,7 @@ import { assert, panic } from '../../misc/utils';
 import { bitterStmtOf } from './stmt';
 import {
     ClauseMatrix,
+    CtorMetadata,
     DecisionTree,
     Occurrence,
 } from '../decision-trees/ClauseMatrix';
@@ -13,8 +14,8 @@ import { Pattern } from '../../ast/sweet/pattern';
 import { Literal } from '../../parse/token';
 
 export function bitterExprOf(sweet: SweetExpr): BitterExpr {
-    assert(sweet.ty != null);
-    const ty = sweet.ty!;
+    assert(sweet.ty != null, 'missing type after type inference');
+    const ty = sweet.ty;
 
     return match(sweet, {
         Literal: ({ literal }) => BitterExpr.Literal(literal, ty),
@@ -187,7 +188,7 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
                 isSignature,
             );
 
-            if (dt.variant === 'Switch') {
+            if (dt.variant === 'Switch' && subject.variant !== 'Variable') {
                 return bitterExprOf(
                     SweetExpr.UseIn({
                         name: 'x',
@@ -231,45 +232,80 @@ function exprOfOccurence(occ: Occurrence, subject: SweetExpr): SweetExpr {
 function getPatternTest(
     lhs: SweetExpr,
     ctor: string,
-    meta: string | undefined,
+    meta: CtorMetadata | undefined,
 ): SweetExpr | null {
-    switch (meta) {
-        case 'Unit':
-            return SweetExpr.Binary({
-                op: '==',
-                lhs,
-                rhs: { ...SweetExpr.Literal(Literal.Unit), ty: Type.Unit },
-                ty: Type.Unit,
-            });
-        case 'Bool':
-            if (ctor === 'true') {
-                return lhs;
-            } else {
-                return SweetExpr.Unary({ op: '!', expr: lhs, ty: Type.Bool });
-            }
-        case 'Num':
-            return SweetExpr.Binary({
-                op: '==',
-                lhs,
-                rhs: {
-                    ...SweetExpr.Literal(Literal.Num(Number(ctor))),
-                    ty: Type.Num,
-                },
-                ty: Type.Num,
-            });
-        case 'Str':
-            return SweetExpr.Binary({
-                op: '==',
-                lhs,
-                rhs: { ...SweetExpr.Literal(Literal.Str(ctor)), ty: Type.Str },
-                ty: Type.Str,
-            });
-        case 'Tuple':
-            // the type checker ensures that the type of the lhs is a tuple of the same length
-            return null;
+    if (meta) {
+        return match(meta, {
+            Ctor: ({ kind }) => {
+                switch (kind) {
+                    case 'Unit':
+                        return SweetExpr.Binary({
+                            op: '==',
+                            lhs,
+                            rhs: {
+                                ...SweetExpr.Literal(Literal.Unit),
+                                ty: Type.Unit,
+                            },
+                            ty: Type.Unit,
+                        });
+                    case 'Bool':
+                        if (ctor === 'true') {
+                            return lhs;
+                        } else {
+                            return SweetExpr.Unary({
+                                op: '!',
+                                expr: lhs,
+                                ty: Type.Bool,
+                            });
+                        }
+                    case 'Num':
+                        return SweetExpr.Binary({
+                            op: '==',
+                            lhs,
+                            rhs: {
+                                ...SweetExpr.Literal(Literal.Num(Number(ctor))),
+                                ty: Type.Num,
+                            },
+                            ty: Type.Num,
+                        });
+                    case 'Str':
+                        return SweetExpr.Binary({
+                            op: '==',
+                            lhs,
+                            rhs: {
+                                ...SweetExpr.Literal(Literal.Str(ctor)),
+                                ty: Type.Str,
+                            },
+                            ty: Type.Str,
+                        });
+                    case 'Tuple':
+                        // the type checker ensures that the type of the lhs is a tuple of the same length
+                        return null;
+                }
+
+                return panic(`Unknown ctor: ${kind}(${ctor})`);
+            },
+            Variant: () =>
+                SweetExpr.Binary({
+                    op: '==',
+                    lhs: SweetExpr.VariableAccess({
+                        lhs,
+                        field: 'variant',
+                        isCalled: false,
+                        isNative: false,
+                        typeParams: [],
+                        ty: Type.Str,
+                    }),
+                    rhs: {
+                        ...SweetExpr.Literal(Literal.Str(ctor)),
+                        ty: Type.Str,
+                    },
+                    ty: Type.Bool,
+                }),
+        });
     }
 
-    return panic(`Unknown ctor: ${meta}(${ctor})`);
+    return null;
 }
 
 function exprOfDecisionTree(
@@ -330,26 +366,57 @@ function exprOfDecisionTree(
 
 // returns wether the given set of heads is a signature for the given constructor kind
 function isSignature(
-    heads: Map<string, { arity: number; meta?: string }>,
+    heads: Map<string, { arity: number; meta?: CtorMetadata }>,
 ): boolean {
     if (heads.size === 0) return false;
 
     const entries = [...heads.entries()];
-    const kind = entries[0][1].meta;
-    assert(entries.every(([_, { meta }]) => meta === kind));
+    const [, { meta }] = entries[0];
 
-    switch (kind) {
-        case 'Unit':
-            return true;
-        case 'Bool':
-            return heads.has('true') && heads.has('false');
-        case 'Num':
-            return false;
-        case 'Str':
-            return false;
-        case 'Tuple':
-            return true;
-        default:
-            return panic(`Unknown ctor kind: ${kind}`);
+    if (meta) {
+        return match(meta, {
+            Ctor: ({ kind }) => {
+                assert(
+                    entries.every(
+                        ([_, { meta }]) =>
+                            meta?.variant === 'Ctor' && meta.kind === kind,
+                    ),
+                );
+
+                switch (kind) {
+                    case 'Unit':
+                        return true;
+                    case 'Bool':
+                        return heads.has('true') && heads.has('false');
+                    case 'Num':
+                        return false;
+                    case 'Str':
+                        return false;
+                    case 'Tuple':
+                        return true;
+                    default:
+                        return panic(`Unknown ctor kind: ${kind}`);
+                }
+            },
+            Variant: ({ enumDecl }) => {
+                assert(
+                    entries.every(
+                        ([_, { meta }]) =>
+                            meta?.variant === 'Variant' &&
+                            meta.enumDecl === enumDecl,
+                    ),
+                );
+
+                for (const variant of enumDecl.variants) {
+                    if (!heads.has(variant.name)) {
+                        return false;
+                    }
+                }
+
+                return true;
+            },
+        });
     }
+
+    return false;
 }

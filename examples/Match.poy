@@ -33,4 +33,20 @@ enum Option<t> {
 let f = Option.some(3)
 let g = Option.none
 
-print((a, b, c, d, e, f, g))
+extend<a> Option<a> {
+    fun isSome() {
+        match self {
+            .some(_) => true,
+            .none => false,
+        }
+    }
+
+    fun isNone() {
+        match self {
+            .none => true,
+            _ => false,
+        }
+    }
+}
+
+print((a, b, c, d, e, f, g, f.isSome(), g.isSome()))

@@ -1,7 +1,8 @@
 import { DataType, VariantOf, genConstructors, match } from 'itsamatch';
 import { Pattern } from '../../ast/sweet/pattern';
-import { gen, repeat, swapMut } from '../../misc/utils';
 import { Maybe, None, Some } from '../../misc/maybe';
+import { assert, gen, repeat, swapMut } from '../../misc/utils';
+import { EnumDecl } from '../../ast/sweet/decl';
 
 // Based on Compiling Pattern Matching to Good Decision Trees
 // http://moscova.inria.fr/~maranget/papers/ml05e-maranget.pdf
@@ -13,9 +14,16 @@ export type DecisionTree = DataType<{
     Fail: {};
     Switch: {
         occurrence: Occurrence;
-        tests: { ctor: string; meta?: string; dt: DecisionTree }[];
+        tests: { ctor: string; meta?: CtorMetadata; dt: DecisionTree }[];
     };
 }>;
+
+export type CtorMetadata = DataType<{
+    Ctor: { kind?: string };
+    Variant: { enumDecl: EnumDecl };
+}>;
+
+export const CtorMetadata = genConstructors<CtorMetadata>(['Ctor', 'Variant']);
 
 export function showDecisionTree(dt: DecisionTree): string {
     return match(dt, {
@@ -66,18 +74,27 @@ export class ClauseMatrix {
 
     public heads(
         column: number,
-    ): Map<string, { arity: number; meta?: string }> {
-        const heads = new Map<string, { arity: number; meta?: string }>();
+    ): Map<string, { arity: number; meta?: CtorMetadata }> {
+        const heads = new Map<string, { arity: number; meta?: CtorMetadata }>();
 
         for (const row of this.rows) {
             const head = row[column];
-
-            if (head.variant === 'Ctor') {
-                heads.set(head.name, {
-                    arity: head.args.length,
-                    meta: head.meta,
-                });
-            }
+            match(head, {
+                Ctor: ({ args, meta, name }) => {
+                    heads.set(name, {
+                        arity: args.length,
+                        meta: CtorMetadata.Ctor({ kind: meta }),
+                    });
+                },
+                Variant: ({ enumName, variantName, args, resolvedEnum }) => {
+                    assert(resolvedEnum != null, `unresolved enum ${enumName}`);
+                    heads.set(variantName, {
+                        arity: args.length,
+                        meta: CtorMetadata.Variant({ enumDecl: resolvedEnum }),
+                    });
+                },
+                _: () => {},
+            });
         }
 
         return heads;
@@ -110,6 +127,12 @@ export class ClauseMatrix {
                     }
 
                     return None;
+                case 'Variant':
+                    if (p.variantName === ctor) {
+                        return Some([...p.args, ...ps]);
+                    }
+
+                    return None;
             }
         }
 
@@ -123,6 +146,7 @@ export class ClauseMatrix {
                 Any: () => Some(ps),
                 Variable: () => Some(ps),
                 Ctor: () => None,
+                Variant: () => None,
             });
         }
 
@@ -133,7 +157,7 @@ export class ClauseMatrix {
         occurrences: Occurrence[],
         selectColumn: (matrix: ClauseMatrix) => number,
         isSignature: (
-            heads: Map<string, { arity: number; meta?: string }>,
+            heads: Map<string, { arity: number; meta?: CtorMetadata }>,
         ) => boolean,
     ): DecisionTree {
         if (this.height === 0) {
@@ -161,6 +185,7 @@ export class ClauseMatrix {
                 selectColumn,
                 isSignature,
             );
+
             tests.push({ ctor, meta, dt: Ak });
         }
 
@@ -171,7 +196,13 @@ export class ClauseMatrix {
                 selectColumn,
                 isSignature,
             );
+
             tests.push({ ctor: '_', dt: Ad });
+        } else if (tests.length > 1) {
+            // if all cases are handled (i.e. it's a signature)
+            // then the last test does not need to be checked
+            const lastTest = tests.pop()!;
+            tests.push({ ...lastTest, ctor: '_' });
         }
 
         return DecisionTree.Switch({

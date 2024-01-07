@@ -1,11 +1,11 @@
 import { match, VariantOf } from 'itsamatch';
-import { Decl, EnumDecl, Signature, StructDecl } from '../ast/sweet/decl';
+import { Decl, EnumDecl, StructDecl } from '../ast/sweet/decl';
 import { Expr } from '../ast/sweet/expr';
 import { Stmt } from '../ast/sweet/stmt';
 import { Maybe } from '../misc/maybe';
 import { Scope, TypeParamScope } from '../misc/scope';
 import { setDifference, uniq } from '../misc/sets';
-import { gen, last, panic, proj, todo, zip } from '../misc/utils';
+import { array, block, gen, last, panic, proj, todo, zip } from '../misc/utils';
 import { AssignmentOp, BinaryOp, UnaryOp } from '../parse/token';
 import { Module, ModulePath, Resolver } from '../resolve/resolve';
 import { ExtensionScope } from './extensions';
@@ -1222,6 +1222,73 @@ export class TypeEnv {
                     } else {
                         return Type.Fun(pat.name, pat.args.map(aux));
                     }
+                }
+                case 'Variant': {
+                    const enumName = block(() => {
+                        if (pat.enumName != null) {
+                            return pat.enumName;
+                        }
+
+                        // try to find the enum by the variant name
+                        const candidates = array<{
+                            name: string;
+                            decl: EnumDecl;
+                        }>();
+
+                        for (const [name, decl] of this.enums.getMembers()) {
+                            if (
+                                decl.variants.some(
+                                    v => v.name === pat.variantName,
+                                )
+                            ) {
+                                candidates.push({ name, decl });
+                            }
+                        }
+
+                        if (candidates.length === 0) {
+                            panic(
+                                `No enum with variant '${pat.variantName}' found`,
+                            );
+                        }
+
+                        if (candidates.length > 1) {
+                            panic(
+                                `Ambiguous enum variant '${
+                                    pat.variant
+                                }': ${candidates
+                                    .map(({ name }) => name)
+                                    .join(', ')}`,
+                            );
+                        }
+
+                        return candidates[0].name;
+                    });
+
+                    const decl = this.enums
+                        .lookup(enumName)
+                        .unwrap(`Enum '${enumName}' not found`);
+
+                    pat.enumName = enumName;
+                    pat.resolvedEnum = decl;
+
+                    const variant = decl.variants.find(
+                        v => v.name === pat.variantName,
+                    );
+
+                    if (variant == null) {
+                        panic(
+                            `Enum '${enumName}' has no variant '${pat.variantName}'`,
+                        );
+                    }
+
+                    for (const arg of pat.args) {
+                        aux(arg);
+                    }
+
+                    return Type.Fun(
+                        enumName,
+                        decl.params.map(() => Type.fresh(this.letLevel)),
+                    );
                 }
             }
         };
