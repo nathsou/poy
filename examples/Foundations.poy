@@ -63,22 +63,15 @@ extend<a> Option<a> {
 
     fun map(f) {
         match self {
-            .some(x) => Option.some(f(x)),
-            .none => Option.none,
+            .some(x) => .some(f(x)),
+            .none => .none,
         }
     }
 
     fun flatMap(f) {
         match self {
             .some(x) => f(x),
-            .none => Option.none,
-        }
-    }
-
-    fun orDefault(default) {
-        match self {
-            .some(x) => x,
-            .none => default,
+            .none => .none,
         }
     }
 }

@@ -12,6 +12,7 @@ import { ExtensionScope } from './extensions';
 import { TRS } from './rewrite';
 import { Subst, Type, TypeVar } from './type';
 import { Pattern } from '../ast/sweet/pattern';
+import { Err, Ok, Result } from '../misc/result';
 
 type VarInfo = {
   pub?: boolean;
@@ -271,6 +272,10 @@ export class TypeEnv {
                   } else {
                     panic(`Cannot import private module '${name}' from module '${module.name}'`);
                   }
+
+                  mod.env.enums.lookup(name).do(enumDecl => {
+                    this.enums.declare(name, enumDecl);
+                  });
                 },
                 None: () => {
                   Maybe.wrap(mod.env.typeRules.get(name)).match({
@@ -526,7 +531,7 @@ export class TypeEnv {
         // if `iterator` is not an iterator, try to call iter() on it
         if (this.unifyPure(iterTy, Type.Iterator(elemTy)) == null) {
           iterator.ref = Expr.Call({
-            fun: Expr.VariableAccess({
+            fun: Expr.FieldAccess({
               lhs: iterator.ref,
               field: 'iter',
               isCalled: true,
@@ -847,7 +852,7 @@ export class TypeEnv {
           env: this,
         });
       },
-      VariableAccess: dotExpr => {
+      FieldAccess: dotExpr => {
         const { lhs, field, typeParams, isCalled } = dotExpr;
         const lhsTy = this.inferExpr(lhs);
 
@@ -958,10 +963,57 @@ export class TypeEnv {
         this.unify(lhsTy, expectedLhsTy);
         return elems[index];
       },
+      VariantShorthand: expr => {
+        const { variantName, args } = expr;
+        return this.lookupEnumByVariantName(variantName).match({
+          Ok: ({ decl }) => {
+            expr.resolvedEnum = decl;
+
+            const ctor = Expr.ModuleAccess({
+              path: [decl.name],
+              member: variantName,
+            });
+
+            if (args.length === 0) {
+              return this.inferExpr(ctor);
+            }
+
+            return this.inferExpr(Expr.Call({ fun: ctor, args }));
+          },
+          Error: panic,
+        });
+      },
     });
 
     expr.ty = ty;
     return ty;
+  }
+
+  private lookupEnumByVariantName(
+    variantName: string,
+  ): Result<{ name: string; decl: EnumDecl }, string> {
+    const candidates = array<{
+      name: string;
+      decl: EnumDecl;
+    }>();
+
+    for (const [name, decl] of this.enums) {
+      if (decl.variants.some(v => v.name === variantName)) {
+        candidates.push({ name, decl });
+      }
+    }
+
+    if (candidates.length === 0) {
+      return Err(`No enum with variant '${variantName}' found`);
+    }
+
+    if (candidates.length > 1) {
+      return Err(
+        `Ambiguous enum variant '${variantName}': ${candidates.map(({ name }) => name).join(', ')}`,
+      );
+    }
+
+    return Ok(candidates[0]);
   }
 
   public inferPattern(pattern: Pattern): {
@@ -1004,31 +1056,7 @@ export class TypeEnv {
               return pat.enumName;
             }
 
-            // try to find the enum by the variant name
-            const candidates = array<{
-              name: string;
-              decl: EnumDecl;
-            }>();
-
-            for (const [name, decl] of this.enums) {
-              if (decl.variants.some(v => v.name === pat.variantName)) {
-                candidates.push({ name, decl });
-              }
-            }
-
-            if (candidates.length === 0) {
-              panic(`No enum with variant '${pat.variantName}' found`);
-            }
-
-            if (candidates.length > 1) {
-              panic(
-                `Ambiguous enum variant '${pat.variant}': ${candidates
-                  .map(({ name }) => name)
-                  .join(', ')}`,
-              );
-            }
-
-            return candidates[0].name;
+            return this.lookupEnumByVariantName(pat.variantName).unwrap().name;
           });
 
           const decl = this.enums.lookup(enumName).unwrap(`Enum '${enumName}' not found`);

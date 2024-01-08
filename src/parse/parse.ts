@@ -555,7 +555,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
           case 'Identifier':
             next();
             const params = typeParamsInst();
-            lhs = Expr.VariableAccess({
+            lhs = Expr.FieldAccess({
               lhs,
               field: token.$value,
               typeParams: params,
@@ -583,7 +583,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         const args = commas(expr);
         consume(Token.Symbol(')'));
 
-        if (lhs.variant === 'VariableAccess') {
+        if (lhs.variant === 'FieldAccess') {
           lhs.isCalled = true;
         }
 
@@ -632,7 +632,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
       const key = expr();
       consume(Token.Symbol(']'));
       lhs = Expr.Call({
-        fun: Expr.VariableAccess({
+        fun: Expr.FieldAccess({
           lhs,
           field: Backtick.encode('[]'),
           typeParams: [],
@@ -671,6 +671,8 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             return blockExpr();
           case '[':
             return arrayExpr();
+          case '.':
+            return variantShorthandExpr();
           default:
             raise(`Unexpected symbol '${symb}'`);
         }
@@ -751,6 +753,19 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     }
 
     return Expr.Block({ stmts });
+  }
+
+  function variantShorthandExpr(): Expr {
+    consume(Token.Symbol('.'));
+    const variantName = identifier();
+    const args = array<Expr>();
+
+    if (matches(Token.Symbol('('))) {
+      args.push(...commas(expr));
+      consume(Token.Symbol(')'));
+    }
+
+    return Expr.VariantShorthand({ variantName, args });
   }
 
   // patterns

@@ -5,6 +5,7 @@ import { Constructors, Impl } from '../../misc/traits';
 import { BinaryOp, Literal, UnaryOp } from '../../parse/token';
 import { Pattern } from './pattern';
 import { Stmt } from './stmt';
+import { EnumDecl } from './decl';
 
 export type Expr = DataType<{
   Literal: { literal: Literal };
@@ -30,7 +31,7 @@ export type Expr = DataType<{
     typeParams: Type[];
     fields: { name: string; value: Expr }[];
   };
-  VariableAccess: {
+  FieldAccess: {
     lhs: Expr;
     field: string;
     typeParams: Type[];
@@ -47,6 +48,7 @@ export type Expr = DataType<{
   };
   TupleAccess: { lhs: Expr; index: number };
   Match: { subject: Expr; cases: { pattern: Pattern; body: Expr }[] };
+  VariantShorthand: { variantName: string; args: Expr[]; resolvedEnum?: EnumDecl };
 }> & { ty?: Type };
 
 export type FunctionArgument = { name: string; ann?: Type };
@@ -64,17 +66,18 @@ export const Expr = {
     'Fun',
     'Call',
     'Struct',
-    'VariableAccess',
+    'FieldAccess',
     'ExtensionAccess',
     'ModuleAccess',
     'TupleAccess',
     'Match',
+    'VariantShorthand',
   ),
   Literal: (literal: Literal): Expr => ({ variant: 'Literal', literal }) as const,
   isMutable: (expr: Expr, env: TypeEnv): boolean => {
     return match(expr, {
       Variable: ({ name }) => env.variables.lookup(name).unwrap().mut ?? false,
-      VariableAccess: ({ lhs, field }) => {
+      FieldAccess: ({ lhs, field }) => {
         if (!Expr.isMutable(lhs, env)) return false;
         if (lhs.ty === undefined) return false;
         if (lhs.ty.variant === 'Fun') {

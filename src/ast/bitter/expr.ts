@@ -25,7 +25,7 @@ export type Expr = DataType<
       name?: string;
       fields: { name: string; value: Expr }[];
     };
-    VariableAccess: {
+    FieldAccess: {
       lhs: Expr;
       field: string | number;
       isCalled: boolean;
@@ -47,7 +47,7 @@ export const Expr = {
     'Fun',
     'Call',
     'Struct',
-    'VariableAccess',
+    'FieldAccess',
   ),
   Literal: (literal: Literal, ty: Type) => ({
     variant: 'Literal',

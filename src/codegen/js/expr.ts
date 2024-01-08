@@ -185,7 +185,7 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
           value: jsExprOf(value, scope),
         })),
       }),
-    VariableAccess: ({ lhs, field }) => JSExpr.Dot(jsExprOf(lhs, scope), field),
+    FieldAccess: ({ lhs, field }) => JSExpr.Dot(jsExprOf(lhs, scope), field),
   });
 }
 

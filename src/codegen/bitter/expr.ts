@@ -60,7 +60,7 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
         ty,
       }),
     Call: ({ fun, args, ty }) => {
-      if (fun.variant === 'VariableAccess' && fun.extensionUuid != null && !fun.isNative) {
+      if (fun.variant === 'FieldAccess' && fun.extensionUuid != null && !fun.isNative) {
         const { lhs, field, extensionUuid } = fun;
         return BitterExpr.Call({
           fun: BitterExpr.Variable({
@@ -102,9 +102,9 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
         })),
         ty,
       }),
-    VariableAccess: ({ lhs, field, extensionUuid, isCalled, isNative }) => {
+    FieldAccess: ({ lhs, field, extensionUuid, isCalled, isNative }) => {
       if (isNative) {
-        return BitterExpr.VariableAccess({
+        return BitterExpr.FieldAccess({
           lhs: bitterExprOf(lhs),
           field,
           isCalled,
@@ -119,7 +119,7 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
         });
       }
 
-      return BitterExpr.VariableAccess({
+      return BitterExpr.FieldAccess({
         lhs: bitterExprOf(lhs),
         field: extensionUuid ? `${field}_${extensionUuid}` : field,
         isCalled,
@@ -134,7 +134,7 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
       });
     },
     TupleAccess: ({ lhs, index }) =>
-      BitterExpr.VariableAccess({
+      BitterExpr.FieldAccess({
         lhs: bitterExprOf(lhs),
         field: index,
         isCalled: false,
@@ -199,6 +199,20 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
 
       return bitterExprOf(exprOfDecisionTree(subject, dt, cases, sweet.ty!));
     },
+    VariantShorthand: ({ variantName, args, resolvedEnum }) => {
+      assert(resolvedEnum != null, 'unresolved enum in variant shorthand');
+      const ctor = BitterExpr.ModuleAccess([resolvedEnum.name], variantName, ty);
+
+      if (args.length === 0) {
+        return ctor;
+      }
+
+      return BitterExpr.Call({
+        fun: ctor,
+        args: args.map(bitterExprOf),
+        ty,
+      });
+    },
   });
 }
 
@@ -217,7 +231,7 @@ function exprOfOccurence(occ: Occurrence, subject: SweetExpr): SweetExpr {
           ty: Type.DontCare,
         }),
       Field: field =>
-        SweetExpr.VariableAccess({
+        SweetExpr.FieldAccess({
           lhs: subject,
           field,
           isCalled: false,
@@ -288,7 +302,7 @@ function getPatternTest(
       Variant: () =>
         SweetExpr.Binary({
           op: '==',
-          lhs: SweetExpr.VariableAccess({
+          lhs: SweetExpr.FieldAccess({
             lhs,
             field: EnumVariant.TAG,
             isCalled: false,
