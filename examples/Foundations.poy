@@ -60,6 +60,27 @@ extend<a> Option<a> {
             _ => false,
         }
     }
+
+    fun map(f) {
+        match self {
+            .some(x) => Option.some(f(x)),
+            .none => Option.none,
+        }
+    }
+
+    fun flatMap(f) {
+        match self {
+            .some(x) => f(x),
+            .none => Option.none,
+        }
+    }
+
+    fun orDefault(default) {
+        match self {
+            .some(x) => x,
+            .none => default,
+        }
+    }
 }
 
 pub fun range(from: Num, to: Num) {

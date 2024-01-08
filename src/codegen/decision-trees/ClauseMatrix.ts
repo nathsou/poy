@@ -8,7 +8,14 @@ import { Constructors, Impl } from '../../misc/traits';
 // Based on Compiling Pattern Matching to Good Decision Trees
 // http://moscova.inria.fr/~maranget/papers/ml05e-maranget.pdf
 
-export type Occurrence = number[];
+export type Occurrence = OccurrenceComponent[];
+
+export type OccurrenceComponent = DataType<{
+  Index: number;
+  Field: string;
+}>;
+
+export const OccurrenceComponent = constructors<OccurrenceComponent>().get('Index', 'Field');
 
 export type DecisionTree = DataType<{
   Leaf: { action: number };
@@ -176,7 +183,10 @@ export class ClauseMatrix {
 
     for (const [ctor, { arity, meta }] of heads) {
       const specialized = this.specialized(ctor, arity);
-      const subOccurrences = [...gen(arity, i => [...occurrences[0], i]), ...occurrences.slice(1)];
+      const subOccurrences = [
+        ...gen(arity, i => [...occurrences[0], OccurrenceComponent.Index(i)]),
+        ...occurrences.slice(1),
+      ];
       const Ak = specialized.compile(subOccurrences, selectColumn, isSignature);
 
       tests.push({ ctor, meta, dt: Ak });

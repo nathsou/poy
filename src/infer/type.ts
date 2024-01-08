@@ -40,6 +40,7 @@ export const Type = {
     name: 'Tuple',
     args: [{ variant: 'Fun', name: 'Nil', args: [] }],
   }),
+  DontCare: Object.freeze<Type>({ variant: 'Fun', name: '<DONT_CARE>', args: [] }),
   Iterator: (elem: Type): Type => Type.Fun('Iterator', [elem]),
   show,
   eq,

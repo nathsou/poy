@@ -1,9 +1,10 @@
 import { DataType, constructors, match } from 'itsamatch';
 import { TypeEnv } from '../../infer/infer';
 import { Type } from '../../infer/type';
+import { Constructors, Impl } from '../../misc/traits';
 import { BinaryOp, Literal, UnaryOp } from '../../parse/token';
-import { Stmt } from './stmt';
 import { Pattern } from './pattern';
+import { Stmt } from './stmt';
 
 export type Expr = DataType<{
   Literal: { literal: Literal };
@@ -100,4 +101,4 @@ export const Expr = {
       Literal: () => true,
       _: () => false,
     }),
-};
+} satisfies Impl<Constructors<Expr>>;

@@ -1,5 +1,6 @@
 import { VariantOf, match } from 'itsamatch';
 import { Expr as BitterExpr } from '../../ast/bitter/expr';
+import { Stmt as SweetStmt } from '../../ast/sweet/stmt';
 import { Expr as SweetExpr } from '../../ast/sweet/expr';
 import { Pattern } from '../../ast/sweet/pattern';
 import { Type } from '../../infer/type';
@@ -176,7 +177,7 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
         DecisionTree.totalTestsCount(dt) > 1
       ) {
         // bind the subject to a variable
-        // to a void evaluating it multiple times
+        // to avoid evaluating it multiple times
         return bitterExprOf(
           SweetExpr.UseIn({
             name: 'x',
@@ -205,12 +206,25 @@ function exprOfOccurence(occ: Occurrence, subject: SweetExpr): SweetExpr {
   if (occ.length === 0) return subject;
 
   const [head, ...tail] = occ;
+
   return exprOfOccurence(
     tail,
-    SweetExpr.TupleAccess({
-      lhs: subject,
-      index: head,
-      ty: subject.ty,
+    match(head, {
+      Index: index =>
+        SweetExpr.TupleAccess({
+          lhs: subject,
+          index,
+          ty: Type.DontCare,
+        }),
+      Field: field =>
+        SweetExpr.VariableAccess({
+          lhs: subject,
+          field,
+          isCalled: false,
+          isNative: false,
+          typeParams: [],
+          ty: Type.DontCare,
+        }),
     }),
   );
 }
@@ -301,7 +315,34 @@ function exprOfDecisionTree(
   retTy: Type,
 ): SweetExpr {
   return match(dt, {
-    Leaf: ({ action }) => cases[action].body,
+    Leaf: ({ action }) => {
+      const { pattern, body } = cases[action];
+      const vars = Pattern.variableOccurrences(pattern);
+
+      if (vars.size === 0) {
+        return body;
+      }
+
+      const bindings = [...vars.entries()].map(([name, occ]) => ({
+        name,
+        value: exprOfOccurence(occ, subject),
+      }));
+
+      return SweetExpr.Block({
+        stmts: bindings.map(({ name, value }) =>
+          SweetStmt.Let({
+            name,
+            value,
+            attrs: {},
+            mutable: false,
+            static: false,
+            pub: false,
+          }),
+        ),
+        ty: retTy,
+        ret: body,
+      });
+    },
     Switch: ({ occurrence, tests }) => {
       if (tests.length === 0) {
         return exprOfDecisionTree(subject, DecisionTree.Fail(), cases, retTy);
