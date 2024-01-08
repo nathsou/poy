@@ -5,285 +5,273 @@ import { Backtick } from '../misc/strings';
 type Char = string;
 
 export const lex = (source: string): Token[] => {
-    let index = 0;
-    let startIndex = 0;
+  let index = 0;
+  let startIndex = 0;
 
-    function peek(lookahead = 0): Char {
-        return source[index + lookahead];
+  function peek(lookahead = 0): Char {
+    return source[index + lookahead];
+  }
+
+  function next(): Char {
+    const c = peek();
+
+    if (c === '\n' && shouldInsertSemicolon()) {
+      tokens.push(Token.Symbol(';'));
     }
 
-    function next(): Char {
-        const c = peek();
+    index += 1;
 
-        if (c === '\n' && shouldInsertSemicolon()) {
-            tokens.push(Token.Symbol(';'));
-        }
+    return c;
+  }
 
-        index += 1;
+  function matches(char: Char): boolean {
+    const c = peek();
 
-        return c;
+    if (c === char) {
+      next();
+      return true;
     }
 
-    function matches(char: Char): boolean {
-        const c = peek();
+    return false;
+  }
 
-        if (c === char) {
-            next();
-            return true;
-        }
+  function isDigit(char: Char): boolean {
+    return char >= '0' && char <= '9';
+  }
 
-        return false;
+  function isAlpha(char: Char): boolean {
+    return (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z');
+  }
+
+  function isAlphaNumeric(char: Char): boolean {
+    return isAlpha(char) || isDigit(char);
+  }
+
+  function isWhitespace(char: Char): boolean {
+    return char === ' ' || char === '\r' || char === '\t' || char === '\n';
+  }
+
+  function parseNum(): Token {
+    while (isDigit(peek())) {
+      next();
     }
 
-    function isDigit(char: Char): boolean {
-        return char >= '0' && char <= '9';
-    }
+    if (peek() === '.' && isDigit(peek(1))) {
+      next();
 
-    function isAlpha(char: Char): boolean {
-        return (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z');
-    }
-
-    function isAlphaNumeric(char: Char): boolean {
-        return isAlpha(char) || isDigit(char);
-    }
-
-    function isWhitespace(char: Char): boolean {
-        return char === ' ' || char === '\r' || char === '\t' || char === '\n';
-    }
-
-    function parseNum(): Token {
-        while (isDigit(peek())) {
-            next();
-        }
-
-        if (peek() === '.' && isDigit(peek(1))) {
-            next();
-
-            while (isDigit(peek())) {
-                next();
-            }
-        }
-
-        const num = Number(source.slice(startIndex, index));
-        return Token.Literal(Literal.Num(num));
-    }
-
-    function isAtEnd(): boolean {
-        return index >= source.length;
-    }
-
-    function parseStr(): Token {
-        while (peek() !== '"' && !isAtEnd()) {
-            if (peek() === '\\') {
-                next();
-            }
-
-            next();
-        }
-
-        if (isAtEnd()) {
-            throw new Error('Unterminated string.');
-        }
-
+      while (isDigit(peek())) {
         next();
-
-        const str = source.slice(startIndex + 1, index - 1);
-        return Token.Literal(Literal.Str(str));
+      }
     }
 
-    function parseIdentifierOrKeyword(): Token {
-        while (isAlphaNumeric(peek())) {
-            next();
-        }
+    const num = Number(source.slice(startIndex, index));
+    return Token.Literal(Literal.Num(num));
+  }
 
-        const identifier = source.slice(startIndex, index);
+  function isAtEnd(): boolean {
+    return index >= source.length;
+  }
 
-        switch (identifier) {
-            case 'true':
-                return Token.Literal(Literal.Bool(true));
-            case 'false':
-                return Token.Literal(Literal.Bool(false));
-            case 'and':
-                return Token.Symbol(matches('=') ? 'and=' : 'and');
-            case 'or':
-                return Token.Symbol(matches('=') ? 'or=' : 'or');
-            case 'mod':
-                return Token.Symbol(matches('=') ? 'mod=' : 'mod');
+  function parseStr(): Token {
+    while (peek() !== '"' && !isAtEnd()) {
+      if (peek() === '\\') {
+        next();
+      }
+
+      next();
+    }
+
+    if (isAtEnd()) {
+      throw new Error('Unterminated string.');
+    }
+
+    next();
+
+    const str = source.slice(startIndex + 1, index - 1);
+    return Token.Literal(Literal.Str(str));
+  }
+
+  function parseIdentifierOrKeyword(): Token {
+    while (isAlphaNumeric(peek())) {
+      next();
+    }
+
+    const identifier = source.slice(startIndex, index);
+
+    switch (identifier) {
+      case 'true':
+        return Token.Literal(Literal.Bool(true));
+      case 'false':
+        return Token.Literal(Literal.Bool(false));
+      case 'and':
+        return Token.Symbol(matches('=') ? 'and=' : 'and');
+      case 'or':
+        return Token.Symbol(matches('=') ? 'or=' : 'or');
+      case 'mod':
+        return Token.Symbol(matches('=') ? 'mod=' : 'mod');
+      default:
+        return Keyword.is(identifier) ? Token.Keyword(identifier) : Token.Identifier(identifier);
+    }
+  }
+
+  function parseBacktickIdentifier(): Token {
+    while (peek() !== '`' && !isAtEnd()) {
+      next();
+    }
+
+    if (isAtEnd()) {
+      throw new Error('Unterminated backtick identifier.');
+    }
+
+    next();
+
+    const identifier = source.slice(startIndex + 1, index - 1);
+    return Token.Identifier(Backtick.encode(identifier));
+  }
+
+  function shouldInsertSemicolon(): boolean {
+    if (tokens.length > 0) {
+      return match(tokens[tokens.length - 1], {
+        Literal: lit => {
+          switch (lit.value.variant) {
+            case 'Bool':
+              return true;
+            case 'Num':
+              return true;
+            case 'Str':
+              return true;
             default:
-                return Keyword.is(identifier)
-                    ? Token.Keyword(identifier)
-                    : Token.Identifier(identifier);
-        }
-    }
-
-    function parseBacktickIdentifier(): Token {
-        while (peek() !== '`' && !isAtEnd()) {
-            next();
-        }
-
-        if (isAtEnd()) {
-            throw new Error('Unterminated backtick identifier.');
-        }
-
-        next();
-
-        const identifier = source.slice(startIndex + 1, index - 1);
-        return Token.Identifier(Backtick.encode(identifier));
-    }
-
-    function shouldInsertSemicolon(): boolean {
-        if (tokens.length > 0) {
-            return match(tokens[tokens.length - 1], {
-                Literal: lit => {
-                    switch (lit.value.variant) {
-                        case 'Bool':
-                            return true;
-                        case 'Num':
-                            return true;
-                        case 'Str':
-                            return true;
-                        default:
-                            return false;
-                    }
-                },
-                Identifier: () => true,
-                Symbol: symb => {
-                    switch (symb) {
-                        case ')':
-                            return true;
-                        case ']':
-                            return true;
-                        case '}':
-                            return true;
-                        case '>':
-                            return true;
-                        default:
-                            return false;
-                    }
-                },
-                Keyword: kw => {
-                    switch (kw) {
-                        case 'return':
-                            return true;
-                        case 'yield':
-                            return true;
-                        case 'break':
-                            return true;
-                        default:
-                            return false;
-                    }
-                },
-                _: () => false,
-            });
-        }
-
-        return false;
-    }
-
-    function skipWhitespaces() {
-        while (isWhitespace(peek())) {
-            next();
-        }
-    }
-
-    function iter(): Token | null {
-        skipWhitespaces();
-        if (isAtEnd()) return null;
-        startIndex = index;
-
-        const char = next();
-
-        switch (char) {
-            case '(':
-                return Token.Symbol('(');
+              return false;
+          }
+        },
+        Identifier: () => true,
+        Symbol: symb => {
+          switch (symb) {
             case ')':
-                return Token.Symbol(')');
-            case '{':
-                return Token.Symbol('{');
-            case '}':
-                return Token.Symbol('}');
-            case '[':
-                return Token.Symbol('[');
+              return true;
             case ']':
-                return Token.Symbol(']');
-            case ',':
-                return Token.Symbol(',');
-            case ';':
-                return Token.Symbol(';');
-            case '+':
-                return Token.Symbol(matches('=') ? '+=' : '+');
-            case '-':
-                return Token.Symbol(
-                    matches('>') ? '->' : matches('=') ? '-=' : '-',
-                );
-            case '*':
-                return Token.Symbol(
-                    matches('*')
-                        ? matches('=')
-                            ? '**='
-                            : '**'
-                        : matches('=')
-                          ? '*='
-                          : '*',
-                );
-            case '/': {
-                if (matches('/')) {
-                    while (peek() !== '\n' && !isAtEnd()) {
-                        next();
-                    }
-
-                    return iter();
-                } else {
-                    return Token.Symbol(matches('=') ? '/=' : '/');
-                }
-            }
-            case '!':
-                return Token.Symbol('!');
-            case '=':
-                return Token.Symbol(
-                    matches('=') ? '==' : matches('>') ? '=>' : '=',
-                );
-            case '<':
-                return Token.Symbol(matches('=') ? '<=' : '<');
+              return true;
+            case '}':
+              return true;
             case '>':
-                return Token.Symbol(matches('=') ? '>=' : '>');
-            case '&':
-                return Token.Symbol(matches('=') ? '&=' : '&');
-            case '|':
-                return Token.Symbol(matches('=') ? '|=' : '|');
-            case ':':
-                return Token.Symbol(matches(':') ? '::' : ':');
-            case '_':
-                return Token.Symbol('_');
-            case '.':
-                return Token.Symbol('.');
-            case '@':
-                return Token.Symbol('@');
-            case '#':
-                return Token.Symbol('#');
-            case '"':
-                return parseStr();
-            case '`':
-                return parseBacktickIdentifier();
+              return true;
             default:
-                if (isDigit(char)) {
-                    return parseNum();
-                }
+              return false;
+          }
+        },
+        Keyword: kw => {
+          switch (kw) {
+            case 'return':
+              return true;
+            case 'yield':
+              return true;
+            case 'break':
+              return true;
+            default:
+              return false;
+          }
+        },
+        _: () => false,
+      });
+    }
 
-                if (isAlpha(char)) {
-                    return parseIdentifierOrKeyword();
-                }
+    return false;
+  }
 
-                throw new Error(`Unexpected character: '${char}'`);
+  function skipWhitespaces() {
+    while (isWhitespace(peek())) {
+      next();
+    }
+  }
+
+  function iter(): Token | null {
+    skipWhitespaces();
+    if (isAtEnd()) return null;
+    startIndex = index;
+
+    const char = next();
+
+    switch (char) {
+      case '(':
+        return Token.Symbol('(');
+      case ')':
+        return Token.Symbol(')');
+      case '{':
+        return Token.Symbol('{');
+      case '}':
+        return Token.Symbol('}');
+      case '[':
+        return Token.Symbol('[');
+      case ']':
+        return Token.Symbol(']');
+      case ',':
+        return Token.Symbol(',');
+      case ';':
+        return Token.Symbol(';');
+      case '+':
+        return Token.Symbol(matches('=') ? '+=' : '+');
+      case '-':
+        return Token.Symbol(matches('>') ? '->' : matches('=') ? '-=' : '-');
+      case '*':
+        return Token.Symbol(
+          matches('*') ? (matches('=') ? '**=' : '**') : matches('=') ? '*=' : '*',
+        );
+      case '/': {
+        if (matches('/')) {
+          while (peek() !== '\n' && !isAtEnd()) {
+            next();
+          }
+
+          return iter();
+        } else {
+          return Token.Symbol(matches('=') ? '/=' : '/');
         }
-    }
+      }
+      case '!':
+        return Token.Symbol('!');
+      case '=':
+        return Token.Symbol(matches('=') ? '==' : matches('>') ? '=>' : '=');
+      case '<':
+        return Token.Symbol(matches('=') ? '<=' : '<');
+      case '>':
+        return Token.Symbol(matches('=') ? '>=' : '>');
+      case '&':
+        return Token.Symbol(matches('=') ? '&=' : '&');
+      case '|':
+        return Token.Symbol(matches('=') ? '|=' : '|');
+      case ':':
+        return Token.Symbol(matches(':') ? '::' : ':');
+      case '_':
+        return Token.Symbol('_');
+      case '.':
+        return Token.Symbol('.');
+      case '@':
+        return Token.Symbol('@');
+      case '#':
+        return Token.Symbol('#');
+      case '"':
+        return parseStr();
+      case '`':
+        return parseBacktickIdentifier();
+      default:
+        if (isDigit(char)) {
+          return parseNum();
+        }
 
-    const tokens: Token[] = [];
+        if (isAlpha(char)) {
+          return parseIdentifierOrKeyword();
+        }
 
-    while (true) {
-        const token = iter();
-        if (token === null) return tokens;
-        token.loc = { start: startIndex, end: index };
-        tokens.push(token);
+        throw new Error(`Unexpected character: '${char}'`);
     }
+  }
+
+  const tokens: Token[] = [];
+
+  while (true) {
+    const token = iter();
+    if (token === null) return tokens;
+    token.loc = { start: startIndex, end: index };
+    tokens.push(token);
+  }
 };

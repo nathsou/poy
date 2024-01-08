@@ -3,16 +3,16 @@ import { Impl, Show } from '../../misc/traits';
 import { Stmt } from './stmt';
 
 export type Decl = DataType<{
-    Stmt: { stmt: Stmt };
+  Stmt: { stmt: Stmt };
 }>;
 
 export const Decl = {
-    Stmt: (stmt: Stmt): Decl => ({ variant: 'Stmt', stmt }) as const,
-    show,
+  Stmt: (stmt: Stmt): Decl => ({ variant: 'Stmt', stmt }) as const,
+  show,
 } satisfies Impl<Show<Decl>>;
 
 function show(decl: Decl): string {
-    return match(decl, {
-        Stmt: ({ stmt }) => Stmt.show(stmt),
-    });
+  return match(decl, {
+    Stmt: ({ stmt }) => Stmt.show(stmt),
+  });
 }

@@ -8,56 +8,56 @@ import { Constructors, Impl } from '../../misc/traits';
 type Typed<T> = { [K in keyof T]: T[K] & { ty: Type } };
 
 export type Expr = DataType<
-    Typed<{
-        Literal: { literal: Literal };
-        Variable: { name: string };
-        Unary: { op: UnaryOp; expr: Expr };
-        Binary: { lhs: Expr; op: BinaryOp; rhs: Expr };
-        Block: { stmts: Stmt[]; ret?: Expr };
-        If: { cond: Expr; then: Expr; otherwise?: Expr };
-        Tuple: { elems: Expr[] };
-        Array: { elems: Expr[] };
-        UseIn: { name: string; value: Expr; rhs: Expr };
-        Fun: { args: FunctionArgument[]; body: Expr; isIterator: boolean };
-        Call: { fun: Expr; args: Expr[] };
-        Struct: {
-            path: string[];
-            name?: string;
-            fields: { name: string; value: Expr }[];
-        };
-        VariableAccess: {
-            lhs: Expr;
-            field: string | number;
-            isCalled: boolean;
-        };
-        ModuleAccess: { path: string[]; member: string };
-    }>
+  Typed<{
+    Literal: { literal: Literal };
+    Variable: { name: string };
+    Unary: { op: UnaryOp; expr: Expr };
+    Binary: { lhs: Expr; op: BinaryOp; rhs: Expr };
+    Block: { stmts: Stmt[]; ret?: Expr };
+    If: { cond: Expr; then: Expr; otherwise?: Expr };
+    Tuple: { elems: Expr[] };
+    Array: { elems: Expr[] };
+    UseIn: { name: string; value: Expr; rhs: Expr };
+    Fun: { args: FunctionArgument[]; body: Expr; isIterator: boolean };
+    Call: { fun: Expr; args: Expr[] };
+    Struct: {
+      path: string[];
+      name?: string;
+      fields: { name: string; value: Expr }[];
+    };
+    VariableAccess: {
+      lhs: Expr;
+      field: string | number;
+      isCalled: boolean;
+    };
+    ModuleAccess: { path: string[]; member: string };
+  }>
 >;
 
 export const Expr = {
-    ...constructors<Expr>().get(
-        'Variable',
-        'Unary',
-        'Binary',
-        'Block',
-        'If',
-        'Tuple',
-        'Array',
-        'UseIn',
-        'Fun',
-        'Call',
-        'Struct',
-        'VariableAccess',
-    ),
-    Literal: (literal: Literal, ty: Type) => ({
-        variant: 'Literal',
-        literal,
-        ty,
-    }),
-    ModuleAccess: (path: string[], member: string, ty: Type) => ({
-        variant: 'ModuleAccess',
-        path,
-        member,
-        ty,
-    }),
+  ...constructors<Expr>().get(
+    'Variable',
+    'Unary',
+    'Binary',
+    'Block',
+    'If',
+    'Tuple',
+    'Array',
+    'UseIn',
+    'Fun',
+    'Call',
+    'Struct',
+    'VariableAccess',
+  ),
+  Literal: (literal: Literal, ty: Type) => ({
+    variant: 'Literal',
+    literal,
+    ty,
+  }),
+  ModuleAccess: (path: string[], member: string, ty: Type) => ({
+    variant: 'ModuleAccess',
+    path,
+    member,
+    ty,
+  }),
 } satisfies Impl<Constructors<Expr>>;

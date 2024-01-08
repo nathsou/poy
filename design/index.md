@@ -2,10 +2,10 @@
 
 ## Principles
 
--   Productive and pragmatic (Fast compile times, automatic memory management, ...)
--   Modern (Powerful type inference, ADTs & pattern matching, if expressions, controlled mutability)
--   Batteries included (bundler, formatter, package manager, docgen, ...)
--   Readable (Compiles to readable files)
+- Productive and pragmatic (Fast compile times, automatic memory management, ...)
+- Modern (Powerful type inference, ADTs & pattern matching, if expressions, controlled mutability)
+- Batteries included (bundler, formatter, package manager, docgen, ...)
+- Readable (Compiles to readable files)
 
 ## Examples
 
@@ -32,13 +32,13 @@ module B {
 
 ```js
 const A = (() => {
-    const even = n => (n == 0 ? true : B.odd(n - 1));
-    return { even };
+  const even = n => (n == 0 ? true : B.odd(n - 1));
+  return { even };
 })();
 
 const B = (() => {
-    const odd = n => (n == 0 ? false : A.even(n - 1));
-    return { odd };
+  const odd = n => (n == 0 ? false : A.even(n - 1));
+  return { odd };
 })();
 ```
 

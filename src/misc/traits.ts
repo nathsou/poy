@@ -9,11 +9,9 @@ export type Show<T> = { show: (self: T) => string };
 export type From<Source, Target> = { from: (self: Source) => Target };
 
 export type Rewrite<T, Into = T> = {
-    rewrite: (self: T, f: (v: T) => Into) => Into;
+  rewrite: (self: T, f: (v: T) => Into) => Into;
 };
 
-export type Constructors<
-    DT extends DataType<Record<string, { variant: string }>>,
-> = {
-    [K in DT['variant']]: ((...args: any[]) => DT) | DT;
+export type Constructors<DT extends DataType<Record<string, { variant: string }>>> = {
+  [K in DT['variant']]: ((...args: any[]) => DT) | DT;
 };

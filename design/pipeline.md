@@ -20,9 +20,9 @@ Recognize tokens from the raw source code, provide precise position info and ins
 
 A semicolon is inserted when a newline `\n` character is encountered and the previsous character usually finishes a statement / expression / declaration:
 
--   identifier | literal (Num, Bool, Str, ...)
--   `)` | `]` | `}`
--   `return` | `break`
+- identifier | literal (Num, Bool, Str, ...)
+- `)` | `]` | `}`
+- `return` | `break`
 
 ### Parse
 
@@ -45,24 +45,24 @@ Algorithm W is run to determine the most general type of every member.
 
 The original AST is rewritten to a simpler representation:
 
--   Identifiers are uniqued
--   Pattern matching is translated to switch expressions
--   Interface method calls are replaced with dictionary passing calls
--   Array / dict comprehensions are rewritten to blocks with nested for loops
+- Identifiers are uniqued
+- Pattern matching is translated to switch expressions
+- Interface method calls are replaced with dictionary passing calls
+- Array / dict comprehensions are rewritten to blocks with nested for loops
 
 ### Optimize I
 
 Lowered modules are analyzed and optimized:
 
--   Dead call elimination
--   Function call inlining
--   Constant folding
--   `Option` type elimination
+- Dead call elimination
+- Function call inlining
+- Constant folding
+- `Option` type elimination
 
 ### Codegen
 
--   Blocks are linearized
--   Modules are converted to raw JavaScript, optionally with .d.ts definition files.
+- Blocks are linearized
+- Modules are converted to raw JavaScript, optionally with .d.ts definition files.
 
 ### Bundle
 
