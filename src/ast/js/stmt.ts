@@ -1,6 +1,6 @@
-import { DataType, genConstructors, match } from 'itsamatch';
+import { DataType, constructors, match } from 'itsamatch';
 import { Name } from '../../codegen/js/jsScope';
-import { Impl, Show } from '../../misc/traits';
+import { Constructors, Impl, Show } from '../../misc/traits';
 import { AssignmentOp } from '../../parse/token';
 import { Expr } from './expr';
 
@@ -18,7 +18,7 @@ export type Stmt = DataType<{
 }>;
 
 export const Stmt = {
-    ...genConstructors<Stmt>(['Const', 'Let', 'If']),
+    ...constructors<Stmt>().get('Const', 'Let', 'If'),
     Expr: (expr: Expr) => ({ variant: 'Expr', expr }) satisfies Stmt,
     Return: (value: Expr) => ({ variant: 'Return', value }) satisfies Stmt,
     Yield: (value: Expr) => ({ variant: 'Yield', value }) satisfies Stmt,
@@ -31,7 +31,7 @@ export const Stmt = {
         ({ variant: 'For', name, iterator, body }) satisfies Stmt,
     show,
     showStmts,
-} satisfies Impl<Show<Stmt>>;
+} satisfies Impl<Show<Stmt> & Constructors<Stmt>>;
 
 function showStmts(stmts: Stmt[], indentLevel: number = 0): string {
     return stmts

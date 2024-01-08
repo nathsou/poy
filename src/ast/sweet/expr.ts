@@ -1,4 +1,4 @@
-import { DataType, genConstructors, match } from 'itsamatch';
+import { DataType, constructors, match } from 'itsamatch';
 import { TypeEnv } from '../../infer/infer';
 import { Type } from '../../infer/type';
 import { BinaryOp, Literal, UnaryOp } from '../../parse/token';
@@ -51,7 +51,7 @@ export type Expr = DataType<{
 export type FunctionArgument = { name: string; ann?: Type };
 
 export const Expr = {
-    ...genConstructors<Expr>([
+    ...constructors<Expr>().get(
         'Variable',
         'Unary',
         'Binary',
@@ -68,7 +68,7 @@ export const Expr = {
         'ModuleAccess',
         'TupleAccess',
         'Match',
-    ]),
+    ),
     Literal: (literal: Literal): Expr =>
         ({ variant: 'Literal', literal }) as const,
     isMutable: (expr: Expr, env: TypeEnv): boolean => {

@@ -1,7 +1,8 @@
-import { DataType, genConstructors, match } from 'itsamatch';
+import { DataType, constructors } from 'itsamatch';
 import { Type } from '../../infer/type';
 import { Stmt } from './stmt';
 import { Attributes } from './attribute';
+import { Constructors, Impl } from '../../misc/traits';
 
 export type ImportMemberKind = 'value' | 'module' | 'type';
 
@@ -22,7 +23,7 @@ export type Decl = DataType<{
 }>;
 
 export const Decl = {
-    ...genConstructors<Decl>([
+    ...constructors<Decl>().get(
         'Module',
         'Import',
         'Type',
@@ -30,11 +31,11 @@ export const Decl = {
         'Extend',
         'Enum',
         '_Many',
-    ]),
+    ),
     Stmt: (stmt: Stmt) => ({ variant: 'Stmt', stmt }) satisfies Decl,
     Declare: (sig: Signature, attrs: Attributes = {}) =>
         ({ variant: 'Declare', sig, attrs }) satisfies Decl,
-};
+} satisfies Impl<Constructors<Decl>>;
 
 export type TypeDecl = {
     pub: boolean;
@@ -61,11 +62,11 @@ export type Signature = DataType<{
     Type: TypeDecl;
 }>;
 
-export const Signature = genConstructors<Signature>([
+export const Signature = constructors<Signature>().get(
     'Variable',
     'Module',
     'Type',
-]);
+) satisfies Impl<Constructors<Signature>>;
 
 export type StructDecl = {
     pub: boolean;
@@ -87,11 +88,10 @@ export type EnumVariant = DataType<{
     Struct: { name: string; fields: { name: string; ty: Type }[] };
 }>;
 
-export const EnumVariant = genConstructors<EnumVariant>([
-    'Empty',
-    'Tuple',
-    'Struct',
-]);
+export const EnumVariant = {
+    ...constructors<EnumVariant>().get('Empty', 'Tuple', 'Struct'),
+    TAG: 'TAG',
+} satisfies Impl<Constructors<EnumVariant>>;
 
 export type EnumDecl = {
     pub: boolean;

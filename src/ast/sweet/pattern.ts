@@ -1,6 +1,7 @@
-import { DataType, genConstructors } from 'itsamatch';
+import { DataType, constructors } from 'itsamatch';
 import { Literal } from '../../parse/token';
 import { EnumDecl } from './decl';
+import { Constructors, Impl } from '../../misc/traits';
 
 export type Pattern = DataType<{
     Any: {};
@@ -15,13 +16,16 @@ export type Pattern = DataType<{
 }>;
 
 export const Pattern = {
-    ...genConstructors<Pattern>(['Variant']),
-    Any: Object.freeze<Pattern>({ variant: 'Any' }),
-    Variable: (name: string): Pattern =>
-        ({ variant: 'Variable', name }) as const,
-    Ctor: (name: string, args: Pattern[] = [], meta?: string): Pattern =>
-        ({ variant: 'Ctor', name, args, meta }) as const,
-    Literal: (value: Literal): Pattern => {
+    ...constructors<Pattern>().get('Variant'),
+    Any: Object.freeze({ variant: 'Any' }),
+    Variable: (name: string) => ({ variant: 'Variable', name }),
+    Ctor: (name: string, args: Pattern[] = [], meta?: string) => ({
+        variant: 'Ctor',
+        name,
+        args,
+        meta,
+    }),
+    Literal: (value: Literal) => {
         if (value.variant === 'Unit') {
             return Pattern.Ctor('Unit');
         }
@@ -30,4 +34,4 @@ export const Pattern = {
     },
     Tuple: (args: Pattern[]): Pattern =>
         Pattern.Ctor(`${args.length}`, args, 'Tuple'),
-};
+} satisfies Impl<Constructors<Pattern>>;

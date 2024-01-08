@@ -1,8 +1,8 @@
-import { DataType, genConstructors, match, matchMany } from 'itsamatch';
+import { DataType, constructors, match, matchMany } from 'itsamatch';
 import { config } from '../config';
 import { Context } from '../misc/context';
 import { Scope, TypeParamScope } from '../misc/scope';
-import { Eq, Impl, Rewrite, Show } from '../misc/traits';
+import { Constructors, Eq, Impl, Rewrite, Show } from '../misc/traits';
 import { array, assert, panic } from '../misc/utils';
 import { ModulePath } from '../resolve/resolve';
 import { normalize } from './rewrite';
@@ -119,7 +119,7 @@ export const showTypeVarId = (id: number): string => {
 };
 
 export const TypeVar = {
-    ...genConstructors<TypeVar>(['Unbound', 'Generic', 'Param']),
+    ...constructors<TypeVar>().get('Unbound', 'Generic', 'Param'),
     Link: (type: Type): TypeVar => ({ variant: 'Link', type }),
     eq: (a, b) =>
         matchMany([a, b], {
@@ -182,7 +182,7 @@ export const TypeVar = {
     },
     fresh: (level: number, name?: string): TypeVar =>
         TypeVar.Unbound({ id: Context.freshTypeVarId(), name, level }),
-} satisfies Impl<Eq<TypeVar> & Show<TypeVar>>;
+} satisfies Impl<Eq<TypeVar> & Show<TypeVar> & Constructors<TypeVar>>;
 
 function isList(ty: Type): boolean {
     return match(ty, {

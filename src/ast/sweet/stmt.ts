@@ -1,9 +1,10 @@
-import { DataType, genConstructors } from 'itsamatch';
+import { DataType, constructors } from 'itsamatch';
 import { Type } from '../../infer/type';
 import { AssignmentOp } from '../../parse/token';
 import { Expr } from './expr';
 import { Ref, ref } from '../../misc/utils';
 import { Attributes } from './attribute';
+import { Constructors, Impl } from '../../misc/traits';
 
 export type Stmt = DataType<{
     Expr: { expr: Expr };
@@ -26,7 +27,7 @@ export type Stmt = DataType<{
 }>;
 
 export const Stmt = {
-    ...genConstructors<Stmt>(['Let', '_Many']),
+    ...constructors<Stmt>().get('Let', '_Many'),
     Expr: (expr: Expr): Stmt => ({ variant: 'Expr', expr }) satisfies Stmt,
     Assign: (lhs: Expr, op: AssignmentOp, rhs: Expr) =>
         ({ variant: 'Assign', lhs, op, rhs }) satisfies Stmt,
@@ -42,4 +43,4 @@ export const Stmt = {
     Return: (expr: Expr) => ({ variant: 'Return', expr }) satisfies Stmt,
     Yield: (expr: Expr) => ({ variant: 'Yield', expr }) satisfies Stmt,
     Break: () => ({ variant: 'Break' }) satisfies Stmt,
-};
+} satisfies Impl<Constructors<Stmt>>;

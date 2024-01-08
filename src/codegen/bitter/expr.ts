@@ -12,6 +12,7 @@ import {
     Occurrence,
 } from '../decision-trees/ClauseMatrix';
 import { bitterStmtOf } from './stmt';
+import { EnumVariant } from '../../ast/sweet/decl';
 
 export function bitterExprOf(sweet: SweetExpr): BitterExpr {
     assert(sweet.ty != null, 'missing type after type inference');
@@ -296,7 +297,7 @@ function getPatternTest(
                     op: '==',
                     lhs: SweetExpr.VariableAccess({
                         lhs,
-                        field: 'variant',
+                        field: EnumVariant.TAG,
                         isCalled: false,
                         isNative: false,
                         typeParams: [],

@@ -1,5 +1,5 @@
-import { DataType, genConstructors, match, matchMany } from 'itsamatch';
-import { Eq, Impl, Show } from '../misc/traits';
+import { DataType, constructors, match, matchMany } from 'itsamatch';
+import { Constructors, Eq, Impl, Show } from '../misc/traits';
 
 export type Token = DataType<{
     Literal: { value: Literal };
@@ -10,7 +10,7 @@ export type Token = DataType<{
 }> & { loc?: { start: number; end: number } };
 
 export const Token = {
-    ...genConstructors<Token>(['Identifier', 'Symbol', 'Keyword', 'EOF']),
+    ...constructors<Token>().get('Identifier', 'Symbol', 'Keyword', 'EOF'),
     Literal: (value: Literal) => ({ variant: 'Literal', value }) as const,
     eq: (a, b) =>
         matchMany([a, b], {
@@ -45,7 +45,7 @@ export type Literal = DataType<{
 }>;
 
 export const Literal = {
-    ...genConstructors<Literal>(['Bool', 'Num', 'Str']),
+    ...constructors<Literal>().get('Bool', 'Num', 'Str'),
     Unit: Object.freeze<Literal>({ variant: 'Unit' }),
     eq: (a, b) =>
         matchMany([a, b], {
@@ -55,7 +55,7 @@ export const Literal = {
             'Str Str': Object.is,
             _: () => false,
         }),
-} satisfies Impl<Eq<Literal>>;
+} satisfies Impl<Eq<Literal> & Constructors<Literal>>;
 
 export type UnaryOp = '+' | '-' | '!';
 export type AssignmentOp =
@@ -70,6 +70,7 @@ export type AssignmentOp =
     | 'and='
     | '&='
     | '|=';
+
 export type BinaryOp =
     | '+'
     | '-'
@@ -87,6 +88,7 @@ export type BinaryOp =
     | 'or'
     | '&'
     | '|';
+
 export type Punctuation =
     | '('
     | ')'
@@ -104,6 +106,7 @@ export type Punctuation =
     | '.'
     | '@'
     | '#';
+
 export type Symbol = UnaryOp | BinaryOp | AssignmentOp | Punctuation;
 
 const keywords = [

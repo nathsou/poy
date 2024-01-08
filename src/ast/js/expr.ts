@@ -1,6 +1,6 @@
-import { DataType, genConstructors, match } from 'itsamatch';
+import { DataType, constructors, match } from 'itsamatch';
 import { Name } from '../../codegen/js/jsScope';
-import { Impl, Show } from '../../misc/traits';
+import { Constructors, Impl, Show } from '../../misc/traits';
 import { Literal } from '../../parse/token';
 import { Stmt } from './stmt';
 
@@ -41,7 +41,7 @@ export type BinaryOp =
     | '|';
 
 export const Expr = {
-    ...genConstructors<Expr>([
+    ...constructors<Expr>().get(
         'Literal',
         'Unary',
         'Binary',
@@ -50,7 +50,7 @@ export const Expr = {
         'Closure',
         'Object',
         'Generator',
-    ]),
+    ),
     Variable: (name: Name): Expr => ({ variant: 'Variable', name }) as const,
     Paren: (expr: Expr): Expr => ({ variant: 'Paren', expr }) as const,
     Call: (fun: Expr, args: Expr[]): Expr =>
@@ -66,7 +66,7 @@ export const Expr = {
             field,
         }) satisfies Expr,
     show,
-} satisfies Impl<Show<Expr>>;
+} satisfies Impl<Show<Expr> & Constructors<Expr>>;
 
 function show(expr: Expr, indentLevel: number = 0): string {
     const indent = ' '.repeat(indentLevel * 2);

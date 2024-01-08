@@ -2,7 +2,11 @@ import { match, VariantOf } from 'itsamatch';
 import { Decl as BitterDecl } from '../../ast/bitter/decl';
 import { Stmt as BitterStmt } from '../../ast/bitter/stmt';
 import { Expr as BitterExpr } from '../../ast/bitter/expr';
-import { ModuleDecl, Decl as SweetDecl } from '../../ast/sweet/decl';
+import {
+    EnumVariant,
+    ModuleDecl,
+    Decl as SweetDecl,
+} from '../../ast/sweet/decl';
 import { bitterStmtOf } from './stmt';
 import { todo } from '../../misc/utils';
 import { Type } from '../../infer/type';
@@ -70,11 +74,10 @@ export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] =>
                                     static: true,
                                     name,
                                     value: BitterExpr.Struct({
-                                        name: '<anonymous>',
                                         path: [],
                                         fields: [
                                             {
-                                                name: 'variant',
+                                                name: EnumVariant.TAG,
                                                 value: BitterExpr.Literal(
                                                     Literal.Str(name),
                                                     Type.Str,
@@ -86,33 +89,33 @@ export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] =>
                                     attrs: {},
                                 }),
                             ),
-                        Tuple: ({ name, args }) =>
-                            BitterDecl.Stmt(
+                        Tuple: ({ name, args }) => {
+                            const argName = (idx: number) => `_${idx}`;
+                            return BitterDecl.Stmt(
                                 BitterStmt.Let({
                                     mutable: false,
                                     static: true,
                                     name,
                                     value: BitterExpr.Fun({
                                         args: args.map((ty, idx) => ({
-                                            name: `arg${idx}`,
+                                            name: argName(idx),
                                             ty,
                                         })),
                                         isIterator: false,
                                         body: BitterExpr.Struct({
-                                            name: '<anonymous>',
                                             path: [],
                                             fields: [
                                                 {
-                                                    name: 'variant',
+                                                    name: EnumVariant.TAG,
                                                     value: BitterExpr.Literal(
                                                         Literal.Str(name),
                                                         Type.Str,
                                                     ),
                                                 },
                                                 ...args.map((ty, idx) => ({
-                                                    name: `arg${idx}`,
+                                                    name: argName(idx),
                                                     value: BitterExpr.Variable({
-                                                        name: `arg${idx}`,
+                                                        name: argName(idx),
                                                         ty,
                                                     }),
                                                 })),
@@ -123,7 +126,8 @@ export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] =>
                                     }),
                                     attrs: {},
                                 }),
-                            ),
+                            );
+                        },
                         _: () => todo(),
                     }),
                 ),
