@@ -299,23 +299,31 @@ function getPatternTest(
 
         return panic(`Unknown ctor: ${kind}(${ctor})`);
       },
-      Variant: () =>
-        SweetExpr.Binary({
+      Variant: ({ enumDecl }) => {
+        const variant = enumDecl.variants.find(v => v.name === ctor);
+        assert(variant != null);
+        const argCount = EnumVariant.countArguments(variant);
+
+        return SweetExpr.Binary({
           op: '==',
-          lhs: SweetExpr.FieldAccess({
-            lhs,
-            field: EnumVariant.TAG,
-            isCalled: false,
-            isNative: false,
-            typeParams: [],
-            ty: Type.Str,
-          }),
+          lhs:
+            argCount === 0
+              ? lhs
+              : SweetExpr.FieldAccess({
+                  lhs,
+                  field: EnumVariant.TAG,
+                  isCalled: false,
+                  isNative: false,
+                  typeParams: [],
+                  ty: Type.Str,
+                }),
           rhs: {
             ...SweetExpr.Literal(Literal.Str(ctor)),
             ty: Type.Str,
           },
           ty: Type.Bool,
-        }),
+        });
+      },
     });
   }
 

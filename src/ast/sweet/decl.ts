@@ -1,4 +1,4 @@
-import { DataType, constructors } from 'itsamatch';
+import { DataType, constructors, match } from 'itsamatch';
 import { Type } from '../../infer/type';
 import { Stmt } from './stmt';
 import { Attributes } from './attribute';
@@ -81,6 +81,12 @@ export type EnumVariant = DataType<{
 export const EnumVariant = {
   ...constructors<EnumVariant>().get('Empty', 'Tuple', 'Struct'),
   TAG: 'TAG',
+  countArguments: (variant: EnumVariant): number =>
+    match(variant, {
+      Empty: () => 0,
+      Tuple: ({ args }) => args.length,
+      Struct: ({ fields }) => fields.length,
+    }),
 } satisfies Impl<Constructors<EnumVariant>>;
 
 export type EnumDecl = {

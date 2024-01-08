@@ -61,21 +61,13 @@ export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] =>
                   mutable: false,
                   static: true,
                   name,
-                  value: BitterExpr.Struct({
-                    path: [],
-                    fields: [
-                      {
-                        name: EnumVariant.TAG,
-                        value: BitterExpr.Literal(Literal.Str(name), Type.Str),
-                      },
-                    ],
-                    ty: Type.Nil, // the type doesn't matter here
-                  }),
+                  value: BitterExpr.Literal(Literal.Str(name), Type.Str),
                   attrs: {},
                 }),
               ),
             Tuple: ({ name, args }) => {
               const argName = (idx: number) => `_${idx}`;
+              const variantStr = BitterExpr.Literal(Literal.Str(name), Type.Str);
               return BitterDecl.Stmt(
                 BitterStmt.Let({
                   mutable: false,
@@ -87,24 +79,27 @@ export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] =>
                       ty,
                     })),
                     isIterator: false,
-                    body: BitterExpr.Struct({
-                      path: [],
-                      fields: [
-                        {
-                          name: EnumVariant.TAG,
-                          value: BitterExpr.Literal(Literal.Str(name), Type.Str),
-                        },
-                        ...args.map((ty, idx) => ({
-                          name: argName(idx),
-                          value: BitterExpr.Variable({
-                            name: argName(idx),
-                            ty,
+                    body:
+                      args.length === 0
+                        ? variantStr
+                        : BitterExpr.Struct({
+                            path: [],
+                            fields: [
+                              {
+                                name: EnumVariant.TAG,
+                                value: variantStr,
+                              },
+                              ...args.map((ty, idx) => ({
+                                name: argName(idx),
+                                value: BitterExpr.Variable({
+                                  name: argName(idx),
+                                  ty,
+                                }),
+                              })),
+                            ],
+                            ty: Type.DontCare,
                           }),
-                        })),
-                      ],
-                      ty: Type.Nil, // the type doesn't matter here
-                    }),
-                    ty: Type.Nil, // the type doesn't matter here
+                    ty: Type.DontCare,
                   }),
                   attrs: {},
                 }),
