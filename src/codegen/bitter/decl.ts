@@ -66,7 +66,6 @@ export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] =>
                 }),
               ),
             Tuple: ({ name, args }) => {
-              const argName = (idx: number) => `_${idx}`;
               const variantStr = BitterExpr.Literal(Literal.Str(name), Type.Str);
               return BitterDecl.Stmt(
                 BitterStmt.Let({
@@ -75,7 +74,7 @@ export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] =>
                   name,
                   value: BitterExpr.Fun({
                     args: args.map((ty, idx) => ({
-                      name: argName(idx),
+                      name: EnumVariant.formatPositionalArg(idx),
                       ty,
                     })),
                     isIterator: false,
@@ -90,9 +89,9 @@ export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] =>
                                 value: variantStr,
                               },
                               ...args.map((ty, idx) => ({
-                                name: argName(idx),
+                                name: EnumVariant.formatPositionalArg(idx),
                                 value: BitterExpr.Variable({
-                                  name: argName(idx),
+                                  name: EnumVariant.formatPositionalArg(idx),
                                   ty,
                                 }),
                               })),

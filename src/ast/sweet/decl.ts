@@ -81,11 +81,19 @@ export type EnumVariant = DataType<{
 export const EnumVariant = {
   ...constructors<EnumVariant>().get('Empty', 'Tuple', 'Struct'),
   TAG: 'TAG',
+  formatPositionalArg: (index: number) => `_${index}`,
   countArguments: (variant: EnumVariant): number =>
     match(variant, {
       Empty: () => 0,
       Tuple: ({ args }) => args.length,
       Struct: ({ fields }) => fields.length,
+    }),
+  arguments: (variant: EnumVariant): { name: string; ty: Type }[] =>
+    match(variant, {
+      Empty: () => [],
+      Tuple: ({ args }) =>
+        args.map((ty, idx) => ({ name: EnumVariant.formatPositionalArg(idx), ty })),
+      Struct: ({ fields }) => fields.map(f => ({ name: f.name, ty: f.ty })),
     }),
 } satisfies Impl<Constructors<EnumVariant>>;
 

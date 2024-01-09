@@ -142,6 +142,8 @@ export class ClauseMatrix {
           }
 
           return None;
+        case 'Struct':
+          return Some([...repeat(Pattern.Any, arity), ...ps]);
       }
     }
 
@@ -156,6 +158,7 @@ export class ClauseMatrix {
         Variable: () => Some(ps),
         Ctor: () => None,
         Variant: () => None,
+        Struct: () => Some(ps),
       });
     }
 

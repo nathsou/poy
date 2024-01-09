@@ -1,5 +1,5 @@
 import { match, VariantOf } from 'itsamatch';
-import { Decl, EnumDecl, StructDecl } from '../ast/sweet/decl';
+import { Decl, EnumDecl, EnumVariant, StructDecl } from '../ast/sweet/decl';
 import { Expr } from '../ast/sweet/expr';
 import { Stmt } from '../ast/sweet/stmt';
 import { Maybe } from '../misc/maybe';
@@ -13,6 +13,7 @@ import { TRS } from './rewrite';
 import { Subst, Type, TypeVar } from './type';
 import { Pattern } from '../ast/sweet/pattern';
 import { Err, Ok, Result } from '../misc/result';
+import assert from 'assert';
 
 type VarInfo = {
   pub?: boolean;
@@ -763,7 +764,7 @@ export class TypeEnv {
 
         for (const { pattern, body } of cases) {
           const caseEnv = this.child();
-          const patternTy = caseEnv.inferPattern(pattern);
+          const patternTy = caseEnv.inferPattern(pattern, subjectTy);
           for (const [name, ty] of patternTy.vars) {
             caseEnv.variables.declare(name, {
               pub: false,
@@ -1016,20 +1017,23 @@ export class TypeEnv {
     return Ok(candidates[0]);
   }
 
-  public inferPattern(pattern: Pattern): {
+  public inferPattern(
+    pattern: Pattern,
+    subjectTy: Type,
+  ): {
     ty: Type;
     vars: Map<string, Type>;
   } {
     const vars = new Map<string, Type>();
 
-    const aux = (pat: Pattern): Type => {
+    const aux = (pat: Pattern, ty: Type): Type => {
       switch (pat.variant) {
         case 'Any':
-          return this.freshType();
-        case 'Variable':
-          const ty = this.freshType();
+          return ty;
+        case 'Variable': {
           vars.set(pat.name, ty);
           return ty;
+        }
         case 'Ctor': {
           if (pat.meta !== undefined) {
             switch (pat.meta) {
@@ -1041,19 +1045,31 @@ export class TypeEnv {
                 return Type.Str;
               case 'Unit':
                 return Type.Unit;
-              case 'Tuple':
-                return Type.Tuple(pat.args.map(aux));
+              case 'Tuple': {
+                assert(ty.variant === 'Fun' && ty.name === 'Tuple');
+                const elems = Type.utils.unlist(ty.args[0]);
+                return Type.Tuple(pat.args.map((arg, idx) => aux(arg, elems[idx])));
+              }
               default:
                 return panic(`Unknown meta type: '${pat.meta}'`);
             }
           } else {
-            return Type.Fun(pat.name, pat.args.map(aux));
+            assert(ty.variant === 'Fun' && ty.name === pat.name);
+            return Type.Fun(
+              pat.name,
+              pat.args.map((arg, idx) => aux(arg, ty.args[idx])),
+            );
           }
         }
         case 'Variant': {
+          assert(ty.variant === 'Fun');
           const enumName = block(() => {
             if (pat.enumName != null) {
               return pat.enumName;
+            }
+
+            if (this.enums.has(ty.name)) {
+              return ty.name;
             }
 
             return this.lookupEnumByVariantName(pat.variantName).unwrap().name;
@@ -1067,22 +1083,38 @@ export class TypeEnv {
           const variant = decl.variants.find(v => v.name === pat.variantName);
 
           if (variant == null) {
-            panic(`Enum '${enumName}' has no variant '${pat.variantName}'`);
+            return panic(`Enum '${enumName}' has no variant '${pat.variantName}'`);
           }
 
-          for (const arg of pat.args) {
-            aux(arg);
+          zip(pat.args, EnumVariant.arguments(variant)).forEach(([arg, { ty: argTy }]) => {
+            aux(arg, argTy);
+          });
+
+          return ty;
+        }
+        case 'Struct': {
+          assert(ty.variant === 'Fun', 'Struct pattern must be used with a struct type');
+          const decl = this.structs.lookup(ty.name).unwrap(`Struct '${ty.name}' not found`);
+
+          for (const field of pat.fields) {
+            const fieldInfo = decl.fields.find(f => f.name === field.name);
+            if (fieldInfo == null) {
+              panic(`Struct '${ty.name}' has no field '${field.name}'`);
+            } else {
+              if (field.rhs) {
+                aux(field.rhs, fieldInfo.ty);
+              } else {
+                vars.set(field.name, fieldInfo.ty);
+              }
+            }
           }
 
-          return Type.Fun(
-            enumName,
-            decl.params.map(() => Type.fresh(this.letLevel)),
-          );
+          return ty;
         }
       }
     };
 
-    return { ty: aux(pattern), vars };
+    return { ty: aux(pattern, subjectTy), vars };
   }
 
   public show(indent = 0): string {

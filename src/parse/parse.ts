@@ -101,7 +101,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     const { loc } = tokens[index];
     const start = loc?.start ?? 0;
     const line = (newlines.findIndex(pos => pos > start) ?? 1) - 1;
-    const column = start - newlines[line] ?? 0;
+    const column = start - newlines[line];
     return panic(`Parse error: ${message} at ${line}:${column}`);
   }
 
@@ -809,6 +809,8 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
             return Pattern.Any;
           case '(':
             return tuplePattern();
+          case '{':
+            return structPattern();
           case '.': {
             next();
             const variant = identifier();
@@ -842,6 +844,25 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
     consume(Token.Symbol(')'));
 
     return Pattern.Tuple(elems);
+  }
+
+  function structPattern(): Pattern {
+    consume(Token.Symbol('{'));
+    const fields: { name: string; rhs?: Pattern }[] = [];
+
+    while (!matches(Token.Symbol('}'))) {
+      const name = identifier();
+      let rhs: Pattern | undefined;
+
+      if (matches(Token.Symbol(':'))) {
+        rhs = pattern();
+      }
+
+      fields.push({ name, rhs });
+      consumeSeparatorIfPresent();
+    }
+
+    return Pattern.Struct(fields);
   }
 
   // ------ statements ------

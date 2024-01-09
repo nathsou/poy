@@ -15,6 +15,7 @@ export type Pattern = DataType<{
     args: Pattern[];
     resolvedEnum?: EnumDecl;
   };
+  Struct: { fields: { name: string; rhs?: Pattern }[] };
 }>;
 
 export const Pattern = {
@@ -35,24 +36,38 @@ export const Pattern = {
     return Pattern.Ctor(`${value.$value}`, [], value.variant);
   },
   Tuple: (args: Pattern[]): Pattern => Pattern.Ctor(`${args.length}`, args, 'Tuple'),
+  Struct: (fields: { name: string; rhs?: Pattern }[]): Pattern => ({ variant: 'Struct', fields }),
   variableOccurrences: (pat: Pattern): Map<string, Occurrence> => {
     const vars = new Map<string, Occurrence>();
+
+    const setVar = (name: string, occ: Occurrence) => {
+      if (vars.has(name)) {
+        panic(`Variable ${name} is bound multiple times in the same pattern`);
+      }
+
+      vars.set(name, occ);
+    };
 
     const visit = (pat: Pattern, occ: Occurrence) => {
       match(pat, {
         Any: () => {},
-        Variable: ({ name }) => {
-          if (vars.has(name)) {
-            panic(`Variable ${name} is bound multiple times in the same pattern`);
-          }
-
-          vars.set(name, occ);
-        },
+        Variable: ({ name }) => setVar(name, occ),
         Ctor: ({ args }) => {
           args.forEach((arg, idx) => visit(arg, [...occ, OccurrenceComponent.Index(idx)]));
         },
         Variant: ({ args }) => {
           args.forEach((arg, idx) => visit(arg, [...occ, OccurrenceComponent.Field(`_${idx}`)]));
+        },
+        Struct: ({ fields }) => {
+          fields.forEach(({ name, rhs }) => {
+            const subOcc = [...occ, OccurrenceComponent.Field(name)];
+
+            if (rhs) {
+              visit(rhs, subOcc);
+            } else {
+              setVar(name, subOcc);
+            }
+          });
         },
       });
     };
