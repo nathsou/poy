@@ -5,6 +5,7 @@ import { Expr } from './expr';
 import { Ref, ref } from '../../misc/utils';
 import { Attributes } from './attribute';
 import { Constructors, Impl } from '../../misc/traits';
+import { Pattern } from './pattern';
 
 export type Stmt = DataType<{
   Expr: { expr: Expr };
@@ -12,7 +13,7 @@ export type Stmt = DataType<{
     pub: boolean;
     static: boolean;
     mutable: boolean;
-    name: string;
+    lhs: Pattern;
     ann?: Type;
     value: Expr;
     attrs: Attributes;

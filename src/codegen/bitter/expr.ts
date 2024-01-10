@@ -1,11 +1,10 @@
-import { VariantOf, match } from 'itsamatch';
+import { match } from 'itsamatch';
 import { Expr as BitterExpr } from '../../ast/bitter/expr';
-import { Stmt as SweetStmt } from '../../ast/sweet/stmt';
+import { Stmt as BitterStmt } from '../../ast/bitter/stmt';
 import { Expr as SweetExpr } from '../../ast/sweet/expr';
 import { Pattern } from '../../ast/sweet/pattern';
 import { Type } from '../../infer/type';
-import { assert, panic } from '../../misc/utils';
-import { Literal } from '../../parse/token';
+import { array, assert, panic } from '../../misc/utils';
 import {
   ClauseMatrix,
   CtorMetadata,
@@ -13,7 +12,6 @@ import {
   Occurrence,
 } from '../decision-trees/ClauseMatrix';
 import { bitterStmtOf } from './stmt';
-import { EnumVariant } from '../../ast/sweet/decl';
 
 export function bitterExprOf(sweet: SweetExpr): BitterExpr {
   assert(sweet.ty != null, 'missing type after type inference');
@@ -45,13 +43,28 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
       }),
     Tuple: ({ elems }) => BitterExpr.Tuple({ elems: elems.map(bitterExprOf), ty }),
     Array: ({ elems }) => BitterExpr.Array({ elems: elems.map(bitterExprOf), ty }),
-    UseIn: ({ name, value, rhs }) =>
-      BitterExpr.UseIn({
-        name,
-        value: bitterExprOf(value),
-        rhs: bitterExprOf(rhs),
+    UseIn: ({ lhs, value, rhs }) => {
+      const { shared } = Pattern.variableOccurrences(lhs);
+      const stmts = array<BitterStmt>();
+
+      for (const [name, occ] of shared) {
+        stmts.push(
+          BitterStmt.Let({
+            mutable: false,
+            static: false,
+            name,
+            value: bitterExprOf(Occurrence.toExpr(occ, value)),
+            attrs: {},
+          }),
+        );
+      }
+
+      return BitterExpr.Block({
+        stmts,
+        ret: bitterExprOf(rhs),
         ty,
-      }),
+      });
+    },
     Fun: ({ args, body, isIterator }) =>
       BitterExpr.Fun({
         args: args.map(arg => ({ name: arg.name, ty: arg.ann! })),
@@ -180,9 +193,9 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
         // to avoid evaluating it multiple times
         return bitterExprOf(
           SweetExpr.UseIn({
-            name: 'x',
+            lhs: Pattern.Variable('x'),
             value: subject,
-            rhs: exprOfDecisionTree(
+            rhs: DecisionTree.toExpr(
               SweetExpr.Variable({
                 name: 'x',
                 typeParams: [],
@@ -197,7 +210,7 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
         );
       }
 
-      return bitterExprOf(exprOfDecisionTree(subject, dt, cases, sweet.ty!));
+      return bitterExprOf(DecisionTree.toExpr(subject, dt, cases, sweet.ty!));
     },
     VariantShorthand: ({ variantName, args, resolvedEnum }) => {
       assert(resolvedEnum != null, 'unresolved enum in variant shorthand');
@@ -213,198 +226,6 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
         ty,
       });
     },
-  });
-}
-
-function exprOfOccurence(occ: Occurrence, subject: SweetExpr): SweetExpr {
-  if (occ.length === 0) return subject;
-
-  const [head, ...tail] = occ;
-
-  return exprOfOccurence(
-    tail,
-    match(head, {
-      Index: index =>
-        SweetExpr.TupleAccess({
-          lhs: subject,
-          index,
-          ty: Type.DontCare,
-        }),
-      Field: field =>
-        SweetExpr.FieldAccess({
-          lhs: subject,
-          field,
-          isCalled: false,
-          isNative: false,
-          typeParams: [],
-          ty: Type.DontCare,
-        }),
-    }),
-  );
-}
-
-function getPatternTest(
-  lhs: SweetExpr,
-  ctor: string,
-  meta: CtorMetadata | undefined,
-): SweetExpr | null {
-  if (meta) {
-    return match(meta, {
-      Ctor: ({ kind }) => {
-        switch (kind) {
-          case 'Unit':
-            return SweetExpr.Binary({
-              op: '==',
-              lhs,
-              rhs: {
-                ...SweetExpr.Literal(Literal.Unit),
-                ty: Type.Unit,
-              },
-              ty: Type.Unit,
-            });
-          case 'Bool':
-            if (ctor === 'true') {
-              return lhs;
-            } else {
-              return SweetExpr.Unary({
-                op: '!',
-                expr: lhs,
-                ty: Type.Bool,
-              });
-            }
-          case 'Num':
-            return SweetExpr.Binary({
-              op: '==',
-              lhs,
-              rhs: {
-                ...SweetExpr.Literal(Literal.Num(Number(ctor))),
-                ty: Type.Num,
-              },
-              ty: Type.Num,
-            });
-          case 'Str':
-            return SweetExpr.Binary({
-              op: '==',
-              lhs,
-              rhs: {
-                ...SweetExpr.Literal(Literal.Str(ctor)),
-                ty: Type.Str,
-              },
-              ty: Type.Str,
-            });
-          case 'Tuple':
-            // the type checker ensures that the type of the lhs is a tuple of the same length
-            return null;
-        }
-
-        return panic(`Unknown ctor: ${kind}(${ctor})`);
-      },
-      Variant: ({ enumDecl }) => {
-        const variant = enumDecl.variants.find(v => v.name === ctor);
-        assert(variant != null);
-        const argCount = EnumVariant.countArguments(variant);
-
-        return SweetExpr.Binary({
-          op: '==',
-          lhs:
-            argCount === 0
-              ? lhs
-              : SweetExpr.FieldAccess({
-                  lhs,
-                  field: EnumVariant.TAG,
-                  isCalled: false,
-                  isNative: false,
-                  typeParams: [],
-                  ty: Type.Str,
-                }),
-          rhs: {
-            ...SweetExpr.Literal(Literal.Str(ctor)),
-            ty: Type.Str,
-          },
-          ty: Type.Bool,
-        });
-      },
-    });
-  }
-
-  return null;
-}
-
-function exprOfDecisionTree(
-  subject: SweetExpr,
-  dt: DecisionTree,
-  cases: VariantOf<SweetExpr, 'Match'>['cases'],
-  retTy: Type,
-): SweetExpr {
-  return match(dt, {
-    Leaf: ({ action }) => {
-      const { pattern, body } = cases[action];
-      const vars = Pattern.variableOccurrences(pattern);
-
-      if (vars.size === 0) {
-        return body;
-      }
-
-      const bindings = [...vars.entries()].map(([name, occ]) => ({
-        name,
-        value: exprOfOccurence(occ, subject),
-      }));
-
-      return SweetExpr.Block({
-        stmts: bindings.map(({ name, value }) =>
-          SweetStmt.Let({
-            name,
-            value,
-            attrs: {},
-            mutable: false,
-            static: false,
-            pub: false,
-          }),
-        ),
-        ty: retTy,
-        ret: body,
-      });
-    },
-    Switch: ({ occurrence, tests }) => {
-      if (tests.length === 0) {
-        return exprOfDecisionTree(subject, DecisionTree.Fail(), cases, retTy);
-      }
-
-      const [head, ...tail] = tests;
-
-      if (head.ctor === '_') {
-        return exprOfDecisionTree(subject, head.dt, cases, retTy);
-      }
-
-      const lhs = exprOfOccurence(occurrence, subject);
-      const cond = getPatternTest(lhs, head.ctor, head.meta);
-
-      if (cond == null) {
-        return exprOfDecisionTree(subject, head.dt, cases, retTy);
-      } else {
-        return SweetExpr.If({
-          cond,
-          then: exprOfDecisionTree(subject, head.dt, cases, retTy),
-          otherwise:
-            tail.length > 0
-              ? exprOfDecisionTree(
-                  subject,
-                  DecisionTree.Switch({
-                    occurrence,
-                    tests: tail,
-                  }),
-                  cases,
-                  retTy,
-                )
-              : undefined,
-          ty: retTy,
-        });
-      }
-    },
-    Fail: () => ({
-      ...SweetExpr.Literal(Literal.Str('Match fail')),
-      ty: Type.Str,
-    }),
   });
 }
 

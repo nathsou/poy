@@ -100,7 +100,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
   function raise(message: string): never {
     const { loc } = tokens[index];
     const start = loc?.start ?? 0;
-    const line = (newlines.findIndex(pos => pos > start) ?? 1) - 1;
+    const line = newlines.findIndex(pos => pos > start) ?? 0;
     const column = start - newlines[line];
     return panic(`Parse error: ${message} at ${line}:${column}`);
   }
@@ -446,14 +446,14 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
   }
 
   function useInExpr(): Expr {
-    const name = identifier();
+    const lhs = pattern();
     const ann = typeAnnotation();
     consume(Token.Symbol('='));
     const value = expr();
     consume(Token.Keyword('in'));
     const rhs = expr();
 
-    return Expr.UseIn({ name, ann, value, rhs });
+    return Expr.UseIn({ lhs, ann, value, rhs });
   }
 
   function ifExpr(): Expr {
@@ -940,7 +940,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
       pub: modifiers.pub,
       static: modifiers.static,
       mutable: false,
-      name,
+      lhs: Pattern.Variable(name),
       value,
       attrs,
     });
@@ -948,7 +948,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
 
   function letStmt(mutable: boolean): Stmt {
     const attrs = attribs.copy();
-    const name = identifier();
+    const lhs = pattern();
     const ann = typeAnnotation();
     consume(Token.Symbol('='));
     const value = expr();
@@ -958,7 +958,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
       pub: modifiers.pub,
       static: modifiers.static,
       mutable,
-      name,
+      lhs,
       ann,
       value,
       attrs,

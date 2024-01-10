@@ -83,25 +83,31 @@ export class TypeEnv {
   private inferLet(
     pub: boolean,
     mut: boolean,
-    name: string,
+    lhs: Pattern,
     ann: Type | undefined,
     value: Expr,
   ): Type {
+    if (!Pattern.isAlwaysMatched(lhs)) {
+      panic(`Pattern '${Pattern.show(lhs)}' can fail to match.`);
+    }
+
     this.letLevel += 1;
 
     let ty: Type;
     const rhsEnv = this.child();
-    let generics: string[] | undefined;
 
     if (value.variant === 'Fun') {
-      generics = value.generics;
       const recTy = rhsEnv.freshType();
-      rhsEnv.variables.declare(name, {
-        pub,
-        mut,
-        generics: value.generics,
-        ty: recTy,
-      });
+
+      if (lhs.variant === 'Variable') {
+        rhsEnv.variables.declare(lhs.name, {
+          pub,
+          mut,
+          generics: value.generics,
+          ty: recTy,
+        });
+      }
+
       const funTy = rhsEnv.inferFun(value);
       const funTyInst = Type.instantiate(funTy, rhsEnv.letLevel, rhsEnv.generics).ty;
       rhsEnv.unify(funTyInst, recTy);
@@ -117,10 +123,14 @@ export class TypeEnv {
     this.letLevel -= 1;
 
     // https://en.wikipedia.org/wiki/Value_restriction
-    const genTy = mut ? ty : Type.generalize(ty, this.letLevel);
-    this.variables.declare(name, { pub, mut, generics, ty: genTy });
+    const { vars, ty: patternTy } = rhsEnv.inferPattern(lhs, ty);
+    this.unify(ty, patternTy);
 
-    return genTy;
+    for (const [name, ty] of vars) {
+      this.variables.declare(name, { pub, mut, ty });
+    }
+
+    return mut ? ty : Type.generalize(ty, this.letLevel);
   }
 
   private inferFun(fun: VariantOf<Expr, 'Fun'>): Type {
@@ -368,15 +378,19 @@ export class TypeEnv {
             const extEnv = this.child();
             declareSelf(extEnv);
 
-            if (decl.variant === 'Stmt' && decl.stmt.variant === 'Let') {
-              const { pub, mutable, static: isStatic, name, ann, value, attrs } = decl.stmt;
+            if (
+              decl.variant === 'Stmt' &&
+              decl.stmt.variant === 'Let' &&
+              decl.stmt.lhs.variant === 'Variable'
+            ) {
+              const { pub, mutable, static: isStatic, lhs, ann, value, attrs } = decl.stmt;
               const generics: string[] = [];
 
               if (value.variant === 'Fun') {
                 generics.push(...value.generics);
               }
 
-              const ty = extEnv.inferLet(pub, mutable, name, ann, value);
+              const ty = extEnv.inferLet(pub, mutable, lhs, ann, value);
               extEnv.generics.substitute(globalSubst);
               const genTy = Type.parameterize(
                 mutable ? ty : Type.generalize(ty, this.letLevel),
@@ -392,7 +406,7 @@ export class TypeEnv {
 
               this.extensions.declare({
                 subject: subjectTy,
-                member: name,
+                member: lhs.name,
                 attrs,
                 generics,
                 ty: genTy,
@@ -474,14 +488,14 @@ export class TypeEnv {
       Expr: ({ expr }) => {
         this.inferExpr(expr);
       },
-      Let: ({ pub, mutable, name, ann, value }) => {
+      Let: ({ pub, mutable, lhs, ann, value }) => {
         const generics: string[] = [];
 
         if (value.variant === 'Fun') {
           generics.push(...value.generics);
         }
 
-        this.inferLet(pub, mutable, name, ann, value);
+        this.inferLet(pub, mutable, lhs, ann, value);
       },
       Assign: ({ lhs, op, rhs }) => {
         const alpha = Type.alpha();
@@ -753,9 +767,9 @@ export class TypeEnv {
         const elemTys = elems.map(elem => this.inferExpr(elem));
         return Type.Tuple(elemTys);
       },
-      UseIn: ({ name, ann, value, rhs }) => {
+      UseIn: ({ lhs, ann, value, rhs }) => {
         const rhsEnv = this.child();
-        rhsEnv.inferLet(false, false, name, ann, value);
+        rhsEnv.inferLet(false, false, lhs, ann, value);
         return rhsEnv.inferExpr(rhs);
       },
       Match: ({ subject, cases }) => {

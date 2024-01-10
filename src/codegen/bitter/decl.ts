@@ -7,6 +7,7 @@ import { bitterStmtOf } from './stmt';
 import { todo } from '../../misc/utils';
 import { Type } from '../../infer/type';
 import { Literal } from '../../parse/token';
+import assert from 'assert';
 
 export const bitterModuleOf = (sweet: ModuleDecl): VariantOf<BitterDecl, 'Module'> => {
   return BitterDecl.Module({
@@ -29,7 +30,8 @@ export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] =>
       for (const decl of decls) {
         if (decl.variant === 'Stmt' && decl.stmt.variant === 'Let') {
           const letStmt = { ...decl.stmt };
-          letStmt.name = `${letStmt.name}_${uuid}`;
+          assert(letStmt.lhs.variant === 'Variable');
+          letStmt.lhs.name = `${letStmt.lhs.name}_${uuid}`;
 
           if (letStmt.value.variant === 'Fun' && !letStmt.static) {
             letStmt.value.args.unshift({

@@ -16,7 +16,7 @@ export type Expr = DataType<{
   If: { cond: Expr; then: Expr; otherwise?: Expr };
   Tuple: { elems: Expr[] };
   Array: { elems: Expr[] };
-  UseIn: { name: string; ann?: Type; value: Expr; rhs: Expr };
+  UseIn: { lhs: Pattern; ann?: Type; value: Expr; rhs: Expr };
   Fun: {
     generics: string[];
     args: FunctionArgument[];
