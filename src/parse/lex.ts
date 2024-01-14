@@ -228,7 +228,7 @@ export const lex = (source: string): Token[] => {
         }
       }
       case '!':
-        return Token.Symbol('!');
+        return Token.Symbol(matches('=') ? '!=' : '!');
       case '=':
         return Token.Symbol(matches('=') ? '==' : matches('>') ? '=>' : '=');
       case '<':

@@ -219,7 +219,6 @@ extend Str {
     }
 }
 
-
 extend<a, b> (a[], b[]) {
     fun zip() {
         self.0.zip(self.1)

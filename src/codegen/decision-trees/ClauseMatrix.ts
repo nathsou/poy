@@ -8,6 +8,7 @@ import { Expr } from '../../ast/sweet/expr';
 import { Type } from '../../infer/type';
 import { Stmt } from '../../ast/sweet/stmt';
 import { Literal } from '../../parse/token';
+import { config } from '../../config';
 
 // Based on Compiling Pattern Matching to Good Decision Trees
 // http://moscova.inria.fr/~maranget/papers/ml05e-maranget.pdf
@@ -383,6 +384,10 @@ export class ClauseMatrix {
     isSignature: (heads: Map<string, { arity: number; meta?: CtorMetadata }>) => boolean,
   ): DecisionTree {
     if (this.height === 0) {
+      if (config.enforceExhaustiveMatch) {
+        panic('Non-exhaustive match expression.');
+      }
+
       return DecisionTree.Fail();
     }
 

@@ -94,7 +94,7 @@ export class TypeEnv {
     const rhsEnv = this.child();
 
     if (value.variant === 'Fun') {
-      const recTy = rhsEnv.freshType();
+      const recTy = ann ?? rhsEnv.freshType();
 
       if (lhs.variant === 'Variable') {
         rhsEnv.variables.declare(lhs.name, {
@@ -119,14 +119,17 @@ export class TypeEnv {
 
     this.letLevel -= 1;
 
-    // https://en.wikipedia.org/wiki/Value_restriction
     const { vars, ty: patternTy } = rhsEnv.inferPattern(lhs, ty);
     this.unify(ty, patternTy);
 
     for (const [name, ty] of vars) {
-      this.variables.declare(name, { pub, mut, ty });
+      // TODO: handle mutable subpatterns?
+      const isMut = false;
+      const genTy = isMut ? ty : Type.generalize(ty, this.letLevel);
+      this.variables.declare(name, { pub, mut, ty: genTy });
     }
 
+    // https://en.wikipedia.org/wiki/Value_restriction
     return mut ? ty : Type.generalize(ty, this.letLevel);
   }
 
@@ -356,14 +359,16 @@ export class TypeEnv {
             env.generics.declareMany(
               zip(
                 globalParams,
-                globalParams.map(name => Type.fresh(this.letLevel, name)),
+                globalParams.map(name => Type.fresh(env.letLevel, name)),
               ),
             );
+
             env.variables.declare('self', {
               pub: false,
               mut: false,
               ty: subject,
             });
+
             env.typeRules.set('Self', [
               {
                 pub: false,
@@ -391,6 +396,17 @@ export class TypeEnv {
 
               if (value.variant === 'Fun') {
                 generics.push(...value.generics);
+                // support recursive calls
+                extEnv.extensions.declare({
+                  subject,
+                  member: lhs.name,
+                  attrs,
+                  generics,
+                  ty: ann ?? extEnv.freshType(),
+                  declared: false,
+                  static: isStatic,
+                  uuid,
+                });
               }
 
               const ty = extEnv.inferLet(pub, mutable, lhs, ann, value);
@@ -399,6 +415,7 @@ export class TypeEnv {
                 mutable ? ty : Type.generalize(ty, this.letLevel),
                 extEnv.generics,
               );
+
               const subjectTy = Type.parameterize(
                 Type.generalize(
                   Type.substitute(extEnv.resolveType(subject), globalSubst),
@@ -747,8 +764,8 @@ export class TypeEnv {
       },
       Fun: fun => {
         const funEnv = this.child();
-        const ty = Type.instantiate(funEnv.inferFun(fun), this.letLevel, this.generics).ty;
-        return ty;
+        const genFunTy = funEnv.inferFun(fun);
+        return Type.instantiate(genFunTy, this.letLevel, this.generics).ty;
       },
       Call: ({ fun, args }) => {
         const funTy = this.inferExpr(fun);

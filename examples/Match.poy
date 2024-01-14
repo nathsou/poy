@@ -4,6 +4,7 @@ let a = match 3 {
     1 => "a",
     2 => "b",
     3 => "c",
+    _ => "?",
 }
 
 let b = match (9, 7) {
@@ -48,4 +49,40 @@ extend Vec2 {
 
 let m = Vec2 { x: 3, y: 5 }.add(Vec2 { x: 7, y: 11 })
 
-print((a, b, c, d, e, f, g, f.isSome(), g.isNone(), h, i, j, k, l, m))
+enum Expr {
+    num(Num),
+    add(Expr, Expr),
+    sub(Expr, Expr),
+    mul(Expr, Expr),
+    div(Expr, Expr),
+    equ(Expr, Expr),
+    neq(Expr, Expr),
+    lss(Expr, Expr),
+    gtr(Expr, Expr),
+}
+
+extend Bool {
+    fun toNum() {
+        if self { 1 } else { 0 }
+    }
+}
+
+extend Expr {  
+    fun eval() {
+        match self {
+            .num(n) => n,
+            .add(a, b) => a.eval() + b.eval(),
+            .sub(a, b) => a.eval() - b.eval(),
+            .mul(a, b) => a.eval() * b.eval(),
+            .div(a, b) => a.eval() / b.eval(),
+            .equ(a, b) => (a.eval() == b.eval()).toNum(),
+            .neq(a, b) => (a.eval() != b.eval()).toNum(),
+            .lss(a, b) => (a.eval() < b.eval()).toNum(),
+            .gtr(a, b) => (a.eval() > b.eval()).toNum(),
+        }
+    }
+}
+
+let n = .gtr(.add(.num(3), .mul(.num(5), .num(7))), .num(37)).eval()
+
+print((a, b, c, d, e, f, g, f.isSome(), g.isNone(), h, i, j, k, l, m, n))
