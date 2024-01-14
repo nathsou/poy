@@ -1,4 +1,4 @@
-import { DataType, constructors, match } from 'itsamatch';
+import { DataType, VariantOf, constructors, match } from 'itsamatch';
 import { Occurrence, OccurrenceComponent } from '../../codegen/decision-trees/ClauseMatrix';
 import { Constructors, Impl, Show } from '../../misc/traits';
 import { panic } from '../../misc/utils';
@@ -37,7 +37,13 @@ export const Pattern = {
   },
   Tuple: (args: Pattern[]): Pattern => Pattern.Ctor(`${args.length}`, args, 'Tuple'),
   Struct: (fields: { name: string; rhs?: Pattern }[]): Pattern => ({ variant: 'Struct', fields }),
-  variableOccurrences: (pat: Pattern) => {
+  variableOccurrences: (
+    pat: Pattern,
+    placeholderVar: { name: string; alreadyDeclared: boolean } = {
+      name: '$',
+      alreadyDeclared: false,
+    },
+  ) => {
     const vars = new Map<string, Occurrence>();
     const shared = new Map<string, Occurrence>();
 
@@ -78,12 +84,12 @@ export const Pattern = {
             const comp = OccurrenceComponent.Field(name);
             const subOcc = [...occ, comp];
             const sharedName = `${parent}_${name}`;
-            shared.set(sharedName, [OccurrenceComponent.Variable(parent), comp]);
 
             if (rhs) {
+              shared.set(sharedName, [OccurrenceComponent.Variable(parent), comp]);
               visit(rhs, subOcc, sharedName);
             } else {
-              setVar(name, subOcc);
+              shared.set(name, [OccurrenceComponent.Variable(parent), comp]);
             }
           });
         },
@@ -93,12 +99,34 @@ export const Pattern = {
     if (pat.variant === 'Variable') {
       shared.set(pat.name, []);
     } else {
-      shared.set('$', []);
-      visit(pat, [], '$');
+      if (!placeholderVar.alreadyDeclared) {
+        shared.set(placeholderVar.name, []);
+      }
+
+      visit(pat, [], placeholderVar.name);
     }
 
     return { vars, shared };
   },
+  variables: (pat: Pattern): Set<string> => {
+    const vars = new Set<string>();
+
+    const visit = (pat: Pattern) => {
+      match(pat, {
+        Any: () => {},
+        Variable: ({ name }) => vars.add(name),
+        Ctor: ({ args }) => args.forEach(visit),
+        Variant: ({ args }) => args.forEach(visit),
+        Struct: ({ fields }) =>
+          fields.forEach(({ name, rhs }) => (rhs ? visit(rhs) : vars.add(name))),
+      });
+    };
+
+    visit(pat);
+
+    return vars;
+  },
+  isVariable: (pat: Pattern): pat is VariantOf<Pattern, 'Variable'> => pat.variant === 'Variable',
   /**
    * returns true if the pattern is always matched, for all valid type instances.
    * for instance (a, b, _, { c }) always matches
@@ -116,12 +144,20 @@ export const Pattern = {
     match(pat, {
       Any: () => '_',
       Variable: ({ name }) => name,
-      Ctor: ({ name, args, meta }) => `${meta ?? name}(${args.map(Pattern.show).join(', ')})`,
+      Ctor: ({ name, args, meta }) => {
+        const lhsName = meta === 'Tuple' ? '' : name;
+
+        if (args.length === 0) {
+          return lhsName;
+        }
+
+        return `${lhsName}(${args.map(Pattern.show).join(', ')})`;
+      },
       Variant: ({ enumName, variantName, args }) =>
         `${enumName ?? ''}.${variantName}(${args.map(Pattern.show).join(', ')})`,
       Struct: ({ fields }) =>
-        `{${fields
+        `{ ${fields
           .map(({ name, rhs }) => (rhs ? `${name}: ${Pattern.show(rhs)}` : name))
-          .join(', ')}}`,
+          .join(', ')} }`,
     }),
 } satisfies Impl<Constructors<Pattern> & Show<Pattern>>;

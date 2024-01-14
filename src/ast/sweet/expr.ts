@@ -51,7 +51,7 @@ export type Expr = DataType<{
   VariantShorthand: { variantName: string; args: Expr[]; resolvedEnum?: EnumDecl };
 }> & { ty?: Type };
 
-export type FunctionArgument = { name: string; ann?: Type };
+export type FunctionArgument = { pat: Pattern; ann?: Type };
 
 export const Expr = {
   ...constructors<Expr>().get(
@@ -74,8 +74,8 @@ export const Expr = {
     'VariantShorthand',
   ),
   Literal: (literal: Literal): Expr => ({ variant: 'Literal', literal }) as const,
-  isMutable: (expr: Expr, env: TypeEnv): boolean => {
-    return match(expr, {
+  isMutable: (expr: Expr, env: TypeEnv): boolean =>
+    match(expr, {
       Variable: ({ name }) => env.variables.lookup(name).unwrap().mut ?? false,
       FieldAccess: ({ lhs, field }) => {
         if (!Expr.isMutable(lhs, env)) return false;
@@ -95,8 +95,7 @@ export const Expr = {
       Array: () => true,
       Struct: () => true,
       _: () => false,
-    });
-  },
+    }),
   // can this expression be copied without any side effects?
   isPurelyCopyable: (expr: Expr): boolean =>
     match(expr, {

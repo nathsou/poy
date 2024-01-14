@@ -1,11 +1,11 @@
 import { match } from 'itsamatch';
 import { Expr as BitterExpr } from '../../ast/bitter/expr';
 import { Stmt as BitterStmt } from '../../ast/bitter/stmt';
-import { Expr as JSExpr, BinaryOp as JSBinaryOp } from '../../ast/js/expr';
+import { BinaryOp as JSBinaryOp, Expr as JSExpr } from '../../ast/js/expr';
 import { Stmt as JSStmt } from '../../ast/js/stmt';
 import { Type } from '../../infer/type';
 import { assert } from '../../misc/utils';
-import { Literal, BinaryOp } from '../../parse/token';
+import { BinaryOp, Literal } from '../../parse/token';
 import { JSScope } from './jsScope';
 import { jsStmtOf } from './stmt';
 

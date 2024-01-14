@@ -1,7 +1,7 @@
 import { DataType, VariantOf, constructors, match } from 'itsamatch';
 import { Pattern } from '../../ast/sweet/pattern';
 import { Maybe, None, Some } from '../../misc/maybe';
-import { assert, count, gen, panic, repeat, swapMut } from '../../misc/utils';
+import { assert, count, gen, last, panic, repeat, swapMut } from '../../misc/utils';
 import { EnumDecl, EnumVariant } from '../../ast/sweet/decl';
 import { Constructors, Impl, Show } from '../../misc/traits';
 import { Expr } from '../../ast/sweet/expr';
@@ -179,7 +179,15 @@ export const DecisionTree = {
     return match(dt, {
       Leaf: ({ action }) => {
         const { pattern, body } = cases[action];
-        const { vars, shared } = Pattern.variableOccurrences(pattern);
+        const { vars, shared } = Pattern.variableOccurrences(
+          pattern,
+          subject.variant === 'Variable'
+            ? {
+                name: subject.name,
+                alreadyDeclared: true,
+              }
+            : undefined,
+        );
 
         if (vars.size === 0) {
           return body;
@@ -272,11 +280,11 @@ export class ClauseMatrix {
   rows: Pattern[][];
   actions: number[];
 
-  constructor(args: ClauseMatrixConstructor) {
-    this.rows = args.rows;
-    this.actions = args.actions;
-    this.height = args.rows.length;
-    this.width = args.rows.length > 0 ? args.rows[0].length : 0;
+  constructor({ rows, actions }: ClauseMatrixConstructor) {
+    this.rows = rows;
+    this.actions = actions;
+    this.height = rows.length;
+    this.width = rows.length > 0 ? rows[0].length : 0;
   }
 
   public getColumn(index: number): Pattern[] {
@@ -407,8 +415,7 @@ export class ClauseMatrix {
     } else if (tests.length > 1) {
       // if all cases are handled (i.e. it's a signature)
       // then the last test does not need to be checked
-      const lastTest = tests.pop()!;
-      tests.push({ ...lastTest, ctor: '_' });
+      last(tests).ctor = '_';
     }
 
     return DecisionTree.Switch({

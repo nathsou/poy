@@ -82,7 +82,7 @@ mut c = [a, b] // mut Num[] is not compatible with Num[]
 ### 8. Enums and Pattern Matching
 
 - [x] Enum declarations
-- [ ] Destructuring in let declarations, use expressions and function arguments
+- [x] Destructuring in let declarations, use expressions and function arguments
 - [x] Rewrite match expressions to decision trees
 - [x] Resolve enums with the shorthand `.member` syntax instead of `Struct.member`
 - [ ] Optimize decision trees

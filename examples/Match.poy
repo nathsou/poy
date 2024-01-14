@@ -38,4 +38,14 @@ let h = match (Yolo { a: 2, b: (3, 5) }, (7, (11, (13, 17)))) {
 let i = use (pi, d) = (3.1415926, 22) in d / pi
 let (j, (k, l)) = (3, ("yo", true))
 
-print((a, b, c, d, e, f, g, f.isSome(), g.isNone(), h, i, j, k, l))
+struct Vec2 { x: Num, y: Num }
+
+extend Vec2 {
+    fun add({ x, y }: Vec2) {
+        Vec2 { x: self.x + x, y: self.y + y }
+    }
+}
+
+let m = Vec2 { x: 3, y: 5 }.add(Vec2 { x: 7, y: 11 })
+
+print((a, b, c, d, e, f, g, f.isSome(), g.isNone(), h, i, j, k, l, m))

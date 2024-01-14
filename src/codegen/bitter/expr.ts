@@ -4,7 +4,7 @@ import { Stmt as BitterStmt } from '../../ast/bitter/stmt';
 import { Expr as SweetExpr } from '../../ast/sweet/expr';
 import { Pattern } from '../../ast/sweet/pattern';
 import { Type } from '../../infer/type';
-import { array, assert, panic } from '../../misc/utils';
+import { array, assert, block, panic } from '../../misc/utils';
 import {
   ClauseMatrix,
   CtorMetadata,
@@ -65,13 +65,55 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
         ty,
       });
     },
-    Fun: ({ args, body, isIterator }) =>
-      BitterExpr.Fun({
-        args: args.map(arg => ({ name: arg.name, ty: arg.ann! })),
-        body: bitterExprOf(body),
+    Fun: ({ args, body, isIterator }) => {
+      const renamedArgs = args.map((arg, idx) => ({
+        name: Pattern.isVariable(arg.pat) ? arg.pat.name : `arg${idx}`,
+        ty: arg.ann!,
+      }));
+
+      return BitterExpr.Fun({
+        args: renamedArgs,
+        body: block(() => {
+          if (args.every(arg => Pattern.isVariable(arg.pat))) {
+            return bitterExprOf(body);
+          }
+
+          const decls = array<BitterStmt>();
+
+          args.forEach((arg, idx) => {
+            if (!Pattern.isVariable(arg.pat)) {
+              const renamedArg = renamedArgs[idx];
+              const { shared } = Pattern.variableOccurrences(arg.pat, {
+                name: renamedArg.name,
+                alreadyDeclared: true,
+              });
+
+              const renamed = SweetExpr.Variable({ ...renamedArg, typeParams: [] });
+
+              for (const [name, occ] of shared) {
+                decls.push(
+                  BitterStmt.Let({
+                    mutable: false,
+                    static: false,
+                    name,
+                    value: bitterExprOf(Occurrence.toExpr(occ, renamed)),
+                    attrs: {},
+                  }),
+                );
+              }
+            }
+          });
+
+          return BitterExpr.Block({
+            stmts: decls,
+            ret: bitterExprOf(body),
+            ty,
+          });
+        }),
         isIterator,
         ty,
-      }),
+      });
+    },
     Call: ({ fun, args, ty }) => {
       if (fun.variant === 'FieldAccess' && fun.extensionUuid != null && !fun.isNative) {
         const { lhs, field, extensionUuid } = fun;

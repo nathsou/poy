@@ -410,28 +410,28 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
   }
 
   function functionArgument(): FunctionArgument {
-    const name = identifier();
+    const pat = pattern();
     const ann = typeAnnotation();
-    return { name, ann };
+    return { pat, ann };
   }
 
   function funExpr(isArrowFunction: boolean): Expr {
-    const res = attempt<Expr>(() => {
+    return attempt<Expr>(() => {
       let args: FunctionArgument[];
       let ret: Type | undefined;
       const generics = typeParams();
       const token = peek();
 
-      if (token.variant === 'Identifier') {
+      if (isArrowFunction && token.variant === 'Identifier') {
         next();
-        args = [{ name: token.$value }];
+        args = [{ pat: Pattern.Variable(token.$value) }];
       } else if (token.variant === 'Symbol' && token.$value === '(') {
         next();
         args = commas(functionArgument);
         consume(Token.Symbol(')'));
         ret = typeAnnotation();
       } else {
-        throw 'fail';
+        raise('Expected function arguments');
       }
 
       if (isArrowFunction) {
@@ -440,9 +440,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
 
       const body = expr();
       return Expr.Fun({ generics, args, ret, body, isIterator: false });
-    });
-
-    return res.orDefault(logicalOrExpr);
+    }).orDefault(logicalOrExpr);
   }
 
   function useInExpr(): Expr {
@@ -875,16 +873,18 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         switch (keyword) {
           case 'pub': {
             next();
+            const prevPub = modifiers.pub;
             modifiers.pub = true;
             const ret = stmt();
-            modifiers.pub = false;
+            modifiers.pub = prevPub;
             return ret;
           }
           case 'static': {
             next();
+            const prevStatic = modifiers.static;
             modifiers.static = true;
             const ret = stmt();
-            modifiers.static = false;
+            modifiers.static = prevStatic;
             return ret;
           }
           case 'let':

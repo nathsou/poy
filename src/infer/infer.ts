@@ -87,10 +87,7 @@ export class TypeEnv {
     ann: Type | undefined,
     value: Expr,
   ): Type {
-    if (!Pattern.isAlwaysMatched(lhs)) {
-      panic(`Pattern '${Pattern.show(lhs)}' can fail to match.`);
-    }
-
+    this.validateDestructuringPattern(lhs);
     this.letLevel += 1;
 
     let ty: Type;
@@ -135,24 +132,30 @@ export class TypeEnv {
 
   private inferFun(fun: VariantOf<Expr, 'Fun'>): Type {
     const { generics, args, body, ret } = fun;
-    const params = zip(
-      generics,
-      generics.map(() => this.freshType()),
+    this.generics.declareMany(
+      zip(
+        generics,
+        generics.map(() => this.freshType()),
+      ),
     );
-    this.generics.declareMany(params);
-
     const argTys = args.map(arg => arg.ann ?? this.freshType());
     const returnTy = this.resolveType(ret ?? this.freshType());
     const retTyInfo = { ty: returnTy, isIterator: false };
     this.functionStack.push(retTyInfo);
 
-    args.forEach(({ name }, i) => {
-      this.variables.declare(name, {
-        ty: this.resolveType(argTys[i]),
-        generics,
-      });
+    args.forEach(({ pat }, i) => {
+      this.validateDestructuringPattern(pat);
+      const { vars, ty } = this.inferPattern(pat, argTys[i]);
 
-      args[i].ann = argTys[i];
+      for (const [varName, varTy] of vars) {
+        this.variables.declare(varName, {
+          pub: false,
+          mut: false,
+          ty: varTy,
+        });
+      }
+
+      args[i].ann = ty;
     });
 
     const funTy = TypeVar.context.record(subst => {
@@ -648,6 +651,12 @@ export class TypeEnv {
     }
 
     return [];
+  }
+
+  private validateDestructuringPattern(pattern: Pattern) {
+    if (!Pattern.isAlwaysMatched(pattern)) {
+      panic(`Pattern '${Pattern.show(pattern)}' can fail to match.`);
+    }
   }
 
   public inferExpr(expr: Expr): Type {

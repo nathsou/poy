@@ -1,3 +1,5 @@
+import { DataType } from 'itsamatch';
+
 export type Ref<T> = { ref: T };
 export const ref = <T>(ref: T): Ref<T> => ({ ref });
 
@@ -43,6 +45,11 @@ export const last = <T>(elems: T[]): T => {
   }
 
   return elems[elems.length - 1];
+};
+
+export const lastIndex = <T>(elems: T[]): number => {
+  assert(elems.length > 0, 'called lastIndex with an empty array');
+  return elems.length - 1;
 };
 
 export const zip = <A, B>(as: readonly A[], bs: readonly B[], checkSameLength = true): [A, B][] => {

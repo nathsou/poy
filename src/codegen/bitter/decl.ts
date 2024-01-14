@@ -8,6 +8,7 @@ import { todo } from '../../misc/utils';
 import { Type } from '../../infer/type';
 import { Literal } from '../../parse/token';
 import assert from 'assert';
+import { Pattern } from '../../ast/sweet/pattern';
 
 export const bitterModuleOf = (sweet: ModuleDecl): VariantOf<BitterDecl, 'Module'> => {
   return BitterDecl.Module({
@@ -35,7 +36,7 @@ export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] =>
 
           if (letStmt.value.variant === 'Fun' && !letStmt.static) {
             letStmt.value.args.unshift({
-              name: 'self',
+              pat: Pattern.Variable('self'),
               ann: subject,
             });
           }
