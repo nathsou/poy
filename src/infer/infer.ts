@@ -5,7 +5,7 @@ import { Stmt } from '../ast/sweet/stmt';
 import { Maybe } from '../misc/maybe';
 import { Scope, TypeParamScope } from '../misc/scope';
 import { setDifference, uniq } from '../misc/sets';
-import { array, block, gen, last, panic, proj, todo, zip } from '../misc/utils';
+import { array, assert, block, gen, last, panic, proj, todo, zip } from '../misc/utils';
 import { AssignmentOp, BinaryOp, UnaryOp } from '../parse/token';
 import { Module, ModulePath, Resolver } from '../resolve/resolve';
 import { ExtensionScope } from './extensions';
@@ -13,7 +13,6 @@ import { TRS } from './rewrite';
 import { Subst, Type, TypeVar } from './type';
 import { Pattern } from '../ast/sweet/pattern';
 import { Err, Ok, Result } from '../misc/result';
-import assert from 'assert';
 
 type VarInfo = {
   pub?: boolean;
@@ -671,7 +670,7 @@ export class TypeEnv {
   }
 
   private validateDestructuringPattern(pattern: Pattern) {
-    if (!Pattern.isAlwaysMatched(pattern)) {
+    if (!Pattern.isIrrefutable(pattern)) {
       panic(`Pattern '${Pattern.show(pattern)}' can fail to match.`);
     }
   }
@@ -1086,7 +1085,7 @@ export class TypeEnv {
               case 'Unit':
                 return Type.Unit;
               case 'Tuple': {
-                assert(ty.variant === 'Fun' && ty.name === 'Tuple');
+                assert(ty.variant === 'Fun' && ty.name === 'Tuple', 'Tuple pattern must be used with a tuple type');
                 const elems = Type.utils.unlist(ty.args[0]);
                 return Type.Tuple(pat.args.map((arg, idx) => aux(arg, elems[idx])));
               }
@@ -1094,7 +1093,7 @@ export class TypeEnv {
                 return panic(`Unknown meta type: '${pat.meta}'`);
             }
           } else {
-            assert(ty.variant === 'Fun' && ty.name === pat.name);
+            assert(ty.variant === 'Fun' && ty.name === pat.name, 'Ctor pattern must be used with a ctor type');
             return Type.Fun(
               pat.name,
               pat.args.map((arg, idx) => aux(arg, ty.args[idx])),
@@ -1102,13 +1101,12 @@ export class TypeEnv {
           }
         }
         case 'Variant': {
-          assert(ty.variant === 'Fun');
           const enumName = block(() => {
             if (pat.enumName != null) {
               return pat.enumName;
             }
 
-            if (this.enums.has(ty.name)) {
+            if (ty.variant === 'Fun' && this.enums.has(ty.name)) {
               return ty.name;
             }
 

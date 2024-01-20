@@ -1,4 +1,3 @@
-import { DataType } from 'itsamatch';
 
 export type Ref<T> = { ref: T };
 export const ref = <T>(ref: T): Ref<T> => ({ ref });
@@ -52,6 +51,16 @@ export const lastIndex = <T>(elems: T[]): number => {
   return elems.length - 1;
 };
 
+export const first = <T>(elems: Iterable<T>): T => {
+  const fst = elems[Symbol.iterator]().next();
+
+  if (fst.done) {
+    panic('called first with an empty iterable');
+  }
+
+  return fst.value;
+};
+
 export const zip = <A, B>(as: readonly A[], bs: readonly B[], checkSameLength = true): [A, B][] => {
   if (checkSameLength && as.length !== bs.length) {
     panic(`called zip with arrays of different lengths: ${as.length} and ${bs.length}`);
@@ -80,9 +89,13 @@ export const indices = <T>(vals: T[], pred: (val: T) => boolean): number[] => {
 };
 
 export const pushMap = <K, V>(map: Map<K, V[]>, key: K, value: V): void => {
-  const values = map.get(key) ?? [];
-  values.push(value);
-  map.set(key, values);
+  const values = map.get(key);
+  
+  if (values) {
+    values.push(value);
+  } else {
+    map.set(key, [value]);
+  }
 };
 
 export function* indexed<T>(elems: Iterable<T>): Iterable<[T, number]> {
@@ -147,4 +160,30 @@ export function count<T>(it: Iterable<T>, pred: (val: T) => boolean): number {
 
 export function uuid(): string {
   return Math.random().toString(36).slice(2);
+}
+
+export function sum(elems: Iterable<number>): number {
+  let sum = 0;
+
+  for (const elem of elems) {
+    sum += elem;
+  }
+
+  return sum;
+}
+
+export function* map<A, B>(iter: IterableIterator<A>, f: (elem: A) => B): Iterable<B> {
+  for (const n of iter) {
+    yield f(n);
+  }
+}
+
+export function* range(start: number, end: number): Iterable<number> {
+  for (let i = start; i < end; i += 1) {
+    yield i;
+  }
+}
+
+export function rangeInclusive(start: number, end: number): Iterable<number> {
+  return range(start, end + 1);
 }

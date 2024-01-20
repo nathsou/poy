@@ -1,14 +1,30 @@
 import { DataType, VariantOf, constructors, match } from 'itsamatch';
-import { Pattern } from '../../ast/sweet/pattern';
-import { Maybe, None, Some } from '../../misc/maybe';
-import { assert, count, gen, last, panic, repeat, swapMut } from '../../misc/utils';
 import { EnumDecl, EnumVariant } from '../../ast/sweet/decl';
-import { Constructors, Impl, Show } from '../../misc/traits';
 import { Expr } from '../../ast/sweet/expr';
-import { Type } from '../../infer/type';
+import { Pattern } from '../../ast/sweet/pattern';
 import { Stmt } from '../../ast/sweet/stmt';
-import { Literal } from '../../parse/token';
 import { config } from '../../config';
+import { Type } from '../../infer/type';
+import { Maybe, None, Some } from '../../misc/maybe';
+import { setIntersectionMut } from '../../misc/sets';
+import { Constructors, Impl, Show } from '../../misc/traits';
+import {
+  array,
+  assert,
+  count,
+  first,
+  gen,
+  indices,
+  last,
+  map,
+  panic,
+  proj,
+  range,
+  repeat,
+  sum,
+  swapMut,
+} from '../../misc/utils';
+import { Literal } from '../../parse/token';
 
 // Based on Compiling Pattern Matching to Good Decision Trees
 // http://moscova.inria.fr/~maranget/papers/ml05e-maranget.pdf
@@ -275,6 +291,8 @@ type ClauseMatrixConstructor = {
   actions: number[];
 };
 
+type SignatureCheckFn = (heads: Map<string, { arity: number; meta?: CtorMetadata }>) => boolean;
+
 export class ClauseMatrix {
   width: number;
   height: number;
@@ -296,15 +314,13 @@ export class ClauseMatrix {
     this.rows.forEach(row => {
       swapMut(row, i, j);
     });
-
-    swapMut(this.actions, i, j);
   }
 
-  public heads(column: number): Map<string, { arity: number; meta?: CtorMetadata }> {
+  public heads(columnIndex: number): Map<string, { arity: number; meta?: CtorMetadata }> {
     const heads = new Map<string, { arity: number; meta?: CtorMetadata }>();
 
     for (const row of this.rows) {
-      const head = row[column];
+      const head = row[columnIndex];
       match(head, {
         Ctor: ({ args, meta, name }) => {
           heads.set(name, {
@@ -378,10 +394,34 @@ export class ClauseMatrix {
     return this.build(defaultRow);
   }
 
+  // P/ω
+  public withoutColumn(columnIndex: number): ClauseMatrix {
+    return new ClauseMatrix({
+      rows: this.rows.map(row => row.filter((_, i) => i !== columnIndex)),
+      actions: this.actions,
+    });
+  }
+
+  public isRowUseless(rowIndex: number): boolean {
+    for (let col = 0; col < this.width; col += 1) {
+      if (!Pattern.isRedundant(rowIndex, this.getColumn(col))) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  // Compiling Pattern Matching to Good Decision Trees, section 7.1, proposition 2
+  public isPatternNeeded(row: number, col: number): boolean {
+    if (!Pattern.isAnyOrVariable(this.rows[row][col])) return true;
+    return this.withoutColumn(col).isRowUseless(row);
+  }
+
   public compile(
     occurrences: Occurrence[],
-    selectColumn: (matrix: ClauseMatrix) => number,
-    isSignature: (heads: Map<string, { arity: number; meta?: CtorMetadata }>) => boolean,
+    isSignature: SignatureCheckFn,
+    selectColumn: (matrix: ClauseMatrix) => number = pbaHeuristic,
   ): DecisionTree {
     if (this.height === 0) {
       if (config.enforceExhaustiveMatch) {
@@ -395,9 +435,9 @@ export class ClauseMatrix {
       return DecisionTree.Leaf({ action: this.actions[0] });
     }
 
-    const colIndex = selectColumn(this);
-    this.swap(0, colIndex);
-    swapMut(occurrences, 0, colIndex);
+    const columnIndex = selectColumn(this);
+    this.swap(0, columnIndex);
+    swapMut(occurrences, 0, columnIndex);
     const heads = this.heads(0);
     const tests: VariantOf<DecisionTree, 'Switch'>['tests'] = [];
 
@@ -407,14 +447,14 @@ export class ClauseMatrix {
         ...gen(arity, i => [...occurrences[0], OccurrenceComponent.Index(i)]),
         ...occurrences.slice(1),
       ];
-      const Ak = specialized.compile(subOccurrences, selectColumn, isSignature);
+      const Ak = specialized.compile(subOccurrences, isSignature, selectColumn);
 
       tests.push({ ctor, meta, dt: Ak });
     }
 
     if (!isSignature(heads)) {
       const subOccurrences = occurrences.slice(1);
-      const Ad = this.defaulted().compile(subOccurrences, selectColumn, isSignature);
+      const Ad = this.defaulted().compile(subOccurrences, isSignature, selectColumn);
 
       tests.push({ ctor: '_', dt: Ad });
     } else if (tests.length > 1) {
@@ -429,3 +469,71 @@ export class ClauseMatrix {
     });
   }
 }
+
+// returns the selected columns indices
+type ColumnSelectionHeuristic = (matrix: ClauseMatrix) => number[];
+
+function heuristicFromScoreFn(
+  scoreFn: (matrix: ClauseMatrix, columnIndex: number) => number,
+): ColumnSelectionHeuristic {
+  return matrix => {
+    const scores = array<number>();
+    let maxScore = -Infinity;
+
+    for (let i = 0; i < matrix.width; i += 1) {
+      const score = scoreFn(matrix, i);
+      maxScore = Math.max(maxScore, score);
+      scores.push(score);
+    }
+
+    return indices(scores, score => score === maxScore);
+  };
+}
+
+const heuristics = {
+  // p
+  neededPrefix: heuristicFromScoreFn((matrix, col) => {
+    const allNeeded = (upToRow: number): boolean => {
+      for (let row = 0; row <= upToRow; row += 1) {
+        if (!matrix.isPatternNeeded(row, col)) return false;
+      }
+
+      return true;
+    };
+
+    for (let row = matrix.height - 1; row >= 0; row -= 1) {
+      if (allNeeded(row)) return row;
+    }
+
+    return 0;
+  }),
+  // b
+  smallBranchingFactor: heuristicFromScoreFn((matrix, col) => {
+    // matrix.heads(col) is required to be a signature
+    return -matrix.heads(col).size;
+  }),
+  // a
+  arity: heuristicFromScoreFn((matrix, col) => {
+    return -sum(map(matrix.heads(col).values(), proj('arity')));
+  }),
+} satisfies Record<string, ColumnSelectionHeuristic>;
+
+function combineHeuristics(heuristics: ColumnSelectionHeuristic[]) {
+  return (matrix: ClauseMatrix): number => {
+    const selected = new Set(range(0, matrix.width));
+
+    for (const heuristic of heuristics) {
+      if (selected.size === 1) break;
+      setIntersectionMut(selected, heuristic(matrix));
+    }
+
+    // return the first suitable column
+    return first(selected);
+  };
+}
+
+const pbaHeuristic = combineHeuristics([
+  heuristics.neededPrefix, // p
+  heuristics.smallBranchingFactor, // b
+  heuristics.arity, // a
+]);

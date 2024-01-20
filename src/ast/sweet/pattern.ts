@@ -1,4 +1,4 @@
-import { DataType, VariantOf, constructors, match } from 'itsamatch';
+import { DataType, VariantOf, constructors, match, matchMany } from 'itsamatch';
 import { Occurrence, OccurrenceComponent } from '../../codegen/decision-trees/ClauseMatrix';
 import { Constructors, Impl, Show } from '../../misc/traits';
 import { panic } from '../../misc/utils';
@@ -37,13 +37,13 @@ export const Pattern = {
   },
   Tuple: (args: Pattern[]): Pattern => Pattern.Ctor(`${args.length}`, args, 'Tuple'),
   Struct: (fields: { name: string; rhs?: Pattern }[]): Pattern => ({ variant: 'Struct', fields }),
-  variableOccurrences: (
+  variableOccurrences(
     pat: Pattern,
     placeholderVar: { name: string; alreadyDeclared: boolean } = {
       name: '$',
       alreadyDeclared: false,
     },
-  ) => {
+  ) {
     const vars = new Map<string, Occurrence>();
     const shared = new Map<string, Occurrence>();
 
@@ -108,7 +108,7 @@ export const Pattern = {
 
     return { vars, shared };
   },
-  variables: (pat: Pattern): Set<string> => {
+  variables(pat: Pattern): Set<string> {
     const vars = new Set<string>();
 
     const visit = (pat: Pattern) => {
@@ -127,19 +127,71 @@ export const Pattern = {
     return vars;
   },
   isVariable: (pat: Pattern): pat is VariantOf<Pattern, 'Variable'> => pat.variant === 'Variable',
+  isAnyOrVariable: (pat: Pattern): pat is VariantOf<Pattern, 'Any' | 'Variable'> => {
+    return pat.variant === 'Any' || pat.variant === 'Variable';
+  },
   /**
    * returns true if the pattern is always matched, for all valid type instances.
    * for instance (a, b, _, { c }) always matches
    * instances of the type (Num, Str, Bool, { c: Num, d: Str })
    */
-  isAlwaysMatched: (pat: Pattern): boolean =>
-    match(pat, {
+  isIrrefutable(pat: Pattern): boolean {
+    return match(pat, {
       Any: () => true,
       Variable: () => true,
-      Ctor: ({ args, meta }) => meta === 'Tuple' && args.every(Pattern.isAlwaysMatched),
+      Ctor: ({ args, meta }) => meta === 'Tuple' && args.every(Pattern.isIrrefutable),
       Variant: () => false,
-      Struct: ({ fields }) => fields.every(({ rhs }) => !rhs || Pattern.isAlwaysMatched(rhs)),
-    }),
+      Struct: ({ fields }) => fields.every(({ rhs }) => !rhs || Pattern.isIrrefutable(rhs)),
+    });
+  },
+  isMoreGeneral(pat1: Pattern, pat2: Pattern): boolean {
+    if (Pattern.isAnyOrVariable(pat1)) return true;
+    if (Pattern.isAnyOrVariable(pat2)) return false;
+    
+    return matchMany([pat1, pat2], {
+      'Ctor Ctor': ({ args: args1, meta: meta1 }, { args: args2, meta: meta2 }) => {
+        if (meta1 !== meta2) return false;
+        if (args1.length !== args2.length) return false;
+
+        return args1.every((arg1, idx) => Pattern.isMoreGeneral(arg1, args2[idx]));
+      },
+      'Struct Struct': ({ fields: fields1 }, { fields: fields2 }) => {
+        if (fields1.length !== fields2.length) return false;
+
+        return fields1.every(({ name: name1, rhs: rhs1 }) => {
+          const field2 = fields2.find(({ name: name2 }) => name1 === name2);
+          if (!field2) return false;
+          if (!rhs1) return true;
+
+          return Pattern.isMoreGeneral(rhs1, field2.rhs!);
+        });
+      },
+      'Variant Variant': ({ variantName: variantName1, args: args1 }, { variantName: variantName2, args: args2 }) => {
+        if (variantName1 !== variantName2) return false;
+        if (args1.length !== args2.length) return false;
+
+        return args1.every((arg1, idx) => Pattern.isMoreGeneral(arg1, args2[idx]));
+      },
+      _: () => panic('isMoreGeneral: Non-any patterns must be of the same variant'),
+    });
+  },
+  // see "The Definition of Standard ML", Milner et al. 1990, 4.11, item 2:
+  // In a match of the form pat_1 => exp_1 | ··· | pat_n => exp_n
+  // the pattern sequence pat_1 ,..., pat_n
+  // should be irredundant; that is, each pat j must
+  // match some value (of the right type) which is not matched by pat_i
+  // for any i < j.
+  isRedundant(index: number, patterns: Pattern[]): boolean {
+    const pat = patterns[index];
+
+    for (let i = 0; i < index; i += 1) {
+      if (Pattern.isMoreGeneral(patterns[i], pat)) {
+        return true;
+      }
+    }
+
+    return false;
+  },
   show: (pat: Pattern): string =>
     match(pat, {
       Any: () => '_',

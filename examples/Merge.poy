@@ -1,0 +1,25 @@
+import Foundations { print }
+
+enum List<t> { nil, cons(t, List<t>) }
+
+extend<t> List<t> {
+    fun len() {
+        match self {
+            .nil => 0,
+            .cons(head, tail) => 1 + tail.len(),
+        }
+    }
+
+    fun merge(ys) {
+        match (self, ys) {
+            (.nil, _) => ys,
+            (_, .nil) => self,
+            (.cons(x, rx), _) => .cons(x, rx.merge(ys)), 
+        }
+    }
+}
+
+let xs = .cons(1, .cons(2, .cons(3, .nil)))
+let ys = .cons(4, .cons(5, .nil))
+
+print(xs.merge(ys).len())

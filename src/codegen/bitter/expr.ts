@@ -209,20 +209,8 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
         }
       }
 
-      const selectColumn = (matrix: ClauseMatrix) => {
-        for (let i = 0; i < matrix.width; i++) {
-          const col = matrix.getColumn(i);
-          if (col.some(p => p.variant !== 'Any')) {
-            return i;
-          }
-        }
-
-        return panic('no column found');
-      };
-
       const dt = cm.compile(
         cm.actions.map(() => []),
-        selectColumn,
         isSignature,
       );
 
@@ -235,11 +223,11 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
         // to avoid evaluating it multiple times
         return bitterExprOf(
           SweetExpr.UseIn({
-            lhs: Pattern.Variable('x'),
+            lhs: Pattern.Variable('$subject'),
             value: subject,
             rhs: DecisionTree.toExpr(
               SweetExpr.Variable({
-                name: 'x',
+                name: '$subject',
                 typeParams: [],
                 ty: subject.ty!,
               }),

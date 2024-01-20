@@ -98,7 +98,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
   }
 
   function raise(message: string): never {
-    const { loc } = tokens[index];
+    const loc = tokens[index]?.loc;
     const start = loc?.start ?? 0;
     const line = newlines.findIndex(pos => pos > start) ?? 0;
     const column = start - newlines[line];

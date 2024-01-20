@@ -24,6 +24,24 @@ export function setIntersection<T>(a: Set<T>, b: Set<T>): Set<T> {
   return result;
 }
 
+export type Container<T> = Set<T> | Map<T, unknown> | T[];
+
+export function contains<T>(container: Container<T>, item: T): boolean {
+  if (Array.isArray(container)) {
+    return container.includes(item);
+  } else {
+    return container.has(item);
+  }
+}
+
+export function setIntersectionMut<T>(a: Set<T>, b: Container<T>): void {
+  for (const item of a) {
+    if (!contains(b, item)) {
+      a.delete(item);
+    }
+  }
+}
+
 export type SetLike<T> = Set<T> | Map<T, unknown>;
 
 export function setEquals<T>(as: SetLike<T>, bs: SetLike<T>): boolean {

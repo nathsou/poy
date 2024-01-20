@@ -85,7 +85,9 @@ mut c = [a, b] // mut Num[] is not compatible with Num[]
 - [x] Destructuring in let declarations, use expressions and function arguments
 - [x] Rewrite match expressions to decision trees
 - [x] Resolve enums with the shorthand `.member` syntax instead of `Struct.member`
-- [ ] Optimize decision trees
+- [x] Optimize decision trees
+- [ ] Support multiple subjects (without using a tuple): match xs, ys { a, b => ... }
+- [ ] Support or patterns: match x { p1a | p1b => exp1 }
 
 ### 9. String template literals
 
@@ -93,9 +95,11 @@ mut c = [a, b] // mut Num[] is not compatible with Num[]
 
 - [ ] Implicitely import the foundations
 - [ ] Improve error messages
+- [ ] Make type parameters uppercase
 - [ ] Identify improvement areas and clean up:
   1. Refactor generics (look at OCaml)
   2. Refactor and simplify type rewriting
+  3. Remove all uses of Math.random (uuid)
 - [ ] Optimize pattern matching (+ eliminate `Option` type overhead)
 - [ ] Improve emitted JS readability
 - [ ] Create an interactive web playground

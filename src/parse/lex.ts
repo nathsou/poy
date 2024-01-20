@@ -40,7 +40,7 @@ export const lex = (source: string): Token[] => {
   }
 
   function isAlpha(char: Char): boolean {
-    return (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z');
+    return (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || char === '_';
   }
 
   function isAlphaNumeric(char: Char): boolean {
