@@ -185,7 +185,14 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
           value: jsExprOf(value, scope),
         })),
       }),
-    FieldAccess: ({ lhs, field }) => JSExpr.Dot(jsExprOf(lhs, scope), field),
+    FieldAccess: ({ lhs, field }) => {
+      // 3.toString() is not valid, so we need to wrap the literal in parentheses
+      if (lhs.variant === 'Literal' && lhs.literal.variant === 'Num') {
+        return JSExpr.Dot(JSExpr.Paren(jsExprOf(lhs, scope)), field);
+      }
+
+      return JSExpr.Dot(jsExprOf(lhs, scope), field);
+    },
   });
 }
 
@@ -197,6 +204,8 @@ function jsBinaryOpOf(op: BinaryOp): JSBinaryOp {
       return '||';
     case 'mod':
       return '%';
+    case '++':
+      return '+';
     default:
       return op;
   }

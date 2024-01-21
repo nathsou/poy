@@ -1,5 +1,5 @@
-import { match } from 'itsamatch';
-import { Keyword, Literal, Token } from './token';
+import { VariantOf, match } from 'itsamatch';
+import { Keyword, Literal, StringInterpolationPart, Token } from './token';
 import { Backtick } from '../misc/strings';
 
 type Char = string;
@@ -73,22 +73,69 @@ export const lex = (source: string): Token[] => {
   }
 
   function parseStr(): Token {
+    const parts: StringInterpolationPart[] = [];
+    let lastIndex = index;
+
+    const addPart = (part: StringInterpolationPart) => {
+      if (
+        (part.variant === 'Expr' && part.tokens.length > 0) ||
+        (part.variant === 'Str' && part.value.length > 0)
+      ) {
+        parts.push(part);
+      }
+    };
+
     while (peek() !== '"' && !isAtEnd()) {
       if (peek() === '\\') {
+        if (peek(1) === '(') {
+          addPart({ variant: 'Str', value: source.slice(lastIndex, index) });
+          next();
+          next();
+          let depth = 1;
+          let start = index;
+
+          while (!isAtEnd()) {
+            const c = peek();
+            if (c === '(') {
+              depth += 1;
+            } else if (c === ')') {
+              depth -= 1;
+
+              if (depth === 0) {
+                const value = source.slice(start, index);
+                const tokens = lex(value);
+                addPart({ variant: 'Expr', tokens });
+                next();
+                lastIndex = index;
+                break;
+              }
+            }
+
+            next();
+          }
+        } else {
+          // escape character
+          next();
+          next();
+        }
+      } else {
         next();
       }
-
-      next();
     }
 
     if (isAtEnd()) {
       throw new Error('Unterminated string.');
     }
 
+    addPart({ variant: 'Str', value: source.slice(lastIndex, index) });
+
     next();
 
-    const str = source.slice(startIndex + 1, index - 1);
-    return Token.Literal(Literal.Str(str));
+    if (parts.length === 1 && parts[0].variant === 'Str') {
+      return Token.Literal(Literal.Str(parts[0].value));
+    }
+
+    return Token.StringInterpolation({ parts });
   }
 
   function parseIdentifierOrKeyword(): Token {
@@ -209,7 +256,7 @@ export const lex = (source: string): Token[] => {
       case ';':
         return Token.Symbol(';');
       case '+':
-        return Token.Symbol(matches('=') ? '+=' : '+');
+        return Token.Symbol(matches('=') ? '+=' : matches('+') ? '++' : '+');
       case '-':
         return Token.Symbol(matches('>') ? '->' : matches('=') ? '-=' : '-');
       case '*':

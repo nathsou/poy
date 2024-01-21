@@ -67,11 +67,11 @@ export class TypeEnv {
     return TRS.normalize(this, ty);
   }
 
-  private unify(s: Type, t: Type): void {
+  private unify(s: Type, t: Type, message?: string): void {
     const unifiable = Type.unify(this.normalize(s), this.normalize(t), this.generics);
 
     if (!unifiable) {
-      panic(`Cannot unify '${Type.show(s)}' with '${Type.show(t)}'`);
+      panic(message ?? `Cannot unify '${Type.show(s)}' with '${Type.show(t)}'`);
     }
   }
 
@@ -728,6 +728,7 @@ export class TypeEnv {
           or: [Type.Bool, Type.Bool, Type.Bool],
           '&': [Type.Num, Type.Num, Type.Num],
           '|': [Type.Num, Type.Num, Type.Num],
+          '++': [Type.Str, Type.Str, Type.Str],
         };
 
         const [lhsExpected, rhsExpected, retTy] = BINARY_OP_TYPE[op].map(ty =>
@@ -1022,6 +1023,16 @@ export class TypeEnv {
           },
           Error: panic,
         });
+      },
+      StringInterpolation: ({ parts }) => {
+        for (const part of parts) {
+          if (part.variant === 'Expr') {
+            const exprTy = this.inferExpr(part.expr);
+            this.unify(exprTy, Type.Str, 'Each component of a string interpolation must be a string');
+          }
+        }
+
+        return Type.Str;
       },
     });
 

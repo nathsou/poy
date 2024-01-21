@@ -49,6 +49,7 @@ export type Expr = DataType<{
   TupleAccess: { lhs: Expr; index: number };
   Match: { subject: Expr; cases: { pattern: Pattern; body: Expr }[] };
   VariantShorthand: { variantName: string; args: Expr[]; resolvedEnum?: EnumDecl };
+  StringInterpolation: { parts: StringInterpolationPart[] };
 }> & { ty?: Type };
 
 export type FunctionArgument = { pat: Pattern; ann?: Type };
@@ -72,6 +73,7 @@ export const Expr = {
     'TupleAccess',
     'Match',
     'VariantShorthand',
+    'StringInterpolation',
   ),
   Literal: (literal: Literal): Expr => ({ variant: 'Literal', literal }) as const,
   isMutable: (expr: Expr, env: TypeEnv): boolean =>
@@ -104,3 +106,13 @@ export const Expr = {
       _: () => false,
     }),
 } satisfies Impl<Constructors<Expr>>;
+
+export type StringInterpolationPart = DataType<{
+  Str: { value: string };
+  Expr: { expr: Expr };
+}>;
+
+export const StringInterpolationPart = {
+  Str: (value: string): StringInterpolationPart => ({ variant: 'Str', value }),
+  Expr: (expr: Expr): StringInterpolationPart => ({ variant: 'Expr', expr }),
+} satisfies Impl<Constructors<StringInterpolationPart>>;

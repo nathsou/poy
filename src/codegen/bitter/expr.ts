@@ -1,7 +1,7 @@
 import { match } from 'itsamatch';
 import { Expr as BitterExpr } from '../../ast/bitter/expr';
 import { Stmt as BitterStmt } from '../../ast/bitter/stmt';
-import { Expr as SweetExpr } from '../../ast/sweet/expr';
+import { StringInterpolationPart, Expr as SweetExpr } from '../../ast/sweet/expr';
 import { Pattern } from '../../ast/sweet/pattern';
 import { Type } from '../../infer/type';
 import { array, assert, block, panic } from '../../misc/utils';
@@ -12,6 +12,7 @@ import {
   Occurrence,
 } from '../decision-trees/ClauseMatrix';
 import { bitterStmtOf } from './stmt';
+import { Literal } from '../../parse/token';
 
 export function bitterExprOf(sweet: SweetExpr): BitterExpr {
   assert(sweet.ty != null, 'missing type after type inference');
@@ -255,6 +256,32 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
         args: args.map(bitterExprOf),
         ty,
       });
+    },
+    StringInterpolation: ({ parts }) => {
+      const aux = (parts: StringInterpolationPart[]): BitterExpr => {
+        if (parts.length === 0) {
+          return BitterExpr.Literal({ variant: 'Str', $value: '' }, ty);
+        }
+
+        const [head, ...rest] = parts;
+        const lhs = match(head, {
+          Str: ({ value }) => BitterExpr.Literal(Literal.Str(value), ty),
+          Expr: ({ expr }) => bitterExprOf(expr),
+        });
+
+        if (rest.length === 0) {
+          return lhs;
+        }
+
+        return BitterExpr.Binary({
+          lhs,
+          op: '++',
+          rhs: aux(rest),
+          ty,
+        });
+      };
+
+      return aux(parts);
     },
   });
 }

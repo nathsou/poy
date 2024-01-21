@@ -1,0 +1,41 @@
+import Foundations { print }
+
+extend Num {
+    #as("toString")
+    declare fun show(): str 
+}
+
+extend Bool {
+    #as("toString")
+    declare fun show(): str
+}
+
+extend<a, b> (a, b) {
+    fun show() {
+        "(\(self.0), \(self.1))"
+    }
+}
+
+extend () {
+    fun show() { "()" }
+}
+
+enum List<t> { nil, cons(t, List<t>) }
+
+extend List<Str> {
+    fun show() {
+        match self {
+            .nil => "[]",
+            .cons(h, tl) => "\(h)::\(tl.show())",
+        }
+    }
+}
+
+use hello = "hello" in print("\t\"\(hello)\"\n")
+print("unit: \(().show())")
+print("str: \("yolo")")
+print("\(3.show())")
+print(true.show())
+print("use in: 3 * 7 = \(use (a, b) = (3, 7) in (a * b).show())")
+print("list: \(.cons("a", .cons("b", .cons("c", .nil))).show())")
+print("nested: \("my name is \("nat" ++ "han")")")

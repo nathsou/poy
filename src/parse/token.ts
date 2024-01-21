@@ -6,11 +6,17 @@ export type Token = DataType<{
   Identifier: string;
   Symbol: Symbol;
   Keyword: Keyword;
+  StringInterpolation: { parts: StringInterpolationPart[] };
   EOF: {};
 }> & { loc?: { start: number; end: number } };
 
+export type StringInterpolationPart = DataType<{
+  Str: { value: string };
+  Expr: { tokens: Token[] };
+}>;
+
 export const Token = {
-  ...constructors<Token>().get('Identifier', 'Symbol', 'Keyword', 'EOF'),
+  ...constructors<Token>().get('Identifier', 'Symbol', 'Keyword', 'StringInterpolation',  'EOF'),
   Literal: (value: Literal) => ({ variant: 'Literal', value }) as const,
   eq: (a, b) =>
     matchMany([a, b], {
@@ -33,9 +39,29 @@ export const Token = {
       Identifier: value => value,
       Symbol: value => value,
       Keyword: value => value,
+      StringInterpolation: ({ parts }) => {
+        let result = '"';
+
+        for (const part of parts) {
+          if (part.variant === 'Str') {
+            result += part.value;
+          } else {
+            result += '\(';
+            for (const token of part.tokens) {
+              result += Token.show(token);
+            }
+
+            result += ')';
+          }
+        }
+
+        result += '"';
+
+        return result;
+      },
       EOF: () => 'EOF',
     }),
-} satisfies Impl<Eq<Token> & Show<Token>>;
+} satisfies Impl<Eq<Token> & Show<Token> & Constructors<Token>>;
 
 export type Literal = DataType<{
   Unit: {};
@@ -87,7 +113,8 @@ export type BinaryOp =
   | 'and'
   | 'or'
   | '&'
-  | '|';
+  | '|'
+  | '++';
 
 export type Punctuation =
   | '('

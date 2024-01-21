@@ -1,14 +1,15 @@
 import { match, VariantOf } from 'itsamatch';
 import { Attribute, Attributes } from '../ast/sweet/attribute';
 import { Decl, EnumVariant, ModuleDecl, Signature, StructDecl } from '../ast/sweet/decl';
-import { Expr, FunctionArgument } from '../ast/sweet/expr';
+import { Expr, FunctionArgument, StringInterpolationPart } from '../ast/sweet/expr';
+import { Pattern } from '../ast/sweet/pattern';
 import { Stmt } from '../ast/sweet/stmt';
 import { Type, TypeVar } from '../infer/type';
 import { Maybe, None, Some } from '../misc/maybe';
-import { isLowerCase, isUpperCase, Backtick } from '../misc/strings';
+import { Backtick, isLowerCase, isUpperCase } from '../misc/strings';
 import { array, assert, block, last, letIn, panic, uuid } from '../misc/utils';
+import { lex } from './lex';
 import { AssignmentOp, BinaryOp, Keyword, Literal, Symbol, Token, UnaryOp } from './token';
-import { Pattern } from '../ast/sweet/pattern';
 
 export const parse = (tokens: Token[], newlines: number[], filePath: string) => {
   let index = 0;
@@ -518,7 +519,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
   }
 
   function additionExpr(): Expr {
-    return binaryExpr(multiplicationExpr, ['+', '-']);
+    return binaryExpr(multiplicationExpr, ['+', '-', '++']);
   }
 
   function multiplicationExpr(): Expr {
@@ -674,6 +675,17 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
           default:
             raise(`Unexpected symbol '${symb}'`);
         }
+      },
+      StringInterpolation: ({ parts }) => {
+        next();
+        return Expr.StringInterpolation({
+          parts: parts.map(part =>
+            match(part, {
+              Expr: ({ tokens }) => StringInterpolationPart.Expr(parse(tokens, [], '<intenal>').expr()),
+              Str: ({ value }) => StringInterpolationPart.Str(value),
+            }),
+          ),
+        });
       },
       _: () => raise('Expected expression'),
     });

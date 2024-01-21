@@ -89,7 +89,9 @@ mut c = [a, b] // mut Num[] is not compatible with Num[]
 - [ ] Support multiple subjects (without using a tuple): match xs, ys { a, b => ... }
 - [ ] Support or patterns: match x { p1a | p1b => exp1 }
 
-### 9. String template literals
+### 9. String interpolation
+- [x] Lex nested interpolation parts
+- [x] Support escape characters (\t, \n, \", etc..)
 
 ### 10. Checkpoint I
 
