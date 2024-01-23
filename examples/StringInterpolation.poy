@@ -2,15 +2,15 @@ import Foundations { print }
 
 extend Num {
     #as("toString")
-    declare fun show(): str 
+    declare fun show(): Str 
 }
 
 extend Bool {
     #as("toString")
-    declare fun show(): str
+    declare fun show(): Str
 }
 
-extend<a, b> (a, b) {
+extend (Str, Str) {
     fun show() {
         "(\(self.0), \(self.1))"
     }

@@ -8,7 +8,6 @@ import { Type, TypeVar } from '../infer/type';
 import { Maybe, None, Some } from '../misc/maybe';
 import { Backtick, isLowerCase, isUpperCase } from '../misc/strings';
 import { array, assert, block, last, letIn, panic, uuid } from '../misc/utils';
-import { lex } from './lex';
 import { AssignmentOp, BinaryOp, Keyword, Literal, Symbol, Token, UnaryOp } from './token';
 
 export const parse = (tokens: Token[], newlines: number[], filePath: string) => {
@@ -1090,7 +1089,9 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
           return manyDecl(parser);
         }
 
-        return parser();
+        const res = parser();
+        consumeSeparatorIfPresent();
+        return res;
       }
     }
 
@@ -1103,7 +1104,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
 
     while (!matches(Token.Symbol('}'))) {
       decls.push(declParser());
-      consumeIfPresent(Token.Symbol(','));
+      consumeSeparatorIfPresent();
     }
 
     consumeSeparatorIfPresent();

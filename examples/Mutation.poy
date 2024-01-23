@@ -3,11 +3,6 @@ import Foundations { print }
 let a = [1, 2, 3]
 mut b = [a]
 
-extend<a> a[] {
-    declare let length: Num
-    declare fun push(elem: a): ()
-}
-
 struct City {
     name: Str,
     population: Num,

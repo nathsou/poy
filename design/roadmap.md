@@ -86,6 +86,7 @@ mut c = [a, b] // mut Num[] is not compatible with Num[]
 - [x] Rewrite match expressions to decision trees
 - [x] Resolve enums with the shorthand `.member` syntax instead of `Struct.member`
 - [x] Optimize decision trees
+- [ ] Support array destructuring
 - [ ] Support multiple subjects (without using a tuple): match xs, ys { a, b => ... }
 - [ ] Support or patterns: match x { p1a | p1b => exp1 }
 

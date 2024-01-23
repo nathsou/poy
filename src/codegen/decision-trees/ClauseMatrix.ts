@@ -11,6 +11,7 @@ import { Constructors, Impl, Show } from '../../misc/traits';
 import {
   array,
   assert,
+  block,
   count,
   first,
   gen,
@@ -23,6 +24,7 @@ import {
   repeat,
   sum,
   swapMut,
+  todo,
 } from '../../misc/utils';
 import { Literal } from '../../parse/token';
 
@@ -32,6 +34,10 @@ import { Literal } from '../../parse/token';
 export type Occurrence = OccurrenceComponent[];
 
 export const Occurrence = {
+  show: (occ: Occurrence): string => {
+    if (occ.length === 0) return '';
+    return occ.map(OccurrenceComponent.show).join('');
+  },
   toExpr: (occ: Occurrence, subject: Expr): Expr => {
     if (occ.length === 0) return subject;
 
@@ -64,7 +70,7 @@ export const Occurrence = {
       }),
     );
   },
-};
+} satisfies Impl<Show<Occurrence>>;
 
 export type OccurrenceComponent = DataType<{
   Variable: string;
@@ -72,11 +78,14 @@ export type OccurrenceComponent = DataType<{
   Field: string;
 }>;
 
-export const OccurrenceComponent = constructors<OccurrenceComponent>().get(
-  'Variable',
-  'Index',
-  'Field',
-);
+export const OccurrenceComponent = {
+  ...constructors<OccurrenceComponent>().get('Variable', 'Index', 'Field'),
+  show: (occ: OccurrenceComponent): string => match(occ, {
+    Variable: name => name,
+    Index: index => `[${index}]`,
+    Field: field => `.${field}`,
+  }),
+} satisfies Impl<Constructors<OccurrenceComponent> & Show<OccurrenceComponent>>;
 
 export type DecisionTree = DataType<{
   Leaf: { action: number };
@@ -280,7 +289,7 @@ export const DecisionTree = {
         const testsStr = tests
           .map(({ ctor, dt }) => `${ctor} => ${DecisionTree.show(dt)}`)
           .join(', ');
-        return `Switch(${occurrence}, [${testsStr}])`;
+        return `Switch(${Occurrence.show(occurrence)}, [${testsStr}])`;
       },
     });
   },
@@ -431,7 +440,7 @@ export class ClauseMatrix {
       return DecisionTree.Fail();
     }
 
-    if (this.rows[0].every(p => p.variant === 'Any')) {
+    if (this.rows[0].every(p => Pattern.isAnyOrVariable(p))) {
       return DecisionTree.Leaf({ action: this.actions[0] });
     }
 
@@ -444,7 +453,24 @@ export class ClauseMatrix {
     for (const [ctor, { arity, meta }] of heads) {
       const specialized = this.specialized(ctor, arity);
       const subOccurrences = [
-        ...gen(arity, i => [...occurrences[0], OccurrenceComponent.Index(i)]),
+        ...gen(arity, i => [...occurrences[0], block(() => {
+          if (meta == null) {
+            return OccurrenceComponent.Index(i);
+          }
+
+          return match(meta, {
+            Ctor: () => OccurrenceComponent.Index(i),
+            Variant: ({ enumDecl }) => {
+              const variant = enumDecl.variants.find(v => v.name === ctor);
+              assert(variant != null);
+              return match(variant, {
+                Empty: () => panic('Cannot destructure empty variant'),
+                Tuple: () => OccurrenceComponent.Field(EnumVariant.formatPositionalArg(i)),
+                Struct: () => todo('Struct variants not supported yet'),
+              });
+            },
+          });
+        })]),
         ...occurrences.slice(1),
       ];
       const Ak = specialized.compile(subOccurrences, isSignature, selectColumn);

@@ -102,10 +102,10 @@ export const Type = {
 
 export type TypeVarId = number;
 export type TypeVar = DataType<{
-  Unbound: { id: number; name?: string; level: number };
-  Generic: { id: number; name?: string };
+  Unbound: { id: TypeVarId; name?: string; level: number };
+  Generic: { id: TypeVarId; name?: string };
   Param: { name: string };
-  Link: { type: Type };
+  Link: { type: Type, pred?: TypeVar };
 }>;
 
 export const showTypeVarId = (id: number): string => {
@@ -114,7 +114,7 @@ export const showTypeVarId = (id: number): string => {
 
 export const TypeVar = {
   ...constructors<TypeVar>().get('Unbound', 'Generic', 'Param'),
-  Link: (type: Type): TypeVar => ({ variant: 'Link', type }),
+  Link: (type: Type, pred?: TypeVar): TypeVar => ({ variant: 'Link', type, pred }),
   eq: (a, b) =>
     matchMany([a, b], {
       'Unbound Unbound': (a, b) => a.id === b.id,
@@ -162,7 +162,7 @@ export const TypeVar = {
         if (subst != null) {
           Subst.set(subst, self.ref.id, deref);
         } else {
-          self.ref = TypeVar.Link(deref);
+          self.ref = TypeVar.Link(deref, self.ref);
         }
       }
     }

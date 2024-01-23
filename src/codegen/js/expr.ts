@@ -3,11 +3,12 @@ import { Expr as BitterExpr } from '../../ast/bitter/expr';
 import { Stmt as BitterStmt } from '../../ast/bitter/stmt';
 import { BinaryOp as JSBinaryOp, Expr as JSExpr } from '../../ast/js/expr';
 import { Stmt as JSStmt } from '../../ast/js/stmt';
-import { Type } from '../../infer/type';
+import { Type, showTypeVarId } from '../../infer/type';
 import { assert } from '../../misc/utils';
 import { BinaryOp, Literal } from '../../parse/token';
 import { JSScope } from './jsScope';
 import { jsStmtOf } from './stmt';
+import { EnumVariant } from '../../ast/sweet/decl';
 
 export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
   assert(bitter.ty != null, 'missing type after type inference');
@@ -74,6 +75,10 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
         }
       }
 
+      // declare $result before compiling branches to ensure
+      // $results in branches are not shadowed by the declaration
+      const resultName = scope.declareUnused('$result');
+
       const compiledBranches = branches.map(({ cond, then }) => {
         const condVal = cond ? jsExprOf(cond, scope) : undefined;
         const thenScope = scope.realChild();
@@ -108,7 +113,6 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
       let resultVar: JSExpr | undefined;
 
       if (!returnsUndefined) {
-        const resultName = scope.declareUnused('result');
         resultVar = JSExpr.Variable(resultName);
         scope.add(JSStmt.Let({ name: resultName }));
         lastStmtFn = (val: JSExpr) => JSStmt.Assign(resultVar!, '=', val);
@@ -158,11 +162,49 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
       });
     },
     Call: ({ fun, args }) => {
-      // TODO: remove once types can be represented with enums inside poy itself
-      if (fun.variant === 'Variable' && fun.name === 'showType' && args.length === 1) {
-        return JSExpr.Literal({
-          literal: Literal.Str(Type.show(args[0].ty)),
-        });
+      // typeOf
+      if (fun.variant === 'Variable' && fun.name === 'typeOf' && args.length === 1) {
+        const variable = (name: string) =>
+          JSExpr.Object({
+            entries: [
+              { key: EnumVariant.TAG, value: JSExpr.Literal({ literal: Literal.Str('variable') }) },
+              {
+                key: EnumVariant.formatPositionalArg(0),
+                value: JSExpr.Literal({ literal: Literal.Str(name) }),
+              },
+            ],
+          });
+
+        const aux = (ty: Type): JSExpr => {
+          return match(ty, {
+            Var: ({ ref }) =>
+              match(ref, {
+                Unbound: ({ id, name }) => variable(name ?? showTypeVarId(id)),
+                Generic: ({ id, name }) => variable(name ?? showTypeVarId(id)),
+                Param: ({ name }) => variable(name),
+                Link: ({ type }) => aux(type),
+              }),
+            Fun: ({ name, args }) =>
+              JSExpr.Object({
+                entries: [
+                  {
+                    key: EnumVariant.TAG,
+                    value: JSExpr.Literal({ literal: Literal.Str('compound') }),
+                  },
+                  {
+                    key: EnumVariant.formatPositionalArg(0),
+                    value: JSExpr.Literal({ literal: Literal.Str(name) }),
+                  },
+                  {
+                    key: EnumVariant.formatPositionalArg(1),
+                    value: JSExpr.Array({ elems: args.map(aux) }),
+                  },
+                ],
+              }),
+          });
+        };
+
+        return aux(args[0].ty!);
       }
 
       return JSExpr.Call(

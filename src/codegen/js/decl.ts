@@ -16,7 +16,7 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSDecl {
           decls: BitterDecl[],
           moduleScope: JSScope,
         ): { stmt: JSStmt } => {
-          scope.declare(name);
+          const moduleName = scope.declare(name);
           const members: { name: string }[] = [];
 
           for (const decl of decls) {
@@ -30,7 +30,6 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSDecl {
               },
               Module: ({ name, decls }) => {
                 const { stmt } = moduleToStmt(name, decls, moduleScope.realChild());
-
                 moduleScope.add(stmt);
                 members.push({ name });
               },
@@ -83,7 +82,7 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSDecl {
           }
 
           const stmt = JSStmt.Const({
-            name: moduleScope.declare(name),
+            name: moduleName,
             value: JSExpr.Call(
               JSExpr.Closure({
                 args: [],

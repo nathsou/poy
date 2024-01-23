@@ -49,7 +49,7 @@ export class JSScope {
   private mangle(name: string, tries = 0): string {
     const mangledName = tries === 0 ? name : `${name}${tries}`;
 
-    if (this.usedNames.has(mangledName)) {
+    if (this.isShadowing(mangledName)) {
       return this.mangle(name, tries + 1);
     }
 
@@ -67,6 +67,14 @@ export class JSScope {
     this.usedNames.add(mangled);
 
     return result;
+  }
+
+  public has(name: string): boolean {
+    return this.usedNames.has(name);
+  }
+
+  public isShadowing(name: string): boolean {
+    return this.has(name) || (this.parent?.isShadowing(name) ?? false);
   }
 
   public lookup(name: string): Name {

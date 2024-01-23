@@ -1,19 +1,5 @@
 import Foundations { print, range, Math }
 
-extend<a> a[] {
-    declare {
-        let length: Num
-        fun at(index: Num): a
-        fun push(elem: a): ()
-    }
-
-    #as("Symbol.iterator")
-    declare fun iter(): Iterator<a>
-
-    #as("at")
-    declare fun `[]`(index: Num): a
-}
-
 extend<a> Iterator<a> {
     fun map(f) {
         for v in self {

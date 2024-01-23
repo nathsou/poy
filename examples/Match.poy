@@ -64,7 +64,7 @@ enum Expr {
 
 extend Num {
     #as("toString")
-    declare fun show(): str
+    declare fun show(): Str
 }
 
 extend Bool {

@@ -1,8 +1,6 @@
 import Euler { euler1 }
 import Foundations { print }
 
-declare let showType: _ -> Str
-
 struct Person {
     name: Str,
     age: Num,
@@ -81,122 +79,6 @@ extend Num {
 
         true
     }
-
-    fun sqrt() { Math.sqrt(self) }
-    fun floor() { Math.floor(self) }
-    fun ceil() { Math.ceil(self) }
-    fun round() { Math.round(self) }
-}
-
-extend Str[] {
-    declare {
-        fun join(sep: Str): Str
-    }
-}
-
-extend<a> a[] {
-    static fun init(): Self { [] }
-    
-    declare {
-        let length: Num
-        fun at(index: Num): a
-        fun push(elem: a): ()
-        fun pop(): Option<a>
-        fun filter(predicate: a -> Bool): a[]
-        fun map<b>(f: a -> b): b[]
-        fun flatMap<b>(f: a -> b[]): b[]
-        fun find(predicate: a -> Bool): Option<a>
-        fun findIndex(predicate: a -> Bool): Option<Num>
-        fun forEach(f: a -> ()): ()
-        fun slice(start: Num, end: Num): a[]
-        fun includes(value: a): Bool
-        fun some(predicate: a -> Bool): Bool
-        fun every(predicate: a -> Bool): Bool
-    }
-
-    fun first() {
-        self.at(0)
-    }
-
-    fun lastIndex(): Num {
-        self.length - 1
-    }
-
-    fun last() {
-        self.at(self.length - 1)
-    }
-
-    fun reverse() {
-        mut rev = []
-        mut i = self.lastIndex()
-
-        while i >= 0 {
-            rev.push(self.at(i))
-            i -= 1
-        }
-
-        rev
-    }
-
-    fun sum() {
-        mut total = 0
-        mut i = 0
-
-        while i < self.length {
-            total += self.at(i)
-            i += 1
-        }
-
-        total
-    }
-
-    fun product() {
-        mut total = 1
-        mut i = 0
-
-        while i < self.length {
-            total *= self.at(i)
-            i += 1
-        }
-
-        total 
-    }
-
-    fun isEmpty(): Bool {
-        self.length == 0
-    }
-
-    fun count(predicate: a -> Bool): Num {
-        mut count = 0
-        mut i = 0
-
-        while i < self.length {
-            if predicate(self.at(i)) {
-                count += 1
-            }
-
-            i += 1
-        }
-
-        count
-    }
-
-    fun zip(other) {
-        let len = Math.min(self.length, other.length)
-        mut res = []
-        mut i = 0
-
-        while i < len {
-            res.push((self.at(i), other.at(i)))
-            i += 1
-        }
-
-        res
-    }
-
-    fun joinWith(fmt, sep) {
-        self.map(fmt).join(sep)
-    }
 }
 
 fun range(start: Num, end: Num): Num[] {
@@ -209,14 +91,6 @@ fun range(start: Num, end: Num): Num[] {
     }
 
     rng
-}
-
-extend Str {
-    declare {
-        fun startsWith(str: Str): Bool
-        fun endsWith(str: Str): Bool
-        fun includes(str: Str): Bool
-    }
 }
 
 extend<a, b> (a[], b[]) {
