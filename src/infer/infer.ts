@@ -731,14 +731,16 @@ export class TypeEnv {
           '++': [Type.Str, Type.Str, Type.Str],
         };
 
-        const [lhsExpected, rhsExpected, retTy] = BINARY_OP_TYPE[op].map(ty =>
-          Type.instantiate(ty, this.letLevel, this.generics),
-        );
+        const [arg1, arg2, ret] = BINARY_OP_TYPE[op];
+        const funTy = Type.instantiate(
+          Type.Function([arg1, arg2], ret),
+          this.letLevel,
+          this.generics,
+        ).ty;
 
-        this.unify(lhsTy, lhsExpected.ty);
-        this.unify(rhsTy, rhsExpected.ty);
+        this.unify(funTy, Type.Function([lhsTy, rhsTy], ret));
 
-        return retTy.ty;
+        return ret;
       },
       Block: ({ stmts, ret }) => {
         const blockEnv = this.child();
@@ -998,7 +1000,7 @@ export class TypeEnv {
       },
       TupleAccess: ({ lhs, index }) => {
         const lhsTy = this.inferExpr(lhs);
-        const elems = gen(index + 1, () => Type.fresh(this.letLevel));
+        const elems = gen(index + 1, () => this.freshType());
         const tail = this.freshType();
         const expectedLhsTy = Type.Tuple(Type.utils.list(elems, tail));
         this.unify(lhsTy, expectedLhsTy);

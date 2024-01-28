@@ -114,7 +114,7 @@ export const showTypeVarId = (id: number): string => {
 
 export const TypeVar = {
   ...constructors<TypeVar>().get('Unbound', 'Generic', 'Param'),
-  Link: (type: Type, pred?: TypeVar): TypeVar => ({ variant: 'Link', type, pred }),
+  Link: (type: Type): TypeVar => ({ variant: 'Link', type }),
   eq: (a, b) =>
     matchMany([a, b], {
       'Unbound Unbound': (a, b) => a.id === b.id,
@@ -162,7 +162,7 @@ export const TypeVar = {
         if (subst != null) {
           Subst.set(subst, self.ref.id, deref);
         } else {
-          self.ref = TypeVar.Link(deref, self.ref);
+          self.ref = TypeVar.Link(deref);
         }
       }
     }
