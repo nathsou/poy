@@ -1,15 +1,15 @@
-import { showTypeVarId, Subst, Type, TypeVarId } from '../infer/type';
 import { Maybe, None, Some } from './maybe';
 import { panic } from './utils';
 
 export class Scope<T> {
-  protected members: Map<string, T>;
-  protected parent?: Scope<T>;
-  protected allowShadowing = false;
+  members: Map<string, T>;
+  parent?: Scope<T>;
+  allowShadowing = false;
 
-  constructor(parent?: Scope<T>) {
+  constructor(parent?: Scope<T>, allowShadowing = false) {
     this.members = new Map();
     this.parent = parent;
+    this.allowShadowing = allowShadowing ?? parent?.allowShadowing ?? false;
   }
 
   public has(name: string): boolean {
@@ -56,66 +56,5 @@ export class Scope<T> {
     if (this.parent != null) {
       yield* this.parent;
     }
-  }
-}
-
-export class TypeParamScope extends Scope<Type> {
-  public typeVarIdMapping: Map<TypeVarId, string>;
-
-  constructor(parent?: TypeParamScope) {
-    super(parent);
-    this.typeVarIdMapping = new Map();
-    this.allowShadowing = true;
-  }
-
-  override declare(name: string, value: Type): void {
-    super.declare(name, value);
-    if (value.variant === 'Var' && 'id' in value.ref) {
-      this.typeVarIdMapping.set(value.ref.id, name);
-    }
-  }
-
-  public lookupParam(id: TypeVarId): Maybe<string> {
-    if (this.typeVarIdMapping.has(id)) {
-      return Some(this.typeVarIdMapping.get(id)!);
-    }
-
-    if (this.parent != null && this.parent instanceof TypeParamScope) {
-      return this.parent.lookupParam(id);
-    }
-
-    return None;
-  }
-
-  public substitute(subst: Subst): void {
-    let fixpoint = true;
-
-    for (const [id, name] of this.typeVarIdMapping) {
-      if (subst.has(id)) {
-        const mapped = Type.utils.unlink(subst.get(id)!);
-        if (
-          mapped.variant === 'Var' &&
-          'id' in mapped.ref &&
-          !this.typeVarIdMapping.has(mapped.ref.id)
-        ) {
-          fixpoint = false;
-          this.typeVarIdMapping.set(mapped.ref.id, name);
-        }
-      }
-    }
-
-    if (!fixpoint) {
-      this.substitute(subst);
-    }
-  }
-
-  override child(): TypeParamScope {
-    return new TypeParamScope(this);
-  }
-
-  public show(): string {
-    return [...this.typeVarIdMapping.entries()]
-      .map(([id, name]) => `${showTypeVarId(id)} -> ${name}`)
-      .join(', ');
   }
 }

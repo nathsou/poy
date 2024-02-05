@@ -5,7 +5,7 @@ import { uniq } from '../misc/sets';
 import { Backtick } from '../misc/strings';
 import { proj, pushMap, zip } from '../misc/utils';
 import { TypeEnv } from './infer';
-import { Subst, Type } from './type';
+import { Subst, Type, TypeVar } from './type';
 
 export type ExtensionMembers = Map<string, { ty: Type; declared: boolean }>;
 export type ExtensionInfo = {
@@ -14,8 +14,8 @@ export type ExtensionInfo = {
   attrs: Attributes;
   generics: string[];
   ty: Type;
-  declared: boolean;
-  static: boolean;
+  isDeclared: boolean;
+  isStatic: boolean;
   uuid: string;
 };
 
@@ -28,8 +28,10 @@ export type MatchingExtension = {
 export class ExtensionScope {
   private extensions: Map<string, ExtensionInfo[]>;
   private parent?: ExtensionScope;
+  private env: TypeEnv;
 
-  constructor(parent?: ExtensionScope) {
+  constructor(env: TypeEnv, parent?: ExtensionScope) {
+    this.env = env;
     this.extensions = new Map();
     this.parent = parent;
   }
@@ -42,26 +44,42 @@ export class ExtensionScope {
     pushMap(this.extensions, info.member, info);
   }
 
-  public matchingCandidates(subject: Type, member: string, env: TypeEnv): MatchingExtension[] {
-    const subjectInst = Type.instantiate(subject, env.letLevel, env.generics);
+  public matchingCandidates(subject: Type, member: string): MatchingExtension[] {
+    const subjectInst = Type.instantiate(subject, this.env.letLevel, this.env.generics);
     const candidates: MatchingExtension[] = [];
+
     const traverse = (scope: ExtensionScope): void => {
       for (const ext of scope.extensions.get(member) ?? []) {
-        const params = env.generics.child();
-        const extParams = Type.namedParams(ext.subject);
+        const params = this.env.generics.child();
+        const extParams = Type.utils.params(ext.subject);
         const allParams = uniq([...extParams, ...ext.generics]);
+
         const insts = zip(
           allParams,
-          allParams.map(name => Type.fresh(env.letLevel, name)),
+          allParams.map(() => this.env.freshType()),
         );
+
         params.declareMany(insts);
         const subst = Type.unifyPure(subjectInst.ty, ext.subject, params);
+
         if (subst) {
-          params.substitute(subst);
+          const params2 = this.env.generics.child();
+
+          for (const [id, ty] of subst) {
+            const deref = Type.utils.unlink(ty);
+            if (deref.variant === 'Var' && deref.ref.variant === 'Param') {
+              params2.declare(deref.ref.name, Type.Var(TypeVar.Unbound({ id, level: this.env.letLevel })));
+            }
+          }
+
+          const inst = Type.instantiate(subjectInst.ty, this.env.letLevel, params2);
+
           const mapping = new Map([
             ...insts,
-            ...Subst.parameterize(subst, params.typeVarIdMapping).entries(),
           ]);
+
+          const memberInst = Type.instantiate(ext.ty, this.env.letLevel, params2).ty;
+
           candidates.push({
             ext,
             subst: new Map([...subjectInst.subst, ...subst]),
@@ -80,8 +98,8 @@ export class ExtensionScope {
     return candidates;
   }
 
-  public lookup(subject: Type, member: string, env: TypeEnv): Result<MatchingExtension, string> {
-    const candidates = this.matchingCandidates(subject, member, env);
+  public lookup(subject: Type, member: string): Result<MatchingExtension, string> {
+    const candidates = this.matchingCandidates(subject, member);
 
     if (candidates.length === 0) {
       return Err(`No extension found for ${Type.show(subject)}::${Backtick.decode(member)}`);
@@ -103,12 +121,8 @@ export class ExtensionScope {
 
     if (allBest.length > 1) {
       const fmt = allBest.map(({ ext }) => Type.show(ext.subject)).join('\n');
-
-      return Err(
-        `Ambiguous extension for ${Type.show(subject)}::${Backtick.decode(
-          member,
-        )}, candidates:\n${fmt}`,
-      );
+      const decodedMember = Backtick.decode(member);
+      return Err(`Ambiguous extension for ${Type.show(subject)}::${decodedMember}, candidates:\n${fmt}`);
     }
 
     return Ok(allBest[0]);

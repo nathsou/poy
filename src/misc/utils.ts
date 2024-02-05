@@ -172,7 +172,7 @@ export function sum(elems: Iterable<number>): number {
   return sum;
 }
 
-export function* map<A, B>(iter: IterableIterator<A>, f: (elem: A) => B): Iterable<B> {
+export function* map<A, B>(iter: Iterable<A>, f: (elem: A) => B): Iterable<B> {
   for (const n of iter) {
     yield f(n);
   }
@@ -186,4 +186,14 @@ export function* range(start: number, end: number): Iterable<number> {
 
 export function rangeInclusive(start: number, end: number): Iterable<number> {
   return range(start, end + 1);
+}
+
+export function mapObject<T, U>(obj: Record<string, T>, f: (val: T) => U): Record<string, U> {
+  const mapped: Record<string, U> = {};
+
+  for (const key in obj) {
+    mapped[key] = f(obj[key]);
+  }
+
+  return mapped;
 }

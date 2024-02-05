@@ -113,17 +113,17 @@ extend Str[] {
 
 extend<a> a[] {
     static fun init(): Self { [] }
-    
+   
     declare {
         let length: Num
         fun at(index: Num): a
         fun push(elem: a): ()
-        fun pop(): Option<a>
+        fun pop(): a
         fun filter(predicate: a -> Bool): a[]
         fun map<b>(f: a -> b): b[]
         fun flatMap<b>(f: a -> b[]): b[]
-        fun find(predicate: a -> Bool): Option<a>
-        fun findIndex(predicate: a -> Bool): Option<Num>
+        fun find(predicate: a -> Bool): a
+        fun findIndex(predicate: a -> Bool): Num
         fun forEach(f: a -> ()): ()
         fun slice(start: Num, end: Num): a[]
         fun includes(value: a): Bool
@@ -153,30 +153,6 @@ extend<a> a[] {
         }
 
         rev
-    }
-
-    fun sum() {
-        mut total = 0
-        mut i = 0
-
-        while i < self.length {
-            total += self[i]
-            i += 1
-        }
-
-        total
-    }
-
-    fun product() {
-        mut total = 1
-        mut i = 0
-
-        while i < self.length {
-            total *= self[i]
-            i += 1
-        }
-
-        total 
     }
 
     fun isEmpty(): Bool {
@@ -211,8 +187,34 @@ extend<a> a[] {
         res
     }
 
-    fun join(formatFn, separator): Str {
+    fun join(formatFn: a -> Str, separator): Str {
         self.map(formatFn).join(separator)
+    }
+}
+
+extend Num[] {
+    fun sum() {
+        mut total = 0
+        mut i = 0
+
+        while i < self.length {
+            total += self[i]
+            i += 1
+        }
+
+        total
+    }
+
+    fun product() {
+        mut total = 1
+        mut i = 0
+
+        while i < self.length {
+            total *= self[i]
+            i += 1
+        }
+
+        total 
     }
 }
 

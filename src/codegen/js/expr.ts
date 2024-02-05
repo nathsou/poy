@@ -3,12 +3,12 @@ import { Expr as BitterExpr } from '../../ast/bitter/expr';
 import { Stmt as BitterStmt } from '../../ast/bitter/stmt';
 import { BinaryOp as JSBinaryOp, Expr as JSExpr } from '../../ast/js/expr';
 import { Stmt as JSStmt } from '../../ast/js/stmt';
+import { EnumVariant } from '../../ast/sweet/decl';
 import { Type, showTypeVarId } from '../../infer/type';
 import { assert } from '../../misc/utils';
 import { BinaryOp, Literal } from '../../parse/token';
 import { JSScope } from './jsScope';
 import { jsStmtOf } from './stmt';
-import { EnumVariant } from '../../ast/sweet/decl';
 
 export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
   assert(bitter.ty != null, 'missing type after type inference');
@@ -179,8 +179,8 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
           return match(ty, {
             Var: ({ ref }) =>
               match(ref, {
-                Unbound: ({ id, name }) => variable(name ?? showTypeVarId(id)),
-                Generic: ({ id, name }) => variable(name ?? showTypeVarId(id)),
+                Unbound: ({ id }) => variable(showTypeVarId(id)),
+                Generic: ({ id }) => variable(showTypeVarId(id)),
                 Param: ({ name }) => variable(name),
                 Link: ({ type }) => aux(type),
               }),
