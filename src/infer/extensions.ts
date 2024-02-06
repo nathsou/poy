@@ -63,22 +63,7 @@ export class ExtensionScope {
         const subst = Type.unifyPure(subjectInst.ty, ext.subject, params);
 
         if (subst) {
-          const params2 = this.env.generics.child();
-
-          for (const [id, ty] of subst) {
-            const deref = Type.utils.unlink(ty);
-            if (deref.variant === 'Var' && deref.ref.variant === 'Param') {
-              params2.declare(deref.ref.name, Type.Var(TypeVar.Unbound({ id, level: this.env.letLevel })));
-            }
-          }
-
-          const inst = Type.instantiate(subjectInst.ty, this.env.letLevel, params2);
-
-          const mapping = new Map([
-            ...insts,
-          ]);
-
-          const memberInst = Type.instantiate(ext.ty, this.env.letLevel, params2).ty;
+          const mapping = new Map([...insts]);
 
           candidates.push({
             ext,

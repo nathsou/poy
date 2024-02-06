@@ -949,17 +949,17 @@ export class TypeEnv {
             }
 
             const typeParamScope = this.generics.child();
-            typeParamScope.declareMany([...params.entries()]);
+
+            for (const [name, ty] of params) {
+              typeParamScope.declare(name, Type.substitute(ty, subst));
+            }
+            
             typeParamScope.declareMany(zip(generics, typeParams));
-            const instTy = Type.instantiate(
-              Type.substitute(ty, subst),
-              this.letLevel,
-              typeParamScope,
-            ).ty;
+            const instTy = Type.instantiate(ty, this.letLevel, typeParamScope).ty;
             extensionAccessExpr.extensionUuid = uuid;
 
             if (!isStatic && Type.utils.isFunction(instTy)) {
-              // prepend 'self' to the function's type
+              // prepend 'self' to the methods's type
               const selfTy = Type.substitute(subjectInst.ty, subst);
               const params = [selfTy, ...Type.utils.functionParameters(instTy)];
               const ret = Type.utils.functionReturnType(instTy);
