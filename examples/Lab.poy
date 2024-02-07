@@ -1,5 +1,6 @@
 import Euler { euler1 }
-import Foundations { print }
+import Foundations { print, typeOf, Parameters }
+import List { IsEmpty }
 
 struct Person {
     name: Str,
@@ -124,3 +125,7 @@ print(zipped.unzip())
 print([1, 2, 3].sum())
 print(_[]::sum(range(1, 100 + 1)))
 print(factorial(11))
+
+declare let test: IsEmpty<Parameters<@typeOf<factorial>>>
+
+print(typeOf(test).show())

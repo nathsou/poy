@@ -9,18 +9,17 @@ import { normalize } from './rewrite';
 
 export type Type = DataType<{
   Var: Ref<TypeVar>;
-  Fun: { name: string; args: Type[]; path?: ModulePath };
+  Fun: { name: string; args: Type[] };
 }>;
 
 export const Type = {
   alpha: () => Type.Var(TypeVar.Generic({ id: 0 })),
   beta: () => Type.Var(TypeVar.Generic({ id: 1 })),
   Var: (ref: TypeVar): Type => ({ variant: 'Var', ref }),
-  Fun: (name: string, args: Type[], path?: ModulePath): Type => ({
+  Fun: (name: string, args: Type[]): Type => ({
     variant: 'Fun',
     name,
     args,
-    path,
   }),
   Array: (elem: Type): Type => Type.Fun('Array', [elem]),
   Tuple: (elems: Type[] | Type): Type =>
@@ -227,10 +226,6 @@ function show(ty: Type): string {
 
   let rhs = show(ty);
 
-  if (ty.variant === 'Fun' && ty.path != null && ty.path.subpath.length > 0) {
-    rhs = `${ty.path.subpath.join('.')}.${rhs}`;
-  }
-
   if (genericTyVars.size > 0) {
     rhs = `forall ${Array.from(genericTyVars).join(', ')}. ${rhs}`;
   }
@@ -242,7 +237,7 @@ function rewrite(ty: Type, f: (ty: Type) => Type): Type {
   return f(
     match(ty, {
       Var: ({ ref }) => Type.Var(ref),
-      Fun: ({ name, args, path }) => Type.Fun(name, args.map(f), path),
+      Fun: ({ name, args }) => Type.Fun(name, args.map(f)),
     }),
   );
 }
@@ -493,11 +488,10 @@ function substitute(ty: Type, subst: Subst): Type {
         Param: () => ty,
         Link: ({ type }) => substitute(type, subst),
       }),
-    Fun: ({ name, args, path }) =>
+    Fun: ({ name, args }) =>
       Type.Fun(
         name,
         args.map(arg => substitute(arg, subst)),
-        path,
       ),
   });
 }
@@ -521,11 +515,10 @@ function generalize(ty: Type, level: number): Type {
         Param: () => ty,
         Link: ({ type }) => generalize(type, level),
       }),
-    Fun: ({ name, args, path }) =>
+    Fun: ({ name, args }) =>
       Type.Fun(
         name,
         args.map(arg => generalize(arg, level)),
-        path,
       ),
   });
 }
@@ -577,7 +570,7 @@ function instantiate(
           },
           Link: ({ type }) => aux(type),
         }),
-      Fun: ({ name, args, path }) => Type.Fun(name, args.map(aux), path),
+      Fun: ({ name, args }) => Type.Fun(name, args.map(aux)),
     });
   };
 

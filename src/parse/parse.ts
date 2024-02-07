@@ -10,7 +10,7 @@ import { Backtick, isLowerCase, isUpperCase } from '../misc/strings';
 import { array, assert, block, last, letIn, panic, uuid } from '../misc/utils';
 import { AssignmentOp, BinaryOp, Keyword, Literal, Symbol, Token, UnaryOp } from './token';
 
-export const parse = (tokens: Token[], newlines: number[], filePath: string) => {
+export const parse = (tokens: Token[], newlines: number[]) => {
   let index = 0;
   const modifiers = { pub: false, static: false };
   const attribs = {
@@ -359,10 +359,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
 
     if (path.length > 0) {
       const typeName = path.pop()!;
-      return Type.Fun(typeName, args, {
-        file: filePath,
-        subpath: [name, ...path],
-      });
+      return Type.Fun(typeName, args);
     }
 
     return Type.Fun(name, args);
@@ -680,7 +677,7 @@ export const parse = (tokens: Token[], newlines: number[], filePath: string) => 
         return Expr.StringInterpolation({
           parts: parts.map(part =>
             match(part, {
-              Expr: ({ tokens }) => StringInterpolationPart.Expr(parse(tokens, [], '<intenal>').expr()),
+              Expr: ({ tokens }) => StringInterpolationPart.Expr(parse(tokens, []).expr()),
               Str: ({ value }) => StringInterpolationPart.Str(value),
             }),
           ),

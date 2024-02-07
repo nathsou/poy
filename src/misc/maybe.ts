@@ -104,7 +104,7 @@ export class Maybe<T> {
     return undefined;
   }
 
-  static firstSomeBy<T, U>(elems: T[], f: (elem: T) => Maybe<U>): Maybe<[U, number]> {
+  static firstBy<T, U>(elems: T[], f: (elem: T) => Maybe<U>): Maybe<[U, number]> {
     for (let i = 0; i < elems.length; i++) {
       const mapped = f(elems[i]);
       if (mapped.isSome()) {

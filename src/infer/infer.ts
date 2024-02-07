@@ -3,13 +3,12 @@ import { Decl, EnumDecl, EnumVariant, StructDecl } from '../ast/sweet/decl';
 import { Expr } from '../ast/sweet/expr';
 import { Pattern } from '../ast/sweet/pattern';
 import { Stmt } from '../ast/sweet/stmt';
-import { Maybe } from '../misc/maybe';
 import { Err, Ok, Result } from '../misc/result';
 import { Scope } from '../misc/scope';
 import { setDifference, uniq } from '../misc/sets';
 import { array, assert, block, gen, last, mapObject, panic, proj, todo, zip } from '../misc/utils';
 import { AssignmentOp, BinaryOp, UnaryOp } from '../parse/token';
-import { Module, ModulePath, Resolver } from '../resolve/resolve';
+import { Module, Resolver } from '../resolve/resolve';
 import { ExtensionScope } from './extensions';
 import { TRS } from './rewrite';
 import { Subst, Type, TypeVar } from './type';
@@ -30,8 +29,7 @@ export class TypeEnv {
   public structs: Scope<StructDecl>;
   public enums: Scope<EnumDecl>;
   public generics: Scope<Type>;
-  public typeRules: TRS;
-  private typeImports: Map<string, ModulePath>;
+  public types: TRS;
   private extensions: ExtensionScope;
   public letLevel: number;
   private functionStack: { ty: Type; isIterator: boolean }[];
@@ -46,8 +44,7 @@ export class TypeEnv {
     this.structs = new Scope(parent?.structs);
     this.enums = new Scope(parent?.enums);
     this.generics = new Scope(parent?.generics, true);
-    this.typeRules = TRS.create(parent?.typeRules);
-    this.typeImports = new Map(parent?.typeImports);
+    this.types = TRS.create(parent?.types);
     this.extensions = new ExtensionScope(this, parent?.extensions);
     this.letLevel = parent?.letLevel ?? 0;
     this.functionStack = [...(parent?.functionStack ?? [])];
@@ -68,7 +65,9 @@ export class TypeEnv {
   }
 
   private unify(s: Type, t: Type, message?: string): void {
-    const unifiable = Type.unify(this.normalize(s), this.normalize(t), this.generics);
+    const normalizedS = this.normalize(s);
+    const normalizedT = this.normalize(t);
+    const unifiable = Type.unify(normalizedS, normalizedT, this.generics);
 
     if (!unifiable) {
       panic(message ?? `Cannot unify '${Type.show(s)}' with '${Type.show(t)}'`);
@@ -147,13 +146,14 @@ export class TypeEnv {
     computeType: () => T,
   ): T {
     const insts = generics.map(() => this.freshType());
-    this.generics.declareMany(zip(generics, insts));
+    const genericInsts = zip(generics, insts);
+    this.generics.declareMany(genericInsts);
     const ret = computeType();
 
     // create reverse mapping
     const reverseMapping: Subst = new Map();
 
-    for (const [name, ty] of zip(generics, insts)) {
+    for (const [name, ty] of genericInsts) {
       const deref = Type.utils.unlink(ty);
       if (deref.variant === 'Var' && deref.ref.variant === 'Unbound') {
         reverseMapping.set(deref.ref.id, Type.Var(TypeVar.Param({ name })));
@@ -226,7 +226,7 @@ export class TypeEnv {
           typeEnv.generics.declare(param, typeEnv.freshType());
         }
 
-        TRS.add(this.typeRules, typeEnv.resolveType(lhs), typeEnv.resolveType(rhs), pub);
+        TRS.add(this.types, typeEnv.resolveType(lhs), typeEnv.resolveType(rhs), pub);
       },
       Struct: struct => {
         for (const field of struct.fields) {
@@ -238,7 +238,8 @@ export class TypeEnv {
       Declare: ({ sig }) =>
         match(sig, {
           Variable: ({ mut, name, ty }) => {
-            const genTy = mut ? ty : Type.generalize(ty, this.letLevel);
+            const normalizedTy = this.normalize(ty);
+            const genTy = mut ? normalizedTy : Type.generalize(normalizedTy, this.letLevel);
             this.variables.declare(name, {
               pub: true,
               mut,
@@ -264,7 +265,7 @@ export class TypeEnv {
             }
           },
           Type: ({ pub, lhs, rhs }) => {
-            TRS.add(this.typeRules, this.resolveType(lhs), this.resolveType(rhs), pub);
+            TRS.add(this.types, this.normalize(lhs), this.normalize(rhs), pub);
           },
         }),
       Module: ({ pub, name, params, decls }) => {
@@ -328,7 +329,7 @@ export class TypeEnv {
                   });
                 },
                 None: () => {
-                  Maybe.wrap(mod.env.typeRules.get(name)).match({
+                  mod.env.types.rules.lookup(name).match({
                     Some: rules => {
                       member.kind = 'type';
 
@@ -344,10 +345,16 @@ export class TypeEnv {
                         panic(`Cannot import private type '${name}' from module '${module}'`);
                       }
 
-                      this.typeImports.set(name, {
-                        file: fullPath,
-                        subpath: path,
-                      });
+                      const import_ = this.types.imports.find(imp => imp.mod === mod);
+
+                      if (import_) {
+                        import_.importedRules.add(member.name);
+                      } else {
+                        this.types.imports.push({
+                          mod,
+                          importedRules: new Set([member.name]),
+                        });
+                      }
                     },
                     None: () => {
                       mod.env.structs.lookup(name).match({
@@ -387,24 +394,12 @@ export class TypeEnv {
       Extend: ({ params: globalParams, subject, decls, uuid }) => {
         const declareSelf = (env: TypeEnv): { subjectInst: Type } => {
           const subjectInst = Type.instantiate(subject, env.letLevel, env.generics).ty;
-
+          TRS.add(env.types, Type.Fun('Self', []), subjectInst, false);
           env.variables.declare('self', {
             pub: false,
             mut: false,
             ty: subjectInst,
           });
-
-          env.typeRules.set('Self', [
-            {
-              pub: false,
-              lhs: Type.Fun('Self', [], {
-                file: this.modulePath,
-                subpath: [],
-                env,
-              }),
-              rhs: subjectInst,
-            },
-          ]);
 
           return { subjectInst };
         };
@@ -865,11 +860,7 @@ export class TypeEnv {
           }
         }
 
-        return Type.Fun(name, params, {
-          file: this.modulePath,
-          subpath: [],
-          env: this,
-        });
+        return Type.Fun(name, params);
       },
       FieldAccess: dotExpr => {
         const { lhs, field, typeParams, isCalled } = dotExpr;
@@ -1114,7 +1105,6 @@ export class TypeEnv {
           pat.resolvedEnum = decl;
 
           const variant = decl.variants.find(v => v.name === pat.variantName);
-
           const paramsInst = decl.params.map(() => this.freshType());
           const generics = this.generics.child();
           generics.declareMany(zip(decl.params, paramsInst));
@@ -1124,10 +1114,10 @@ export class TypeEnv {
             return panic(`Enum '${enumName}' has no variant '${pat.variantName}'`);
           }
 
-          zip(pat.args, EnumVariant.arguments(variant)).forEach(([arg, { ty: argTy }]) => {
+          for (const [arg, { ty: argTy }] of zip(pat.args, EnumVariant.arguments(variant))) {
             const argInstTy = Type.instantiate(argTy, this.letLevel, generics).ty;
             aux(arg, argInstTy);
-          });
+          }
 
           return ty;
         }
@@ -1200,17 +1190,10 @@ export class TypeEnv {
 
           return v;
         },
-        Fun: ({ name, args, path }) => {
-          let modulePath: ModulePath | undefined = this.typeRules.has(name)
-            ? path
-            : this.typeImports.get(name) ?? path;
-          modulePath ??= { file: this.modulePath, subpath: [] };
-          modulePath.env = path?.env ?? this.resolveModuleEnv(modulePath.file, modulePath.subpath);
-
+        Fun: ({ name, args }) => {
           return Type.Fun(
             name,
             args.map(arg => this.resolveType(arg)),
-            modulePath,
           );
         },
       }),

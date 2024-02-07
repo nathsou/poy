@@ -100,7 +100,7 @@ mut c = [a, b] // mut Num[] is not compatible with Num[]
 - [ ] Improve error messages
 - [ ] Make type parameters uppercase
 - [ ] Identify improvement areas and clean up:
-  1. Refactor generics (look at OCaml)
+  1. Refactor generics
   2. Refactor and simplify type rewriting
   3. Remove all uses of Math.random (uuid)
 - [ ] Optimize pattern matching (+ eliminate `Option` type overhead)

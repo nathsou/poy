@@ -19,7 +19,7 @@ Type declarations form a Term Rewriting System (TRS).
 Path = Str
 ```
 
-### Type parameter extraction
+### Sub-type extraction
 
 ```
 ReturnType<Function<_, ret>> = ret
@@ -119,17 +119,5 @@ Records might require specific unification rules to support fields in different 
 ```
 
 Person = { name: Str, age: Num, city: Str } <=> Record<[("name", Str), ("age", Num), ("city", Str)]>
-
-```
-
-Unions
-Unions can be represented by predicates but specific unification rules could be added
-to make them nicer to work with.
-
-```
-
-Bool | Num | Str <=> Union<[Bool, Num, Str]>
-
-```
 
 ```
