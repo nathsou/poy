@@ -8,7 +8,7 @@ export type Stmt = DataType<{
   Expr: { expr: Expr };
   Const: { name: Name; value: Expr };
   Let: { name: Name; value?: Expr };
-  If: { branches: { cond?: Expr; then: Stmt[] }[] };
+  If: { branches: { cond?: Expr; then_: Stmt[] }[] };
   Assign: { lhs: Expr; op: AssignmentOp; rhs: Expr };
   Return: { value: Expr };
   Yield: { value: Expr };
@@ -59,7 +59,7 @@ function show(stmt: Stmt, indentLevel: number = 0): string {
     Let: ({ name, value }) =>
       `${indent}let ${name.mangled}${value ? ` = ${Expr.show(value)}` : ''};`,
     If: ({ branches }) => {
-      const parts = branches.map(({ cond, then }, index) => {
+      const parts = branches.map(({ cond, then_: then }, index) => {
         const then_ = showStmts(then, indentLevel + 1);
 
         if (!cond) {

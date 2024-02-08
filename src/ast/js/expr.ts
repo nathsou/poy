@@ -9,7 +9,7 @@ export type Expr = DataType<{
   Variable: { name: Name };
   Unary: { op: UnaryOp; expr: Expr };
   Binary: { lhs: Expr; op: BinaryOp; rhs: Expr };
-  Ternary: { cond: Expr; then: Expr; otherwise: Expr };
+  Ternary: { cond: Expr; then_: Expr; else_: Expr };
   Array: { elems: Expr[] };
   Closure: { args: { name: Name }[]; stmts: Stmt[] };
   Generator: { args: { name: Name }[]; stmts: Stmt[] };
@@ -83,8 +83,8 @@ function show(expr: Expr, indentLevel: number = 0): string {
     Unary: ({ op, expr }) => `${op}${show(expr, indentLevel)}`,
     Binary: ({ lhs, op, rhs }) =>
       `(${show(lhs, indentLevel)} ${op === '==' ? '===' : op} ${show(rhs, indentLevel)})`,
-    Ternary: ({ cond, then, otherwise }) =>
-      `(${show(cond, indentLevel)} ? ${show(then, indentLevel)} : ${show(otherwise, indentLevel)})`,
+    Ternary: ({ cond, then_, else_ }) =>
+      `(${show(cond, indentLevel)} ? ${show(then_, indentLevel)} : ${show(else_, indentLevel)})`,
     Array: ({ elems }) => `[${elems.map(e => show(e, indentLevel)).join(', ')}]`,
     Closure: ({ args, stmts }) =>
       `(${args.map(({ name }) => name.mangled).join(', ')}) => {\n${indent}${Stmt.showStmts(

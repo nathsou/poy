@@ -258,8 +258,8 @@ export const DecisionTree = {
         } else {
           return Expr.If({
             cond,
-            then: DecisionTree.toExpr(subject, head.dt, cases, retTy),
-            otherwise:
+            then_: DecisionTree.toExpr(subject, head.dt, cases, retTy),
+            else_:
               tail.length > 0
                 ? DecisionTree.toExpr(
                     subject,

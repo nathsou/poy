@@ -63,12 +63,10 @@ export class ExtensionScope {
         const subst = Type.unifyPure(subjectInst.ty, ext.subject, params);
 
         if (subst) {
-          const mapping = new Map([...insts]);
-
           candidates.push({
             ext,
             subst: new Map([...subjectInst.subst, ...subst]),
-            params: mapping,
+            params: new Map(insts),
           });
         }
       }

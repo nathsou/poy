@@ -747,12 +747,12 @@ export class TypeEnv {
 
         return retTy;
       },
-      If: ({ cond, then, otherwise }) => {
+      If: ({ cond, then_, else_ }) => {
         this.unify(this.inferExpr(cond), Type.Bool);
-        const thenTy = this.inferExpr(then);
+        const thenTy = this.inferExpr(then_);
 
-        if (otherwise) {
-          const elseTy = this.inferExpr(otherwise);
+        if (else_) {
+          const elseTy = this.inferExpr(else_);
           this.unify(thenTy, elseTy);
         } else {
           this.unify(thenTy, Type.Unit);

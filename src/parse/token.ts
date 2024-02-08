@@ -46,7 +46,7 @@ export const Token = {
           if (part.variant === 'Str') {
             result += part.value;
           } else {
-            result += '\(';
+            result += '(';
             for (const token of part.tokens) {
               result += Token.show(token);
             }

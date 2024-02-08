@@ -453,17 +453,17 @@ export const parse = (tokens: Token[], newlines: number[]) => {
 
   function ifExpr(): Expr {
     const cond = expr();
-    const then = blockExpr();
+    const then_ = blockExpr();
 
     if (matches(Token.Keyword('else'))) {
       if (matches(Token.Keyword('if'))) {
-        return Expr.If({ cond, then, otherwise: ifExpr() });
+        return Expr.If({ cond, then_, else_: ifExpr() });
       } else {
-        return Expr.If({ cond, then, otherwise: blockExpr() });
+        return Expr.If({ cond, then_, else_: blockExpr() });
       }
     }
 
-    return Expr.If({ cond, then });
+    return Expr.If({ cond, then_ });
   }
 
   function matchExpr(): Expr {

@@ -35,11 +35,11 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
         ret: ret ? bitterExprOf(ret) : undefined,
         ty,
       }),
-    If: ({ cond, then, otherwise }) =>
+    If: ({ cond, then_, else_ }) =>
       BitterExpr.If({
         cond: bitterExprOf(cond),
-        then: bitterExprOf(then),
-        otherwise: otherwise ? bitterExprOf(otherwise) : undefined,
+        then_: bitterExprOf(then_),
+        else_: else_ ? bitterExprOf(else_) : undefined,
         ty,
       }),
     Tuple: ({ elems }) => BitterExpr.Tuple({ elems: elems.map(bitterExprOf), ty }),

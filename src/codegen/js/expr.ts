@@ -29,16 +29,16 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
       return ret ? jsExprOf(ret, blockScope) : JSExpr.Literal({ literal: Literal.Unit });
     },
     If: () => {
-      const branches: { cond?: BitterExpr; then: BitterExpr }[] = [];
+      const branches: { cond?: BitterExpr; then_: BitterExpr }[] = [];
 
       const getBranches = (expr: BitterExpr) => {
         if (expr.variant === 'If') {
-          branches.push({ cond: expr.cond, then: expr.then });
-          if (expr.otherwise) {
-            getBranches(expr.otherwise);
+          branches.push({ cond: expr.cond, then_: expr.then_ });
+          if (expr.else_) {
+            getBranches(expr.else_);
           }
         } else {
-          branches.push({ then: expr });
+          branches.push({ then_: expr });
         }
       };
 
@@ -55,13 +55,13 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
         if (
           cond?.variant === 'Binary' &&
           (cond.op === '==' || cond.op === '!=') &&
-          branches[0].then.variant === 'Literal' &&
-          branches[0].then.literal.variant === 'Bool' &&
-          branches[1].then.variant === 'Literal' &&
-          branches[1].then.literal.variant === 'Bool' &&
-          branches[0].then.literal.$value !== branches[1].then.literal.$value
+          branches[0].then_.variant === 'Literal' &&
+          branches[0].then_.literal.variant === 'Bool' &&
+          branches[1].then_.variant === 'Literal' &&
+          branches[1].then_.literal.variant === 'Bool' &&
+          branches[0].then_.literal.$value !== branches[1].then_.literal.$value
         ) {
-          const isFirstBranchTrue = branches[0].then.literal.$value;
+          const isFirstBranchTrue = branches[0].then_.literal.$value;
           const isNegated = cond.op === '==' ? !isFirstBranchTrue : isFirstBranchTrue;
 
           if (isNegated) {
@@ -79,7 +79,7 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
       // $results in branches are not shadowed by the declaration
       const resultName = scope.declareUnused('$result');
 
-      const compiledBranches = branches.map(({ cond, then }) => {
+      const compiledBranches = branches.map(({ cond, then_: then }) => {
         const condVal = cond ? jsExprOf(cond, scope) : undefined;
         const thenScope = scope.realChild();
         const thenVal = jsExprOf(then, thenScope);
@@ -100,8 +100,8 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
           const { cond, val } = compiledBranches[i];
           ternary = JSExpr.Ternary({
             cond: cond!,
-            then: val,
-            otherwise: ternary,
+            then_: val,
+            else_: ternary,
           });
         }
 
@@ -122,7 +122,7 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
         JSStmt.If({
           branches: compiledBranches.map(({ cond, scope, val }) => ({
             cond,
-            then: [...scope.statements, lastStmtFn(val)],
+            then_: [...scope.statements, lastStmtFn(val)],
           })),
         }),
       );

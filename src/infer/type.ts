@@ -164,10 +164,10 @@ function isList(ty: Type): boolean {
   });
 }
 
-function show(ty: Type): string {
+function show(type: Type): string {
   const genericTyVars = new Set<string>();
 
-  const show = (ty: Type): string => {
+  const aux = (ty: Type): string => {
     return match(ty, {
       Var: ({ ref }) => {
         if (ref.variant === 'Generic') {
@@ -183,48 +183,48 @@ function show(ty: Type): string {
           case 'Cons':
             if (isList(args[1])) {
               if (args[1].variant === 'Fun' && args[1].name === 'Nil') {
-                return `[${show(args[0])}]`;
+                return `[${aux(args[0])}]`;
               }
 
-              return `[${show(args[0])}, ${unlist(args[1]).map(show).join(', ')}]`;
+              return `[${aux(args[0])}, ${unlist(args[1]).map(aux).join(', ')}]`;
             }
 
-            return `${show(args[0])}::${show(args[1])}`;
+            return `${aux(args[0])}::${aux(args[1])}`;
           case 'Array':
-            return `${show(args[0])}[]`;
+            return `${aux(args[0])}[]`;
           case 'Tuple':
             if (!isList(args[0])) {
-              return `Tuple<${show(args[0])}>`;
+              return `Tuple<${aux(args[0])}>`;
             }
 
-            return `(${unlist(args[0]).map(show).join(', ')})`;
+            return `(${unlist(args[0]).map(aux).join(', ')})`;
           case 'Function': {
             const ret = args[1];
 
             if (!isList(args[0])) {
-              return `Function<${show(args[0])}, ${show(ret)}>`;
+              return `Function<${aux(args[0])}, ${aux(ret)}>`;
             }
 
             const params = unlist(args[0]);
 
             if (params.length === 1) {
-              return `${show(params[0])} -> ${show(ret)}`;
+              return `${aux(params[0])} -> ${aux(ret)}`;
             }
 
-            return `(${params.map(show).join(', ')}) -> ${show(ret)}`;
+            return `(${params.map(aux).join(', ')}) -> ${aux(ret)}`;
           }
           default:
             if (args.length === 0) {
               return name;
             }
 
-            return `${name}<${args.map(show).join(', ')}>`;
+            return `${name}<${args.map(aux).join(', ')}>`;
         }
       },
     });
   };
 
-  let rhs = show(ty);
+  let rhs = aux(type);
 
   if (genericTyVars.size > 0) {
     rhs = `forall ${Array.from(genericTyVars).join(', ')}. ${rhs}`;
