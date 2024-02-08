@@ -5,7 +5,7 @@ import { uniq } from '../misc/sets';
 import { Backtick } from '../misc/strings';
 import { proj, pushMap, zip } from '../misc/utils';
 import { TypeEnv } from './infer';
-import { Subst, Type, TypeVar } from './type';
+import { Subst, Type } from './type';
 
 export type ExtensionMembers = Map<string, { ty: Type; declared: boolean }>;
 export type ExtensionInfo = {

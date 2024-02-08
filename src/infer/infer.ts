@@ -392,31 +392,29 @@ export class TypeEnv {
         }
       },
       Extend: ({ params: globalParams, subject, decls, uuid }) => {
-        const declareSelf = (env: TypeEnv): { subjectInst: Type } => {
-          const subjectInst = Type.instantiate(subject, env.letLevel, env.generics).ty;
-          TRS.add(env.types, Type.Fun('Self', []), subjectInst, false);
+        const declareSelf = (env: TypeEnv): void => {
+          TRS.add(env.types, Type.Fun('Self', []), subject, false);
           env.variables.declare('self', {
             pub: false,
             mut: false,
-            ty: subjectInst,
+            ty: subject,
           });
-
-          return { subjectInst };
         };
-
+        
         const extend = (decl: Decl): void => {
           const extEnv = this.child();
-
+          
           if (
             decl.variant === 'Stmt' &&
             decl.stmt.variant === 'Let' &&
             decl.stmt.lhs.variant === 'Variable'
-          ) {
-            const { pub, mutable, static: isStatic, lhs, ann, value, attrs } = decl.stmt;
-            const generics: string[] = [];
-
-            const { extensionTy, subjectTy } = extEnv.parameterize(globalParams, () => {
-              const { subjectInst } = declareSelf(extEnv);
+            ) {
+              const { pub, mutable, static: isStatic, lhs, ann, value, attrs } = decl.stmt;
+              const generics: string[] = [];
+              
+              const { extensionTy, subjectTy } = extEnv.parameterize(globalParams, () => {
+                declareSelf(extEnv);
+                const subjectInst = Type.instantiate(subject, extEnv.letLevel, extEnv.generics).ty;
 
               if (value.variant === 'Fun') {
                 generics.push(...value.generics);
@@ -444,11 +442,11 @@ export class TypeEnv {
               Type.generalize(extensionTy, this.letLevel);
 
             this.extensions.declare({
-              subject: subjectTy,
+              subject: extEnv.normalize(subjectTy),
               member: lhs.name,
               attrs,
               generics,
-              ty: genTy,
+              ty: extEnv.normalize(genTy),
               isDeclared: false,
               isStatic: isStatic,
               uuid,

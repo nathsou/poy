@@ -123,9 +123,18 @@ let zipped = [1, 2, 3].zip(["a", "b", "c"])
 print(zipped)
 print(zipped.unzip())
 print([1, 2, 3].sum())
-print(_[]::sum(range(1, 100 + 1)))
+print(_::sum(range(1, 100 + 1)))
 print(factorial(11))
 
-declare let test: IsEmpty<Parameters<@typeOf<factorial>>>
+type {
+    Not<True> = False
+    Not<False> = True
+}
+
+declare let test: Not<IsEmpty<Parameters<@typeOf<factorial>>>>
+
+let numArray = Num[]()
 
 print(typeOf(test).show())
+print(typeOf(_::sum).show())
+print(typeOf(numArray).show())

@@ -594,7 +594,10 @@ export const parse = (tokens: Token[], newlines: number[]) => {
   function extensionAccessExpr() {
     return attempt<Expr>(() => {
       const subject = type();
-      assert(subject.variant === 'Fun');
+      assert(
+        subject.variant === 'Fun' ||
+        (subject.variant === 'Var' && subject.ref.variant === 'Param' && subject.ref.name === '_'),
+      );
 
       if (matches(Token.Symbol('('))) {
         const args = commas(expr);

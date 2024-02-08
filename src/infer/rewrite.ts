@@ -129,7 +129,7 @@ const externals: Record<
     const subst = new Map([[name.ref.id, normalize(env, value, counter)]]);
     return Type.substitute(body, subst);
   },
-  '@typeOf': (args, env) => {
+  '@typeOf': (args, env, counter) => {
     assert(args.length === 1, '@typeOf expects exactly one argument');
     assert(
       args[0].variant === 'Var' && args[0].ref.variant === 'Param',
@@ -139,7 +139,7 @@ const externals: Record<
     const name = args[0].ref.name;
 
     return env.variables.lookup(name).match({
-      Some: ({ ty }) => ty,
+      Some: ({ ty }) => normalize(env, ty, counter),
       None: () => panic(`Variable '${name}' not found`),
     });
   },
@@ -167,10 +167,10 @@ function reduce(env: TypeEnv, ty: Type, counter: StepCounter): { term: Type; mat
         args.map(arg => normalize(env, arg, counter)),
       );
 
-      const rules = TRS.lookup(env.types, name);
+      const rules = TRS.lookup(env.types, name).flat();
 
-      if (rules.isSome()) {
-        for (const { lhs, rhs } of rules.unwrap()) {
+      if (rules) {
+        for (const { lhs, rhs } of rules) {
           const subst = Type.unifyPure(lhs, newTy);
 
           if (subst) {
