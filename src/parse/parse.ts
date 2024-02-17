@@ -7,7 +7,7 @@ import { Stmt } from '../ast/sweet/stmt';
 import { Type, TypeVar } from '../infer/type';
 import { Maybe, None, Some } from '../misc/maybe';
 import { Backtick, isLowerCase, isUpperCase } from '../misc/strings';
-import { array, assert, block, last, letIn, panic, uuid } from '../misc/utils';
+import { array, assert, block, last, letIn, panic } from '../misc/utils';
 import { AssignmentOp, BinaryOp, Keyword, Literal, Symbol, Token, UnaryOp } from './token';
 
 export const parse = (tokens: Token[], newlines: number[]) => {
@@ -1218,7 +1218,7 @@ export const parse = (tokens: Token[], newlines: number[]) => {
       params,
       subject,
       decls,
-      uuid: uuid(),
+      suffix: (subject.variant === 'Var' ? '$' : '') + Type.showFlat(subject),
     });
   }
 

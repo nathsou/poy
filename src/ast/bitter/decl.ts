@@ -20,7 +20,7 @@ export type Decl = DataType<{
     name: string;
     fields: { mut: boolean; name: string; ty: Type }[];
   };
-  Extend: { subject: Type; decls: Decl[]; uuid: string };
+  Extend: { subject: Type; decls: Decl[]; suffix: string };
   Enum: {
     pub: boolean;
     name: string;

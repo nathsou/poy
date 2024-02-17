@@ -42,6 +42,7 @@ export const Type = {
   DontCare: Object.freeze<Type>({ variant: 'Fun', name: '<DONT_CARE>', args: [] }),
   Iterator: (elem: Type): Type => Type.Fun('Iterator', [elem]),
   show,
+  showFlat,
   eq,
   unify,
   unifyPure,
@@ -127,9 +128,9 @@ export const TypeVar = {
     }),
   show: self =>
     match(self, {
-      Unbound: ({ id }) => '!' + showTypeVarId(id),
-      Generic: ({ id }) => "'" + showTypeVarId(id),
-      Param: ({ name }) => '%' + name,
+      Unbound: ({ id }) => showTypeVarId(id),
+      Generic: ({ id }) => showTypeVarId(id),
+      Param: ({ name }) => name,
       Link: ({ type }) => Type.show(type),
     }),
   linkTo: (self: { ref: TypeVar }, type: Type, subst?: Subst): void => {
@@ -231,6 +232,19 @@ function show(type: Type): string {
   }
 
   return rhs;
+}
+
+function showFlat(type: Type): string {
+  return match(type, {
+    Var: ({ ref }) => TypeVar.show(ref),
+    Fun: ({ name, args }) => {
+      if (args.length === 0) {
+        return name;
+      }
+
+      return `${name}_${args.map(showFlat).join('_')}`;
+    }
+  });
 }
 
 function rewrite(ty: Type, f: (ty: Type) => Type): Type {

@@ -69,7 +69,7 @@ export type ExtendDecl = {
   params: string[];
   subject: Type;
   decls: Decl[];
-  uuid: string;
+  suffix: string;
 };
 
 export type EnumVariant = DataType<{

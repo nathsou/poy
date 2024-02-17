@@ -26,14 +26,14 @@ export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] =>
     Module: mod => [bitterModuleOf(mod)],
     Import: ({ path, module, members }) => [BitterDecl.Import({ path, module, members })],
     Struct: ({ pub, name, fields }) => [BitterDecl.Struct({ pub, name, fields })],
-    Extend: ({ subject, decls, uuid }) => {
+    Extend: ({ subject, decls, suffix }) => {
       const filteredDecls: BitterDecl[] = [];
 
       for (const decl of decls) {
         if (decl.variant === 'Stmt' && decl.stmt.variant === 'Let') {
           const letStmt = { ...decl.stmt };
           assert(letStmt.lhs.variant === 'Variable');
-          letStmt.lhs.name = `${letStmt.lhs.name}_${uuid}`;
+          letStmt.lhs.name = `${letStmt.lhs.name}_${suffix}`;
 
           if (letStmt.value.variant === 'Fun' && !letStmt.static) {
             letStmt.value.args.unshift({
@@ -52,7 +52,7 @@ export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] =>
         }
       }
 
-      return [BitterDecl.Extend({ subject, uuid, decls: filteredDecls })];
+      return [BitterDecl.Extend({ subject, decls: filteredDecls, suffix })];
     },
     Enum: ({ pub, name, variants }) => {
       const mod = BitterDecl.Module({

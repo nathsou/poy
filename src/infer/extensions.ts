@@ -16,7 +16,7 @@ export type ExtensionInfo = {
   ty: Type;
   isDeclared: boolean;
   isStatic: boolean;
-  uuid: string;
+  suffix: string;
 };
 
 export type MatchingExtension = {

@@ -118,11 +118,11 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
       });
     },
     Call: ({ fun, args, ty }) => {
-      if (fun.variant === 'FieldAccess' && fun.extensionUuid != null && !fun.isNative) {
-        const { lhs, field, extensionUuid } = fun;
+      if (fun.variant === 'FieldAccess' && fun.extensionSuffix != null && !fun.isNative) {
+        const { lhs, field, extensionSuffix } = fun;
         return BitterExpr.Call({
           fun: BitterExpr.Variable({
-            name: `${field}_${extensionUuid}`,
+            name: `${field}_${extensionSuffix}`,
             ty: Type.Function([lhs.ty!, ...args.map(arg => arg.ty!)], ty!),
           }),
           args: [lhs, ...args].map(bitterExprOf),
@@ -160,7 +160,7 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
         })),
         ty,
       }),
-    FieldAccess: ({ lhs, field, extensionUuid, isCalled, isNative }) => {
+    FieldAccess: ({ lhs, field, extensionSuffix, isCalled, isNative }) => {
       if (isNative) {
         return BitterExpr.FieldAccess({
           lhs: bitterExprOf(lhs),
@@ -170,24 +170,24 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
         });
       }
 
-      if (extensionUuid != null && !isCalled) {
+      if (extensionSuffix != null && !isCalled) {
         return BitterExpr.Variable({
-          name: extensionUuid ? `${field}_${extensionUuid}` : field,
+          name: extensionSuffix ? `${field}_${extensionSuffix}` : field,
           ty: Type.Function([lhs.ty!], ty),
         });
       }
 
       return BitterExpr.FieldAccess({
         lhs: bitterExprOf(lhs),
-        field: extensionUuid ? `${field}_${extensionUuid}` : field,
+        field: extensionSuffix ? `${field}_${extensionSuffix}` : field,
         isCalled,
         ty,
       });
     },
-    ExtensionAccess: ({ member, extensionUuid }) => {
-      assert(extensionUuid != null, 'Extension uuid must be present in extension access');
+    ExtensionAccess: ({ member, extensionSuffix }) => {
+      assert(extensionSuffix != null, 'Extension suffix must be present in extension access');
       return BitterExpr.Variable({
-        name: `${member}_${extensionUuid}`,
+        name: `${member}_${extensionSuffix}`,
         ty: sweet.ty!,
       });
     },

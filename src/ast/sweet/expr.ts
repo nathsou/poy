@@ -35,7 +35,7 @@ export type Expr = DataType<{
     lhs: Expr;
     field: string;
     typeParams: Type[];
-    extensionUuid?: string;
+    extensionSuffix?: string;
     isCalled: boolean;
     isNative: boolean;
   };
@@ -44,7 +44,7 @@ export type Expr = DataType<{
     subject: Type;
     member: string;
     typeParams: Type[];
-    extensionUuid?: string;
+    extensionSuffix?: string;
   };
   TupleAccess: { lhs: Expr; index: number };
   Match: { subject: Expr; cases: { pattern: Pattern; body: Expr }[] };

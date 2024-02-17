@@ -394,14 +394,14 @@ export class TypeEnv {
             if (!extension.isDeclared) {
               members.push({
                 kind: 'value',
-                name: `${extension.member}_${extension.uuid}`,
+                name: `${extension.member}_${extension.suffix}`,
                 native: false,
               });
             }
           }
         }
       },
-      Extend: ({ params: globalParams, subject, decls, uuid }) => {
+      Extend: ({ params: globalParams, subject, decls, suffix }) => {
         const declareSelf = (env: TypeEnv): void => {
           TRS.add(env.types, Type.Fun('Self', []), subject, false);
           env.variables.declare('self', {
@@ -438,7 +438,7 @@ export class TypeEnv {
                   ty: ann ?? extEnv.freshType(),
                   isDeclared: false,
                   isStatic,
-                  uuid,
+                  suffix,
                 });
               }
 
@@ -459,7 +459,7 @@ export class TypeEnv {
               ty: extEnv.normalize(genTy),
               isDeclared: false,
               isStatic: isStatic,
-              uuid,
+              suffix,
             });
           } else if (decl.variant === 'Declare' && decl.sig.variant === 'Variable') {
             const { mut, name, ty, static: isStatic } = decl.sig;
@@ -473,7 +473,7 @@ export class TypeEnv {
               ty: genTy,
               isDeclared: true,
               isStatic: isStatic,
-              uuid,
+              suffix,
             });
           } else if (decl.variant === '_Many') {
             decl.decls.forEach(extend);
@@ -893,11 +893,11 @@ export class TypeEnv {
 
         return this.extensions.lookup(lhsTy, field).match({
           Ok: ({
-            ext: { ty: memberTy, isDeclared: isNative, uuid, subject, attrs },
+            ext: { ty: memberTy, isDeclared: isNative, suffix, subject, attrs },
             subst,
             params,
           }) => {
-            dotExpr.extensionUuid = uuid;
+            dotExpr.extensionSuffix = suffix;
             dotExpr.isNative = isNative;
 
             if (isNative && !isCalled && Type.utils.isFunction(memberTy)) {
@@ -938,7 +938,7 @@ export class TypeEnv {
         const ext = this.extensions.lookup(subjectInst.ty, member);
 
         return ext.match({
-          Ok: ({ ext: { ty, uuid, isDeclared: declared, isStatic: isStatic, generics }, subst, params }) => {
+          Ok: ({ ext: { ty, suffix, isDeclared: declared, isStatic: isStatic, generics }, subst, params }) => {
             if (declared) {
               return panic(
                 `Cannot access a declared extension member with an extension access expression: '${Type.show(
@@ -955,7 +955,7 @@ export class TypeEnv {
             
             typeParamScope.declareMany(zip(generics, typeParams));
             const instTy = Type.instantiate(ty, this.letLevel, typeParamScope).ty;
-            extensionAccessExpr.extensionUuid = uuid;
+            extensionAccessExpr.extensionSuffix = suffix;
 
             if (!isStatic && Type.utils.isFunction(instTy)) {
               // prepend 'self' to the methods's type

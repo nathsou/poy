@@ -98,11 +98,10 @@ mut c = [a, b] // mut Num[] is not compatible with Num[]
 
 - [ ] Implicitely import the foundations
 - [ ] Improve error messages
-- [ ] Make type parameters uppercase
-- [ ] Identify improvement areas and clean up:
-  1. Refactor generics
-  2. Refactor and simplify type rewriting
-  3. Remove all uses of Math.random (uuid)
+- [ ] Make type parameters uppercase?
+- [x] Refactor generics
+- [x] Refactor and simplify type rewriting
+- [x] Remove all uses of Math.random (uuid)
 - [ ] Optimize pattern matching (+ eliminate `Option` type overhead)
 - [ ] Improve emitted JS readability
 - [ ] Create an interactive web playground
