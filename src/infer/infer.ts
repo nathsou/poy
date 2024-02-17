@@ -19,9 +19,14 @@ type VarInfo = {
   generics?: string[];
   ty: Type;
   native?: boolean;
+  sourceModule?: Module;
 };
 
-type ModuleInfo = Module & { local: boolean; native?: boolean };
+type ModuleInfo = Module & {
+  local: boolean;
+  native?: boolean;
+  sourceModule?: Module;
+};
 
 export class TypeEnv {
   public variables: Scope<VarInfo>;
@@ -90,6 +95,7 @@ export class TypeEnv {
     lhs: Pattern,
     ann: Type | undefined,
     value: Expr,
+    native?: boolean,
   ): Type {
     this.validateDestructuringPattern(lhs);
     this.letLevel += 1;
@@ -130,7 +136,7 @@ export class TypeEnv {
       // TODO: handle mutable subpatterns?
       const isMut = mut;
       const genTy = isMut ? ty : Type.generalize(ty, this.letLevel);
-      this.variables.declare(name, { pub, mut, ty: genTy });
+      this.variables.declare(name, { pub, mut, ty: genTy, native });
     }
 
     // https://en.wikipedia.org/wiki/Value_restriction
@@ -301,6 +307,7 @@ export class TypeEnv {
 
               if (pub) {
                 this.variables.declare(name, {
+                  sourceModule: mod,
                   pub,
                   mut,
                   ty,
@@ -318,6 +325,7 @@ export class TypeEnv {
                   if (module.pub) {
                     this.modules.declare(name, {
                       ...module,
+                      sourceModule: mod,
                       local: false,
                     });
                   } else {
@@ -383,11 +391,13 @@ export class TypeEnv {
         for (const [, extensions] of mod.env.extensions) {
           for (const extension of extensions) {
             this.extensions.declare(extension);
-            members.push({
-              kind: 'value',
-              name: `${extension.member}_${extension.uuid}`,
-              native: false,
-            });
+            if (!extension.isDeclared) {
+              members.push({
+                kind: 'value',
+                name: `${extension.member}_${extension.uuid}`,
+                native: false,
+              });
+            }
           }
         }
       },
@@ -409,7 +419,7 @@ export class TypeEnv {
             decl.stmt.variant === 'Let' &&
             decl.stmt.lhs.variant === 'Variable'
             ) {
-              const { pub, mutable, static: isStatic, lhs, ann, value, attrs } = decl.stmt;
+              const { mutable, static: isStatic, lhs, ann, value, attrs } = decl.stmt;
               const generics: string[] = [];
               
               const { extensionTy, subjectTy } = extEnv.parameterize(globalParams, () => {
@@ -432,7 +442,7 @@ export class TypeEnv {
                 });
               }
 
-              const ty = extEnv.inferLet(pub, mutable, lhs, ann, value);
+              const ty = extEnv.inferLet(false, mutable, lhs, ann, value, !!attrs.as);
 
               return { extensionTy: ty, subjectTy: subjectInst };
             });
@@ -521,14 +531,14 @@ export class TypeEnv {
       Expr: ({ expr }) => {
         this.inferExpr(expr);
       },
-      Let: ({ pub, mutable, lhs, ann, value }) => {
+      Let: ({ pub, mutable, lhs, ann, value, attrs }) => {
         const generics: string[] = [];
 
         if (value.variant === 'Fun') {
           generics.push(...value.generics);
         }
 
-        this.inferLet(pub, mutable, lhs, ann, value);
+        this.inferLet(pub, mutable, lhs, ann, value, !!attrs.as);
       },
       Assign: ({ lhs, op, rhs }) => {
         const alpha = Type.alpha();

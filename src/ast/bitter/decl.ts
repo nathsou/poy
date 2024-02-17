@@ -9,7 +9,7 @@ export type Decl = DataType<{
   Stmt: { stmt: Stmt };
   Type: { lhs: Type; rhs: Type };
   Declare: { sig: Signature; attrs: Attributes };
-  Module: { name: string; decls: Decl[] };
+  Module: { pub: boolean, name: string; decls: Decl[] };
   Import: {
     path: string[];
     module: string;

@@ -8,12 +8,13 @@ import { Occurrence } from '../decision-trees/ClauseMatrix';
 
 export const bitterStmtOf = (sweet: SweetStmt): BitterStmt[] =>
   match(sweet, {
-    Let: ({ mutable, static: isStatic, lhs, value, attrs }) => {
+    Let: ({ pub, mutable, static: isStatic, lhs, value, attrs }) => {
       const decls = array<BitterStmt>();
 
       for (const [name, occ] of Pattern.variableOccurrences(lhs).shared) {
         decls.push(
           BitterStmt.Let({
+            pub,
             mutable,
             static: isStatic,
             name,

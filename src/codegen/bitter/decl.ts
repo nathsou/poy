@@ -12,6 +12,7 @@ import { Pattern } from '../../ast/sweet/pattern';
 
 export const bitterModuleOf = (sweet: ModuleDecl): VariantOf<BitterDecl, 'Module'> => {
   return BitterDecl.Module({
+    pub: sweet.pub,
     name: sweet.name,
     decls: sweet.decls.flatMap(bitterDeclsOf),
   });
@@ -53,14 +54,16 @@ export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] =>
 
       return [BitterDecl.Extend({ subject, uuid, decls: filteredDecls })];
     },
-    Enum: ({ name, variants }) => {
+    Enum: ({ pub, name, variants }) => {
       const mod = BitterDecl.Module({
+        pub,
         name,
         decls: variants.map(variant =>
           match(variant, {
             Empty: ({ name }) =>
               BitterDecl.Stmt(
                 BitterStmt.Let({
+                  pub,
                   mutable: false,
                   static: true,
                   name,
@@ -72,6 +75,7 @@ export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] =>
               const variantStr = BitterExpr.Literal(Literal.Str(name), Type.Str);
               return BitterDecl.Stmt(
                 BitterStmt.Let({
+                  pub,
                   mutable: false,
                   static: true,
                   name,

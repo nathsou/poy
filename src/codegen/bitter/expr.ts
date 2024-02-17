@@ -51,6 +51,7 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
       for (const [name, occ] of shared) {
         stmts.push(
           BitterStmt.Let({
+            pub: false,
             mutable: false,
             static: false,
             name,
@@ -94,6 +95,7 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
               for (const [name, occ] of shared) {
                 decls.push(
                   BitterStmt.Let({
+                    pub: false,
                     mutable: false,
                     static: false,
                     name,

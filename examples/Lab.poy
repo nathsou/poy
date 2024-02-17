@@ -1,5 +1,5 @@
 import Euler { euler1 }
-import Foundations { print, typeOf, Parameters }
+import Foundations { print, typeOf, Parameters, Option }
 import List { IsEmpty }
 
 struct Person {
@@ -138,3 +138,4 @@ let numArray = Num[]()
 print(typeOf(test).show())
 print(typeOf(_::sum).show())
 print(typeOf(numArray).show())
+print(.some(3 * 7))

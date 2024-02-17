@@ -12,7 +12,6 @@ import { AssignmentOp, BinaryOp, Keyword, Literal, Symbol, Token, UnaryOp } from
 
 export const parse = (tokens: Token[], newlines: number[]) => {
   let index = 0;
-  const modifiers = { pub: false, static: false };
   const attribs = {
     ref: Attributes.empty(),
     copy: (): Attributes => ({ ...attribs.ref }),
@@ -876,7 +875,13 @@ export const parse = (tokens: Token[], newlines: number[]) => {
 
   // ------ statements ------
 
-  function stmt(): Stmt {
+  type StmtModifiers = {
+    pub: boolean;
+    mut: boolean;
+    static: boolean;
+  };
+
+  function stmt(modifiers: StmtModifiers = { pub: false, mut: false, static: false }): Stmt {
     attribs.ref = attributes();
 
     return match(peek(), {
@@ -884,29 +889,22 @@ export const parse = (tokens: Token[], newlines: number[]) => {
         switch (keyword) {
           case 'pub': {
             next();
-            const prevPub = modifiers.pub;
-            modifiers.pub = true;
-            const ret = stmt();
-            modifiers.pub = prevPub;
-            return ret;
+            return stmt({ ...modifiers, pub: true });
           }
           case 'static': {
             next();
-            const prevStatic = modifiers.static;
-            modifiers.static = true;
-            const ret = stmt();
-            modifiers.static = prevStatic;
-            return ret;
+            return stmt({ ...modifiers, static: true });
           }
-          case 'let':
           case 'mut':
+          case 'let':
             next();
+            const isMutable = keyword === 'mut';
 
             if (matches(Token.Symbol('{'))) {
               const stmts: Stmt[] = [];
 
               while (!matches(Token.Symbol('}'))) {
-                stmts.push(letStmt(keyword === 'mut'));
+                stmts.push(letStmt({ ...modifiers, mut: isMutable }));
               }
 
               consumeIfPresent(Token.Symbol(';'));
@@ -914,10 +912,10 @@ export const parse = (tokens: Token[], newlines: number[]) => {
               return Stmt._Many({ stmts });
             }
 
-            return letStmt(keyword === 'mut');
+            return letStmt({ ...modifiers, mut: isMutable });
           case 'fun':
             next();
-            return funStmt();
+            return funStmt(modifiers);
           case 'while':
             next();
             return whileStmt();
@@ -941,7 +939,7 @@ export const parse = (tokens: Token[], newlines: number[]) => {
     });
   }
 
-  function funStmt(): Stmt {
+  function funStmt(modifiers: StmtModifiers): Stmt {
     const attrs = attribs.copy();
     const name = identifier();
     const value = funExpr(false);
@@ -957,7 +955,7 @@ export const parse = (tokens: Token[], newlines: number[]) => {
     });
   }
 
-  function letStmt(mutable: boolean): Stmt {
+  function letStmt(modifiers: StmtModifiers): Stmt {
     const attrs = attribs.copy();
     const lhs = pattern();
     const ann = typeAnnotation();
@@ -968,7 +966,7 @@ export const parse = (tokens: Token[], newlines: number[]) => {
     return Stmt.Let({
       pub: modifiers.pub,
       static: modifiers.static,
-      mutable,
+      mutable: modifiers.mut,
       lhs,
       ann,
       value,
@@ -1059,7 +1057,11 @@ export const parse = (tokens: Token[], newlines: number[]) => {
 
   // ------ declarations ------
 
-  const KEYWORD_MAPPING: Partial<Record<Keyword, () => Decl>> = {
+  type DeclModifiers = {
+    pub: boolean;
+  };
+
+  const DECL_KEYWORD_MAPPING: Partial<Record<Keyword, (modifiers: DeclModifiers) => Decl>> = {
     type: typeDecl,
     module: moduleDecl,
     declare: declareDecl,
@@ -1069,33 +1071,32 @@ export const parse = (tokens: Token[], newlines: number[]) => {
     enum: enumDecl,
   };
 
-  function decl(): Decl {
+  function decl(modifiers: DeclModifiers): Decl {
     attribs.ref = attributes();
     const token = peek();
 
     if (token.variant === 'Keyword') {
       if (token.$value === 'pub') {
         next();
-        modifiers.pub = true;
-        return decl();
+        return decl({ ...modifiers, pub: true });
       }
 
-      const parser = KEYWORD_MAPPING[token.$value];
+      const parser = DECL_KEYWORD_MAPPING[token.$value];
 
       if (parser) {
         next();
 
         if (matches(Token.Symbol('{'))) {
-          return manyDecl(parser);
+          return manyDecl(() => parser(modifiers));
         }
 
-        const res = parser();
+        const res = parser(modifiers);
         consumeSeparatorIfPresent();
         return res;
       }
     }
 
-    return stmtDecl();
+    return stmtDecl(modifiers);
   }
 
   function manyDecl(declParser: () => Decl): Decl {
@@ -1112,8 +1113,8 @@ export const parse = (tokens: Token[], newlines: number[]) => {
     return Decl._Many({ decls });
   }
 
-  function stmtDecl(): Decl {
-    return Decl.Stmt(stmt());
+  function stmtDecl({ pub }: DeclModifiers): Decl {
+    return Decl.Stmt(stmt({ pub, mut: false, static: false }));
   }
 
   function importPath(): string[] {
@@ -1170,7 +1171,7 @@ export const parse = (tokens: Token[], newlines: number[]) => {
     });
   }
 
-  function typeDecl(): VariantOf<Decl, 'Type'> {
+  function typeDecl(modifiers: DeclModifiers): VariantOf<Decl, 'Type'> {
     const lhs = type();
     consume(Token.Symbol('='));
     const rhs = type();
@@ -1179,7 +1180,7 @@ export const parse = (tokens: Token[], newlines: number[]) => {
     return Decl.Type({ pub: modifiers.pub, lhs, rhs });
   }
 
-  function structDecl(): VariantOf<Decl, 'Struct'> {
+  function structDecl(modifiers: DeclModifiers): VariantOf<Decl, 'Struct'> {
     const name = identifier();
     const params = typeParams();
     const fields: StructDecl['fields'] = [];
@@ -1199,7 +1200,7 @@ export const parse = (tokens: Token[], newlines: number[]) => {
     return Decl.Struct({ pub: modifiers.pub, name, params, fields });
   }
 
-  function extendDecl(): VariantOf<Decl, 'Extend'> {
+  function extendDecl(modifiers: DeclModifiers): VariantOf<Decl, 'Extend'> {
     const params = typeParams();
     const subject = type();
     const decls = array<Decl>();
@@ -1207,7 +1208,7 @@ export const parse = (tokens: Token[], newlines: number[]) => {
     consume(Token.Symbol('{'));
 
     while (!matches(Token.Symbol('}'))) {
-      decls.push(decl());
+      decls.push(decl(modifiers));
       consumeIfPresent(Token.Symbol(','));
     }
 
@@ -1221,7 +1222,7 @@ export const parse = (tokens: Token[], newlines: number[]) => {
     });
   }
 
-  function enumDecl(): VariantOf<Decl, 'Enum'> {
+  function enumDecl(modifiers: DeclModifiers): VariantOf<Decl, 'Enum'> {
     const name = identifier();
     const params = typeParams();
     const variants = array<EnumVariant>();
@@ -1254,7 +1255,13 @@ export const parse = (tokens: Token[], newlines: number[]) => {
     return Decl.Enum({ pub: modifiers.pub, name, params, variants });
   }
 
-  function variableSignature(mut: boolean): VariantOf<Signature, 'Variable'> {
+  type SignatureModifiers = {
+    pub: boolean;
+    mut: boolean;
+    static: boolean;
+  };
+
+  function variableSignature(modifiers: SignatureModifiers): VariantOf<Signature, 'Variable'> {
     const name = identifier();
     const ty = typeAnnotationRequired();
     consumeIfPresent(Token.Symbol(';'));
@@ -1262,14 +1269,14 @@ export const parse = (tokens: Token[], newlines: number[]) => {
     return {
       variant: 'Variable',
       static: modifiers.static,
-      mut,
+      mut: modifiers.mut,
       params: [],
       name,
       ty,
     };
   }
 
-  function functionSignature(): VariantOf<Signature, 'Variable'> {
+  function functionSignature(modifiers: SignatureModifiers): VariantOf<Signature, 'Variable'> {
     const name = identifier();
     const params = typeParams();
     consume(Token.Symbol('('));
@@ -1297,13 +1304,13 @@ export const parse = (tokens: Token[], newlines: number[]) => {
     };
   }
 
-  function moduleSignature(): VariantOf<Signature, 'Module'> {
+  function moduleSignature(modifiers: SignatureModifiers): VariantOf<Signature, 'Module'> {
     const name = identifier();
     const sigs: Signature[] = [];
     consume(Token.Symbol('{'));
 
     while (!matches(Token.Symbol('}'))) {
-      sigs.push(...signatures());
+      sigs.push(...signatures(modifiers));
     }
 
     consumeIfPresent(Token.Symbol(';'));
@@ -1311,19 +1318,19 @@ export const parse = (tokens: Token[], newlines: number[]) => {
     return { variant: 'Module', name, signatures: sigs };
   }
 
-  function signatures(): Signature[] {
+  function signatures(modifiers: SignatureModifiers): Signature[] {
     const SIGNATURE_MAPPING: Partial<Record<Keyword, () => Signature>> = {
-      let: () => variableSignature(false),
-      mut: () => variableSignature(true),
-      fun: functionSignature,
+      let: () => variableSignature({ ...modifiers, mut: false }),
+      mut: () => variableSignature({ ...modifiers, mut: true }),
+      fun: () => functionSignature(modifiers),
       type: () =>
-        letIn(typeDecl(), td => ({
+        letIn(typeDecl(modifiers), td => ({
           variant: 'Type',
           pub: modifiers.pub,
           lhs: td.lhs,
           rhs: td.rhs,
         })),
-      module: moduleSignature,
+      module: () => moduleSignature(modifiers),
     };
 
     const token = peek();
@@ -1332,7 +1339,7 @@ export const parse = (tokens: Token[], newlines: number[]) => {
       if (token.$value === 'pub') {
         next();
         modifiers.pub = true;
-        return signatures();
+        return signatures(modifiers);
       }
 
       const parser = SIGNATURE_MAPPING[token.$value];
@@ -1358,7 +1365,7 @@ export const parse = (tokens: Token[], newlines: number[]) => {
 
   function declareDecl(): Decl {
     const attrs = attribs.copy();
-    const sigs = signatures();
+    const sigs = signatures({ pub: false, mut: false, static: false });
 
     if (sigs.length === 1) {
       return Decl.Declare(sigs[0], attrs);
@@ -1367,7 +1374,7 @@ export const parse = (tokens: Token[], newlines: number[]) => {
     return Decl._Many({ decls: sigs.map(sig => Decl.Declare(sig, attrs)) });
   }
 
-  function moduleDecl(): VariantOf<Decl, 'Module'> {
+  function moduleDecl(modifiers: DeclModifiers): VariantOf<Decl, 'Module'> {
     consumeIfPresent(Token.Keyword('module'));
     const name = identifier();
     const params = typeParams();
@@ -1375,7 +1382,7 @@ export const parse = (tokens: Token[], newlines: number[]) => {
     consume(Token.Symbol('{'));
 
     while (!matches(Token.Symbol('}'))) {
-      decls.push(decl());
+      decls.push(decl(modifiers));
     }
 
     consumeIfPresent(Token.Symbol(';'));
@@ -1383,11 +1390,11 @@ export const parse = (tokens: Token[], newlines: number[]) => {
     return Decl.Module({ pub: modifiers.pub, name, params, decls });
   }
 
-  function topModule(name: string): ModuleDecl {
+  function topModule(name: string, modifiers: DeclModifiers): ModuleDecl {
     const decls: Decl[] = [];
 
     while (!isAtEnd()) {
-      decls.push(decl());
+      decls.push(decl(modifiers));
     }
 
     return { pub: true, name, params: [], decls };

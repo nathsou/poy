@@ -42,7 +42,7 @@ export class Resolver {
       const tokens = lex(source);
       const newlines = indices(source.split(''), c => c === '\n');
       const moduleName = camelCase(last(this.fs.normalize(absolutePath).split('/')).split('.')[0]);
-      const topModule = parse(tokens, newlines).topModule(moduleName);
+      const topModule = parse(tokens, newlines).topModule(moduleName, { pub: false });
       const env = new TypeEnv(this, absolutePath, moduleName);
 
       for (const decl of topModule.decls) {

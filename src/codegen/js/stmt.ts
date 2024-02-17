@@ -6,14 +6,14 @@ import { JSScope } from './jsScope';
 
 export const jsStmtOf = (bitter: BitterStmt, scope: JSScope): JSStmt => {
   return match(bitter, {
-    Let: ({ mutable, name, value, attrs }) => {
+    Let: ({ pub, mutable, name, value, attrs }) => {
       const declaredName = scope.declare(name, attrs.as);
       const jsValue = jsExprOf(value, scope);
 
       if (mutable) {
-        return JSStmt.Let({ name: declaredName, value: jsValue });
+        return JSStmt.Let({ name: declaredName, value: jsValue, exported: pub });
       } else {
-        return JSStmt.Const({ name: declaredName, value: jsValue });
+        return JSStmt.Const({ name: declaredName, value: jsValue, exported: pub });
       }
     },
     Expr: ({ expr }) => {

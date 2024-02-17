@@ -6,8 +6,8 @@ import { Expr } from './expr';
 
 export type Stmt = DataType<{
   Expr: { expr: Expr };
-  Const: { name: Name; value: Expr };
-  Let: { name: Name; value?: Expr };
+  Const: { name: Name; value: Expr; exported?: boolean };
+  Let: { name: Name; value?: Expr; exported?: boolean};
   If: { branches: { cond?: Expr; then_: Stmt[] }[] };
   Assign: { lhs: Expr; op: AssignmentOp; rhs: Expr };
   Return: { value: Expr };
@@ -15,10 +15,11 @@ export type Stmt = DataType<{
   Break: {};
   While: { cond: Expr; body: Stmt[] };
   For: { name: Name; iterator: Expr; body: Stmt[] };
+  Import: { path: string; members: Name[] };
 }>;
 
 export const Stmt = {
-  ...constructors<Stmt>().get('Const', 'Let', 'If'),
+  ...constructors<Stmt>().get('Const', 'Let', 'If', 'Import'),
   Expr: (expr: Expr) => ({ variant: 'Expr', expr }) satisfies Stmt,
   Return: (value: Expr) => ({ variant: 'Return', value }) satisfies Stmt,
   Yield: (value: Expr) => ({ variant: 'Yield', value }) satisfies Stmt,
@@ -48,16 +49,17 @@ function show(stmt: Stmt, indentLevel: number = 0): string {
       }
       return `${indent}${Expr.show(expr)};`;
     },
-    Const: ({ name, value }) => {
+    Const: ({ name, value, exported }) => {
+      const exp = exported ? 'export ' : '';
       if (value.variant === 'Closure') {
-        return `${indent}function ${name.mangled}(${value.args
+        return `${indent}${exp}function ${name.mangled}(${value.args
           .map(arg => arg.name.mangled)
           .join(', ')}) {\n${showStmts(value.stmts, indentLevel + 1)}\n${indent}}`;
       }
-      return `${indent}const ${name.mangled} = ${Expr.show(value)};`;
+      return `${indent}${exp}const ${name.mangled} = ${Expr.show(value)};`;
     },
-    Let: ({ name, value }) =>
-      `${indent}let ${name.mangled}${value ? ` = ${Expr.show(value)}` : ''};`,
+    Let: ({ name, value, exported }) =>
+      `${indent}${exported ? 'export ' : ''}let ${name.mangled}${value ? ` = ${Expr.show(value)}` : ''};`,
     If: ({ branches }) => {
       const parts = branches.map(({ cond, then_: then }, index) => {
         const then_ = showStmts(then, indentLevel + 1);
@@ -85,5 +87,9 @@ function show(stmt: Stmt, indentLevel: number = 0): string {
         iterator,
       )}) {\n${body_}\n${indent}}`;
     },
+    Import: ({ path, members }) => {
+      const members_ = members.map(name => name.mangled).join(', ');
+      return `import { ${members_} } from '${path}';`;
+    }
   });
 }

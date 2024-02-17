@@ -7,6 +7,7 @@ import { Constructors, Impl } from '../../misc/traits';
 export type Stmt = DataType<{
   Expr: { expr: Expr };
   Let: {
+    pub: boolean;
     mutable: boolean;
     static: boolean;
     name: string;

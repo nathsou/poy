@@ -136,6 +136,7 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
         BitterExpr.Block({
           stmts: [
             BitterStmt.Let({
+              pub: false,
               mutable: false,
               static: false,
               name,
