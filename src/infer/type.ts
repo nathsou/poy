@@ -4,7 +4,6 @@ import { Context } from '../misc/context';
 import { Scope } from '../misc/scope';
 import { Constructors, Eq, Impl, Rewrite, Show } from '../misc/traits';
 import { Ref, assert, map, panic, sum } from '../misc/utils';
-import { ModulePath } from '../resolve/resolve';
 import { normalize } from './rewrite';
 
 export type Type = DataType<{
@@ -58,8 +57,10 @@ export const Type = {
   utils: {
     isType: (ty: unknown): ty is Type => {
       return (
-        ty != null && typeof ty === 'object' &&
-        'variant' in ty && (ty.variant === 'Var' || ty.variant === 'Fun')
+        ty != null &&
+        typeof ty === 'object' &&
+        'variant' in ty &&
+        (ty.variant === 'Var' || ty.variant === 'Fun')
       );
     },
     params: typeParameters,
@@ -148,8 +149,7 @@ export const TypeVar = {
       }
     }
   },
-  fresh: (level: number): TypeVar =>
-    TypeVar.Unbound({ id: Context.freshTypeVarId(), level }),
+  fresh: (level: number): TypeVar => TypeVar.Unbound({ id: Context.freshTypeVarId(), level }),
 } satisfies Impl<Eq<TypeVar> & Show<TypeVar> & Constructors<TypeVar>>;
 
 function isList(ty: Type): boolean {
@@ -243,7 +243,7 @@ function showFlat(type: Type): string {
       }
 
       return `${name}_${args.map(showFlat).join('_')}`;
-    }
+    },
   });
 }
 

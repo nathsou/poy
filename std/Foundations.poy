@@ -113,24 +113,106 @@ pub extend Str[] {
 
 pub extend<a> a[] {
     static fun init(): Self { [] }
-   
+
+    declare let length: Num
+    declare fun at(index: Num): a
+    declare fun concat(other: a[]): a[]
+
+    #as("copyWithin")
     declare {
-        let length: Num
-        fun at(index: Num): a
-        fun push(elem: a): ()
-        fun pop(): a
-        fun filter(predicate: a -> Bool): a[]
-        fun map<b>(f: a -> b): b[]
-        fun flatMap<b>(f: a -> b[]): b[]
-        fun find(predicate: a -> Bool): a
-        fun findIndex(predicate: a -> Bool): Num
-        fun forEach(f: a -> ()): ()
-        fun slice(start: Num, end: Num): a[]
-        fun includes(value: a): Bool
-        fun some(predicate: a -> Bool): Bool
-        fun every(predicate: a -> Bool): Bool
+        fun copyWithin(target: Num, start: Num): ()
+        fun copyWithinWithEnd(target: Num, start: Num, end: Num): ()
     }
 
+    declare fun entries(): Iterator<(Num, a)>
+    declare fun every(predicate: a -> Bool): Bool
+
+    #as("fill")
+    declare {
+        fun fill(value: a, start: Num): ()
+        fun fillWithEnd(value: a, start: Num, end: Num): ()
+    }
+    
+    declare fun filter(predicate: a -> Bool): a[]
+    declare fun find(predicate: a -> Bool): a
+    declare fun findIndex(predicate: a -> Bool): Num
+    declare fun findLast(predicate: a -> Bool): a
+    declare fun findLastIndex(predicate: a -> Bool): Num
+
+    #as("flat")
+    declare {
+        fun flat(): a[]
+        fun flatWithDepth(depth: Num): a[]
+    }
+
+    declare fun flatMap<b>(f: a -> b[]): b[]
+    declare fun forEach(f: a -> ()): ()
+    declare fun filter(predicate: a -> Bool): a[]
+    declare fun flatMap<b>(f: a -> b[]): b[]
+    declare fun forEach(f: a -> ()): ()
+
+    #as("includes")
+    declare {
+        fun includes(elem: a): Bool
+        fun includesFromIndex(elem: a, fromIndex: Num): Bool
+    }
+    
+    #as("indexOf")
+    declare {
+        fun indexOf(elem: a): Num
+        fun indexOfFromIndex(elem: a, fromIndex: Num): Num
+    }
+
+    #as("lastIndexOf")
+    declare {
+        fun lastIndexOf(elem: a): Num
+        fun lastIndexOfFromIndex(elem: a, fromIndex: Num): Num
+    }
+
+    declare fun map<b>(f: a -> b): b[]
+    declare fun pop(): a
+    declare fun push(elem: a): ()
+    declare fun reduce<b>(f: (b, a) -> b, init: b): b
+    declare fun reduceRight<b>(f: (b, a) -> b, init: b): b
+
+    #as("reverse")
+    declare fun reverseInPlace(): ()
+
+    #as("toReversed")
+    declare fun reversed(): a[]
+
+    declare fun shift(): a
+
+    #as("slice")
+    declare {
+        fun slice(start: Num): a[]
+        fun sliceWithEnd(start: Num, end: Num): a[]
+    }
+
+    declare fun some(predicate: a -> Bool): Bool
+
+    #as("sort")
+    declare fun sortInPlace(): ()
+
+    #as("toSorted")
+    declare fun sorted(): a[]
+    
+    #as("splice")
+    declare {
+        fun splice(start: Num): a[]
+        fun spliceWithDeleteCount(start: Num, deleteCount: Num): a[]
+    }
+
+    #as("toSpliced")
+    declare {
+        fun spliced(start: Num): a[]
+        fun splicedWithDeleteCount(start: Num, deleteCount: Num): a[]
+    }
+
+    declare fun unshift(elem: a): Num
+    declare fun values(): Iterator<a>
+    declare fun with(index: Num, value: a): a[]
+ 
     #as("Symbol.iterator")
     declare fun iter(): Iterator<a>
 
@@ -142,18 +224,6 @@ pub extend<a> a[] {
     fun lastIndex(): Num { self.length - 1 }
 
     fun last() { self[self.length - 1] }
-
-    fun reversed() {
-        mut rev = []
-        mut i = self.lastIndex()
-
-        while i >= 0 {
-            rev.push(self[i])
-            i -= 1
-        }
-
-        rev
-    }
 
     fun isEmpty(): Bool {
         self.length == 0
@@ -215,6 +285,174 @@ pub extend Num[] {
         }
 
         total 
+    }
+}
+
+pub extend<a> Iterator<a> {
+    fun map(f) {
+        for v in self {
+            yield f(v)
+        }
+    }
+
+    fun filter(pred) {
+        for v in self {
+            if pred(v) {
+                yield v
+            }
+        }
+    }
+
+    fun sum() {
+        mut total = 0
+
+        for v in self {
+            total += v
+        }
+
+        total
+    }
+
+    fun product() {
+        mut res = 1
+
+        for v in self {
+            res *= v
+        }
+
+        res
+    }
+
+    fun toArray() {
+        mut res = []
+
+        for v in self {
+            res.push(v)
+        }
+
+        res
+    }
+
+    fun findIndex(pred: a -> Bool) {
+        mut i = 0
+
+        for v in self {
+            if pred(v) {
+                return i
+            }
+
+            i += 1
+        }
+
+        -1
+    }
+}
+
+#new("Map")
+declare fun initMap(): Map<_, _>
+
+#new("Map")
+declare fun initMapFromEntries<k, v>(entries: Iterator<(k, v)>): Map<k, v>
+
+pub extend Map {
+    static fun init() {
+        initMap()
+    }
+}
+
+pub extend<k, v> Map<k, v> {
+    declare {
+        let size: Num
+        fun clear(): ()
+        fun delete(key: k): ()
+        fun entries(): Iterator<(k, v)>
+        fun forEach(f: (v, k) -> ()): ()
+        fun get(key: k): v
+        fun has(key: k): Bool
+        fun keys(): Iterator<k>
+        fun set(key: k, value: v): ()
+        fun values(): Iterator<v>
+    }
+
+    static fun init(): Self {
+        initMap()
+    }
+
+    static fun fromEntries(entries) {
+        initMapFromEntries(entries)
+    }
+
+    fun map<k2, v2>(f: (k, v) -> (k2, v2)): Map<k2, v2> {
+        initMapFromEntries(self.entries().map(kv -> f(kv.0, kv.1)))
+    }
+
+    fun mapKeys<k2>(f: (k, v) -> k2): Map<k2, v> {
+        initMapFromEntries(self.entries().map(kv -> {
+            let k = kv.0
+            let v = kv.1
+            let k2 = f(k, v)
+
+            (k2, v)
+        }))
+    }
+
+    fun mapValues<v2>(f: (k, v) -> v2): Map<k, v2> {
+        initMapFromEntries(self.entries().map(kv -> {
+            let k = kv.0
+            let v = kv.1
+            let v2 = f(k, v)
+
+            (k, v2)
+        }))
+    }
+
+    fun groupBy<k2>(f: v -> k2): Map<k2, v[]> {
+        mut grouped = initMap()
+
+        for pair in self.entries() {
+            let key = pair.0
+            let val = pair.1
+            let k = f(key)
+
+            if grouped.has(k) {
+                grouped.get(k).push(val)
+            } else {
+                grouped.set(k, [val])
+            }
+        }
+
+        grouped
+    }
+}
+
+pub extend <k, e> Map<k, e[]> {
+    fun push(key, elem) {
+        if self.has(key) {
+            self.get(key).push(elem)
+        } else {
+            self.set(key, [elem])
+        }
+    }
+}
+
+pub extend Set<a> {
+    declare {
+        let size: Num
+        fun add(value: a): ()
+        fun clear(): ()
+        fun delete(value: a): ()
+        fun difference(other: Set<a>): Set<a>
+        fun entries(): Iterator<(a, a)>
+        fun forEach(f: a -> ()): ()
+        fun has(value: a): Bool
+        fun intersection(other: Set<a>): Set<a>
+        fun isDisjointFrom(other: Set<a>): Bool
+        fun isSubsetOf(other: Set<a>): Bool
+        fun isSupersetOf(other: Set<a>): Bool
+        fun keys(): Iterator<a>
+        fun symmetricDifference(other: Set<a>): Set<a>
+        fun union(other: Set<a>): Set<a>
+        fun values(): Iterator<a>
     }
 }
 

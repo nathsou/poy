@@ -12,7 +12,6 @@ extend<a> a {
 }
 
 print([1, 2, 3].zip(["a", "b", "c"]).reversed())
-print("Num[]::reversed: " ++ typeOf(Num[]::reversed).show())
 let ir = IteratorResult { value: "hello", done: false }
 print("ir: " ++ typeOf(ir).show())
 ir.print()

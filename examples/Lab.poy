@@ -112,7 +112,7 @@ let zipped = [1, 2, 3].zip(["a", "b", "c"])
 print(zipped)
 print(zipped.unzip())
 print([1, 2, 3].sum())
-print(_::sum(rangeArray(1, 100 + 1)))
+print(Num[]::sum(rangeArray(1, 100 + 1)))
 print(factorial(11))
 
 type {
@@ -125,6 +125,8 @@ declare let test: Not<IsEmpty<Parameters<@typeOf<factorial>>>>
 let numArray = Num[]()
 
 print(typeOf(test).show())
-print(typeOf(_::sum).show())
+print(typeOf(_[]::sum).show())
 print(typeOf(numArray).show())
 print(.some(3 * 7))
+
+print([3, 2, 1].sorted())
