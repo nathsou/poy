@@ -15,7 +15,9 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
 
   return match(bitter, {
     Literal: ({ literal }) => JSExpr.Literal({ literal }),
-    Variable: ({ name }) => JSExpr.Variable(scope.lookup(name)),
+    Variable: ({ name }) => {
+      return JSExpr.Variable(scope.lookup(name));
+    },
     Unary: ({ op, expr }) => JSExpr.Unary({ op, expr: jsExprOf(expr, scope) }),
     Binary: ({ lhs, op, rhs }) =>
       JSExpr.Binary({

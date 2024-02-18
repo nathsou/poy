@@ -1,3 +1,4 @@
+import { existsSync } from 'fs';
 import { panic } from './utils';
 
 export type FileSystem = {
@@ -7,6 +8,7 @@ export type FileSystem = {
   directoryName: (path: string) => string;
   join: (...paths: string[]) => string;
   normalize: (path: string) => string;
+  resolveStd: () => Promise<string>;
 };
 
 export async function createFileSystem(): Promise<FileSystem> {
@@ -14,6 +16,7 @@ export async function createFileSystem(): Promise<FileSystem> {
     const { lstatSync } = await import('fs');
     const { readFile, writeFile } = await import('fs/promises');
     const { resolve, dirname, join, sep } = await import('path');
+    let stdPath: string | null = null;
 
     return {
       readFile: path => readFile(path, 'utf8'),
@@ -27,6 +30,25 @@ export async function createFileSystem(): Promise<FileSystem> {
         }
         return path.split(sep).join('/');
       },
+      resolveStd: async () => {
+        if (stdPath != null) {
+          return stdPath;
+        }
+
+        const path = ['./'];
+
+        for (let i = 0; i < 5; i += 1) {
+          if (existsSync(join(...path, 'poy'))) {
+            const res = resolve(join(...path, 'poy', 'std'));
+            stdPath = res;
+            return res;
+          } else {
+            path.push('..');
+          }
+        }
+
+        return panic('std not found');
+      }
     };
   } else {
     return {
@@ -36,6 +58,7 @@ export async function createFileSystem(): Promise<FileSystem> {
       directoryName: () => panic('Not implemented'),
       join: () => panic('Not implemented'),
       normalize: () => panic('Not implemented'),
+      resolveStd: () => Promise.reject('Not implemented'),
     };
   }
 }

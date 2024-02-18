@@ -1,4 +1,3 @@
-import Foundations { print, typeOf, console, Console, ElementType }
 
 struct IteratorResult<res> {
     value: res,

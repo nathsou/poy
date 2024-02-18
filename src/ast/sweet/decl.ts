@@ -13,6 +13,7 @@ export type Decl = DataType<{
   Declare: { sig: Signature; attrs: Attributes };
   Import: {
     path: string[];
+    resolvedPath?: string;
     module: string;
     members: { name: string; native: boolean; kind?: ImportMemberKind }[];
   };

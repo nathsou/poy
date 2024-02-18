@@ -1,4 +1,3 @@
-import Foundations { print }
 
 extend Num {
     #as("toString")

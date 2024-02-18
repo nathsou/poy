@@ -88,6 +88,10 @@ function show(stmt: Stmt, indentLevel: number = 0): string {
       )}) {\n${body_}\n${indent}}`;
     },
     Import: ({ path, members }) => {
+      if (members.length === 0) {
+        return '';
+      }
+      
       const members_ = members.map(name => name.mangled).join(', ');
       return `import { ${members_} } from '${path}';`;
     }

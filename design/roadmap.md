@@ -96,14 +96,14 @@ mut c = [a, b] // mut Num[] is not compatible with Num[]
 
 ### 10. Checkpoint I
 
-- [ ] Implicitely import the foundations
+- [x] Implicitly import the foundations
 - [ ] Improve error messages
 - [ ] Make type parameters uppercase?
 - [x] Refactor generics
 - [x] Refactor and simplify type rewriting
 - [x] Remove all uses of Math.random (uuid)
 - [ ] Optimize pattern matching (+ eliminate `Option` type overhead)
-- [ ] Improve emitted JS readability
+- [x] Improve emitted JS readability
 - [ ] Create an interactive web playground
 - [ ] Create a test runner for `test { ... }` blocks
 

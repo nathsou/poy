@@ -5,6 +5,7 @@ import { sanitizeKeyword } from './normalize';
 export type Name = {
   name: string;
   mangled: string;
+  isNative: boolean;
 };
 
 // virtual scopes represent poy scopes like block expressions
@@ -13,9 +14,16 @@ export type Name = {
 // will add it to the closest real parent scope
 export class JSScope {
   protected stmts: Stmt[];
-  private members = new Map<string, Name>();
+  members = new Map<string, Name>();
   private parent?: JSScope;
-  private usedNames: Set<string>;
+  usedNames: Set<string>;
+  imports: {
+    module: string;
+    scope: JSScope;
+    members: Set<string>,
+    usedMembers: Name[],
+  }[] = [];
+  static topLevelModules = new Map<string, JSScope>();
 
   constructor(isVirtual: boolean, parent?: JSScope) {
     if (isVirtual) {
@@ -56,13 +64,13 @@ export class JSScope {
     return sanitizeKeyword(mangledName);
   }
 
-  public declare(name: string, as_?: string): Name {
+  public declare(name: string, isNative = false, as_?: string): Name {
     if (this.members.has(name)) {
       throw new Error(`Member '${name}' already declared`);
     }
 
     const mangled = as_ ?? this.mangle(name);
-    const result = { name, mangled };
+    const result = { name, mangled, isNative };
     this.members.set(name, result);
     this.usedNames.add(mangled);
 
@@ -74,12 +82,27 @@ export class JSScope {
   }
 
   public isShadowing(name: string): boolean {
-    return this.has(name) || (this.parent?.isShadowing(name) ?? false);
+    return this.has(name) ||
+      this.imports.some(imp => imp.members.has(name) && imp.scope.has(name)) ||
+      (this.parent?.isShadowing(name) ?? false);
   }
 
   public lookup(name: string): Name {
     if (this.members.has(name)) {
       return this.members.get(name)!;
+    }
+
+    for (const imp of this.imports) {
+      if (imp.members.size === 0 || imp.members.has(name)) {
+        if (imp.scope.has(name)) {
+          const res = imp.scope.lookup(name);
+          if (!res.isNative && !imp.usedMembers.some(m => m.name === res.name)) {
+            imp.usedMembers.push(res);
+          }
+
+          return res;
+        }
+      }
     }
 
     if (this.parent) {

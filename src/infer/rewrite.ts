@@ -30,7 +30,7 @@ export const TRS = {
         .map(([rules, index]) => {
           const { mod, importedRules } = trs.imports[index];
 
-          if (!importedRules.has(name)) {
+          if (importedRules.size > 0 && !importedRules.has(name)) {
             panic(`Type '${name}' from '${mod.name}' has not been imported.`);
           }
 

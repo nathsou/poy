@@ -44,6 +44,17 @@ export class Resolver {
       const moduleName = camelCase(last(this.fs.normalize(absolutePath).split('/')).split('.')[0]);
       const topModule = parse(tokens, newlines).topModule(moduleName, { pub: false });
       const env = new TypeEnv(this, absolutePath, moduleName);
+      const stdPath = await this.fs.resolveStd();
+
+      if (!absolutePath.includes(stdPath)) {
+        // implicitly import the Foundations
+        topModule.decls.unshift(Decl.Import({
+          path: [],
+          resolvedPath: this.fs.join(stdPath, 'Foundations.poy'),
+          members: [],
+          module: 'Foundations',
+        }));
+      }
 
       for (const decl of topModule.decls) {
         await env.inferDecl(decl);

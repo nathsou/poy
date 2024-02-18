@@ -1,5 +1,4 @@
 import Euler { euler1 }
-import Foundations
 import List { IsEmpty }
 
 struct Person {

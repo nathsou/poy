@@ -291,48 +291,27 @@ export class TypeEnv {
           moduleEnv.inferDecl(decl);
         }
       },
-      Import: async ({ path, module, members }) => {
-        const moduleDir = this.resolver.fs.directoryName(this.modulePath);
-        const fullPath = this.resolver.fs.join(moduleDir, ...path, `${module}.poy`);
-        const mod = await this.resolver.resolve(fullPath);
+      Import: async ({ path, module, members, resolvedPath }) => {
+        const fullPath = block(() => {
+          if (resolvedPath) {
+            return resolvedPath;
+          }
 
+          const moduleDir = this.resolver.fs.directoryName(this.modulePath);
+          return this.resolver.fs.join(moduleDir, ...path, `${module}.poy`);
+        });
+
+        const mod = await this.resolver.resolve(fullPath);
         this.modules.declare(module, { ...mod, local: false });
+        const membersSet = new Set(members?.map(m => m.name));
 
         if (members.length === 0) {
           // import all members
-          for (const [name, member] of mod.env.variables) {
-            if (member.pub) {
-              this.variables.declare(name, member);
-              members.push({ name: name, kind: 'value', native: !!member.native });
-            }
-          }
-
-          for (const [name, member] of mod.env.modules) {
-            if (member.pub) {
-              this.modules.declare(name, member);
-              members.push({ name: name, kind: 'module', native: !!member.native });
-            }
-          }
-
-          for (const [name, member] of mod.env.enums) {
-            if (member.pub) {
-              this.enums.declare(name, member);
-            }
-          }
-
-          for (const [name, member] of mod.env.structs) {
-            if (member.pub) {
-              this.structs.declare(name, member);
-            }
-          }
-
-          for (const [, rules] of mod.env.types.rules) {
-            for (const rule of rules) {
-              if (rule.pub) {
-                TRS.add(this.types, rule.lhs, rule.rhs, true);
-              }
-            }
-          }
+          this.variables.imports.push({ module: mod.name, members: membersSet, scope: mod.env.variables });
+          this.modules.imports.push({ module: mod.name, members: membersSet, scope: mod.env.modules });
+          this.enums.imports.push({ module: mod.name, members: membersSet, scope: mod.env.enums });
+          this.structs.imports.push({ module: mod.name, members: membersSet, scope: mod.env.structs });
+          this.types.imports.push({ mod, importedRules: membersSet });
         } else {
           for (const member of members) {
             const name = member.name;
@@ -425,18 +404,7 @@ export class TypeEnv {
         }
 
         // import all extensions
-        for (const [, extensions] of mod.env.extensions) {
-          for (const extension of extensions) {
-            this.extensions.declare(extension);
-            if (!extension.isDeclared) {
-              members.push({
-                kind: 'value',
-                name: `${extension.member}_${extension.suffix}`,
-                native: false,
-              });
-            }
-          }
-        }
+        this.extensions.imports.push(mod.env.extensions);
       },
       Extend: ({ params: globalParams, subject, decls, suffix }) => {
         const declareSelf = (env: TypeEnv): void => {
@@ -476,6 +444,7 @@ export class TypeEnv {
                   isDeclared: false,
                   isStatic,
                   suffix,
+                  module: this.moduleName,
                 });
               }
 
@@ -497,6 +466,7 @@ export class TypeEnv {
               isDeclared: false,
               isStatic: isStatic,
               suffix,
+              module: this.moduleName,
             });
           } else if (decl.variant === 'Declare' && decl.sig.variant === 'Variable') {
             const { mut, name, ty, static: isStatic } = decl.sig;
@@ -511,6 +481,7 @@ export class TypeEnv {
               isDeclared: true,
               isStatic: isStatic,
               suffix,
+              module: this.moduleName,
             });
           } else if (decl.variant === '_Many') {
             decl.decls.forEach(extend);
@@ -1063,7 +1034,7 @@ export class TypeEnv {
       decl: EnumDecl;
     }>();
 
-    for (const [name, decl] of this.enums) {
+    for (const [name, decl] of this.enums.entries()) {
       if (decl.variants.some(v => v.name === variantName)) {
         candidates.push({ name, decl });
       }

@@ -17,6 +17,7 @@ export type ExtensionInfo = {
   isDeclared: boolean;
   isStatic: boolean;
   suffix: string;
+  module: string;
 };
 
 export type MatchingExtension = {
@@ -29,6 +30,7 @@ export class ExtensionScope {
   private extensions: Map<string, ExtensionInfo[]>;
   private parent?: ExtensionScope;
   private env: TypeEnv;
+  imports: ExtensionScope[] = [];
 
   constructor(env: TypeEnv, parent?: ExtensionScope) {
     this.env = env;
@@ -47,9 +49,16 @@ export class ExtensionScope {
   public matchingCandidates(subject: Type, member: string): MatchingExtension[] {
     const subjectInst = Type.instantiate(subject, this.env.letLevel, this.env.generics);
     const candidates: MatchingExtension[] = [];
+    const visited = new Set<ExtensionInfo>();
 
     const traverse = (scope: ExtensionScope): void => {
       for (const ext of scope.extensions.get(member) ?? []) {
+        if (visited.has(ext)) {
+          continue;
+        }
+
+        visited.add(ext);
+        
         const params = this.env.generics.child();
         const extParams = Type.utils.params(ext.subject);
         const allParams = uniq([...extParams, ...ext.generics]);
@@ -69,6 +78,10 @@ export class ExtensionScope {
             params: new Map(insts),
           });
         }
+      }
+
+      for (const imp of scope.imports) {
+        traverse(imp);
       }
 
       if (scope.parent) {

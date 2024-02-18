@@ -1,4 +1,3 @@
-import Foundations { print, range, Math }
 
 extend<a> Iterator<a> {
     fun map(f) {

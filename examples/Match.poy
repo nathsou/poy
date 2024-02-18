@@ -1,4 +1,4 @@
-import Foundations { print, Option }
+import ../std/Foundations
 
 let a = match 3 {
     1 => "a",

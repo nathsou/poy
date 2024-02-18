@@ -2,19 +2,24 @@ import { match } from 'itsamatch';
 import { Decl as BitterDecl } from '../../ast/bitter/decl';
 import { Stmt as JSStmt } from '../../ast/js/stmt';
 import { Expr as JSExpr } from '../../ast/js/expr';
-import { array, panic } from '../../misc/utils';
+import { array, assert, panic } from '../../misc/utils';
 import { JSScope, Name } from './jsScope';
 import { jsStmtOf } from './stmt';
 
 export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSStmt[] {
   const aux = (decl: BitterDecl): JSStmt[] => {
     return match(decl, {
-      Module: ({ decls }) => {
+      Module: ({ name: topModuleName, decls }) => {
         const moduleToStmts = (
+          moduleName: string,
           decls: BitterDecl[],
           moduleScope: JSScope,
           isTopLevel: boolean,
         ): JSStmt[] => {
+          if (isTopLevel) {
+            JSScope.topLevelModules.set(moduleName, moduleScope);
+          }
+
           for (const decl of decls) {
             match(decl, {
               Stmt: ({ stmt }) => {
@@ -22,11 +27,8 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSStmt[] {
               },
               Module: ({ pub, name, decls }) => {
                 const subModuleName = moduleScope.declare(name);
-
-                const stmts = moduleToStmts(decls, moduleScope.realChild(), false);
-
+                const stmts = moduleToStmts(name, decls, moduleScope.realChild(), false);
                 moduleScope.add(...stmts);
-
                 const entries = array<{ key: string; value: JSExpr }>();
 
                 for (const stmt of stmts) {
@@ -46,8 +48,8 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSStmt[] {
 
                 moduleScope.add(moduleObj);
               },
-              Type: () => {},
-              Struct: () => {},
+              Type: () => { },
+              Struct: () => { },
               Extend: ({ decls }) => {
                 for (const decl of decls) {
                   if (decl.variant === 'Stmt') {
@@ -59,47 +61,42 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSStmt[] {
               Declare: ({ sig, attrs }) => {
                 match(sig, {
                   Variable: ({ name }) => {
-                    moduleScope.declare(name, attrs.as);
+                    moduleScope.declare(name, true, attrs.as);
                   },
                   Module: ({ name }) => {
-                    moduleScope.declare(name, attrs.as);
+                    moduleScope.declare(name, true, attrs.as);
                   },
-                  Type: () => {},
+                  Type: () => { },
                 });
               },
-              Import: ({ module, members, path }) => {
-                const fullpath = ['.', ...path, `${module}.mjs`].join('/');
+              Import: ({ module }) => {
+                const fullpath = ['.', `${module}.mjs`].join('/');
+                const importedScope = JSScope.topLevelModules.get(module);
+                assert(importedScope != null, `Module ${module} not found`);
+                const usedMembers = array<Name>();
 
-                if (members) {
-                  const importedMembers = array<Name>();
-
-                  for (const { name, native, kind } of members) {
-                    if (kind === 'value' || kind === 'module') {
-                      const memberName = moduleScope.declare(name);
-                      if (!native) {
-                        importedMembers.push(memberName);
-                      }
-                    }
-                  }
-
-                  if (importedMembers.length > 0) {
-                    moduleScope.add(
-                      JSStmt.Import({
-                        path: fullpath,
-                        members: importedMembers,
-                      }),
-                    );
-                  }
-                }
+                moduleScope.imports.push({
+                  module,
+                  members: new Set(), // import all
+                  scope: importedScope,
+                  usedMembers,
+                });
+                
+                moduleScope.add(
+                  JSStmt.Import({
+                    path: fullpath,
+                    members: usedMembers,
+                  }),
+                );
               },
-              Enum: () => {},
+              Enum: () => { },
             });
           }
 
           return moduleScope.statements;
         };
 
-        return moduleToStmts(decls, scope.realChild(), true);
+        return moduleToStmts(topModuleName, decls, scope.realChild(), true);
       },
       _: () => panic('Declaration outside of a module'),
     });
