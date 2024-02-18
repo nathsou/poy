@@ -1,5 +1,5 @@
 import Euler { euler1 }
-import Foundations { print, typeOf, Parameters, Option }
+import Foundations
 import List { IsEmpty }
 
 struct Person {
@@ -51,16 +51,6 @@ module A {
     }
 }
 
-declare module Math {
-    fun sqrt(x: Num): Num
-    fun cbrt(x: Num): Num
-    fun min(a: Num, b: Num): Num
-    fun max(a: Num, b: Num): Num
-    fun floor(x: Num): Num
-    fun ceil(x: Num): Num
-    fun round(x: Num): Num
-}
-
 let y = use sum = A.a + A.B.b + A.B.C.c in Math.sqrt(fact(sum))
 let x = { let x = 3; let y = 7; x * { let x = 11; let y = 17; x + y } - y } + y
 
@@ -82,7 +72,7 @@ extend Num {
     }
 }
 
-fun range(start: Num, end: Num): Num[] {
+fun rangeArray(start: Num, end: Num): Num[] {
     mut rng = []
     mut i = start
 
@@ -117,13 +107,13 @@ extend<a, b> (a, b)[] {
     }
 }
 
-fun factorial(n) { range(1, n + 1).product() }
+fun factorial(n) { rangeArray(1, n + 1).product() }
 
 let zipped = [1, 2, 3].zip(["a", "b", "c"])
 print(zipped)
 print(zipped.unzip())
 print([1, 2, 3].sum())
-print(_::sum(range(1, 100 + 1)))
+print(_::sum(rangeArray(1, 100 + 1)))
 print(factorial(11))
 
 type {

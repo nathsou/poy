@@ -298,93 +298,130 @@ export class TypeEnv {
 
         this.modules.declare(module, { ...mod, local: false });
 
-        for (const member of members) {
-          const name = member.name;
-          mod.env.variables.lookup(name).match({
-            Some: ({ pub, mut, native, ty }) => {
-              member.kind = 'value';
-              member.native = !!native;
+        if (members.length === 0) {
+          // import all members
+          for (const [name, member] of mod.env.variables) {
+            if (member.pub) {
+              this.variables.declare(name, member);
+              members.push({ name: name, kind: 'value', native: !!member.native });
+            }
+          }
 
-              if (pub) {
-                this.variables.declare(name, {
-                  sourceModule: mod,
-                  pub,
-                  mut,
-                  ty,
-                });
-              } else {
-                panic(`Cannot import private variable '${name}' from module '${module}'`);
+          for (const [name, member] of mod.env.modules) {
+            if (member.pub) {
+              this.modules.declare(name, member);
+              members.push({ name: name, kind: 'module', native: !!member.native });
+            }
+          }
+
+          for (const [name, member] of mod.env.enums) {
+            if (member.pub) {
+              this.enums.declare(name, member);
+            }
+          }
+
+          for (const [name, member] of mod.env.structs) {
+            if (member.pub) {
+              this.structs.declare(name, member);
+            }
+          }
+
+          for (const [, rules] of mod.env.types.rules) {
+            for (const rule of rules) {
+              if (rule.pub) {
+                TRS.add(this.types, rule.lhs, rule.rhs, true);
               }
-            },
-            None: () => {
-              mod.env.modules.lookup(name).match({
-                Some: module => {
-                  member.kind = 'module';
-                  member.native = !!module.native;
+            }
+          }
+        } else {
+          for (const member of members) {
+            const name = member.name;
+            mod.env.variables.lookup(name).match({
+              Some: ({ pub, mut, native, ty }) => {
+                member.kind = 'value';
+                member.native = !!native;
 
-                  if (module.pub) {
-                    this.modules.declare(name, {
-                      ...module,
-                      sourceModule: mod,
-                      local: false,
-                    });
-                  } else {
-                    panic(`Cannot import private module '${name}' from module '${module.name}'`);
-                  }
-
-                  mod.env.enums.lookup(name).do(enumDecl => {
-                    this.enums.declare(name, enumDecl);
+                if (pub) {
+                  this.variables.declare(name, {
+                    sourceModule: mod,
+                    pub,
+                    mut,
+                    ty,
                   });
-                },
-                None: () => {
-                  mod.env.types.rules.lookup(name).match({
-                    Some: rules => {
-                      member.kind = 'type';
+                } else {
+                  panic(`Cannot import private variable '${name}' from module '${module}'`);
+                }
+              },
+              None: () => {
+                mod.env.modules.lookup(name).match({
+                  Some: module => {
+                    member.kind = 'module';
+                    member.native = !!module.native;
 
-                      const somePubRules = rules.some(rule => rule.pub);
-                      const somePrivateRules = rules.some(rule => !rule.pub);
-                      if (somePubRules && somePrivateRules) {
-                        panic(
-                          `Cannot import partially public type '${name}' from module '${module}'`,
-                        );
-                      }
-
-                      if (somePrivateRules) {
-                        panic(`Cannot import private type '${name}' from module '${module}'`);
-                      }
-
-                      const import_ = this.types.imports.find(imp => imp.mod === mod);
-
-                      if (import_) {
-                        import_.importedRules.add(member.name);
-                      } else {
-                        this.types.imports.push({
-                          mod,
-                          importedRules: new Set([member.name]),
-                        });
-                      }
-                    },
-                    None: () => {
-                      mod.env.structs.lookup(name).match({
-                        Some: struct => {
-                          member.kind = 'type';
-
-                          if (struct.pub) {
-                            this.structs.declare(name, struct);
-                          } else {
-                            panic(`Cannot import private struct '${name}' from module '${module}'`);
-                          }
-                        },
-                        None: () => {
-                          panic(`Cannot find member '${name}' in module '${module}'`);
-                        },
+                    if (module.pub) {
+                      this.modules.declare(name, {
+                        ...module,
+                        sourceModule: mod,
+                        local: false,
                       });
-                    },
-                  });
-                },
-              });
-            },
-          });
+                    } else {
+                      panic(`Cannot import private module '${name}' from module '${module.name}'`);
+                    }
+
+                    mod.env.enums.lookup(name).do(enumDecl => {
+                      this.enums.declare(name, enumDecl);
+                    });
+                  },
+                  None: () => {
+                    mod.env.types.rules.lookup(name).match({
+                      Some: rules => {
+                        member.kind = 'type';
+
+                        const somePubRules = rules.some(rule => rule.pub);
+                        const somePrivateRules = rules.some(rule => !rule.pub);
+                        if (somePubRules && somePrivateRules) {
+                          panic(
+                            `Cannot import partially public type '${name}' from module '${module}'`,
+                          );
+                        }
+
+                        if (somePrivateRules) {
+                          panic(`Cannot import private type '${name}' from module '${module}'`);
+                        }
+
+                        const import_ = this.types.imports.find(imp => imp.mod === mod);
+
+                        if (import_) {
+                          import_.importedRules.add(member.name);
+                        } else {
+                          this.types.imports.push({
+                            mod,
+                            importedRules: new Set([member.name]),
+                          });
+                        }
+                      },
+                      None: () => {
+                        mod.env.structs.lookup(name).match({
+                          Some: struct => {
+                            member.kind = 'type';
+
+                            if (struct.pub) {
+                              this.structs.declare(name, struct);
+                            } else {
+                              panic(`Cannot import private struct '${name}' from module '${module}'`);
+                            }
+                          },
+                          None: () => {
+                            panic(`Cannot find member '${name}' in module '${module}'`);
+                          },
+                        });
+                      },
+                    });
+                  },
+                });
+              },
+            });
+          }
         }
 
         // import all extensions
@@ -410,21 +447,21 @@ export class TypeEnv {
             ty: subject,
           });
         };
-        
+
         const extend = (decl: Decl): void => {
           const extEnv = this.child();
-          
+
           if (
             decl.variant === 'Stmt' &&
             decl.stmt.variant === 'Let' &&
             decl.stmt.lhs.variant === 'Variable'
-            ) {
-              const { mutable, static: isStatic, lhs, ann, value, attrs } = decl.stmt;
-              const generics: string[] = [];
-              
-              const { extensionTy, subjectTy } = extEnv.parameterize(globalParams, () => {
-                declareSelf(extEnv);
-                const subjectInst = Type.instantiate(subject, extEnv.letLevel, extEnv.generics).ty;
+          ) {
+            const { mutable, static: isStatic, lhs, ann, value, attrs } = decl.stmt;
+            const generics: string[] = [];
+
+            const { extensionTy, subjectTy } = extEnv.parameterize(globalParams, () => {
+              declareSelf(extEnv);
+              const subjectInst = Type.instantiate(subject, extEnv.letLevel, extEnv.generics).ty;
 
               if (value.variant === 'Fun') {
                 generics.push(...value.generics);
@@ -952,7 +989,7 @@ export class TypeEnv {
             for (const [name, ty] of params) {
               typeParamScope.declare(name, Type.substitute(ty, subst));
             }
-            
+
             typeParamScope.declareMany(zip(generics, typeParams));
             const instTy = Type.instantiate(ty, this.letLevel, typeParamScope).ty;
             extensionAccessExpr.extensionSuffix = suffix;
