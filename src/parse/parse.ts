@@ -6,11 +6,11 @@ import { Pattern } from '../ast/sweet/pattern';
 import { Stmt } from '../ast/sweet/stmt';
 import { Type, TypeVar } from '../infer/type';
 import { Maybe, None, Some } from '../misc/maybe';
-import { Backtick, isLowerCase, isUpperCase } from '../misc/strings';
+import { Backtick, countCharacterOccurrences, isLowerCase, isUpperCase } from '../misc/strings';
 import { array, assert, block, last, letIn, panic } from '../misc/utils';
 import { AssignmentOp, BinaryOp, Keyword, Literal, Symbol, Token, UnaryOp } from './token';
 
-export const parse = (tokens: Token[], newlines: number[]) => {
+export const parse = (tokens: Token[], source: string, moduleName: string) => {
   let index = 0;
   const attribs = {
     ref: Attributes.empty(),
@@ -99,9 +99,8 @@ export const parse = (tokens: Token[], newlines: number[]) => {
   function raise(message: string): never {
     const loc = tokens[index]?.loc;
     const start = loc?.start ?? 0;
-    const line = newlines.findIndex(pos => pos > start) ?? 0;
-    const column = start - newlines[line];
-    return panic(`Parse error: ${message} at ${line}:${column}`);
+    const line = countCharacterOccurrences(source, '\n', start) + 1;
+    return panic(`Parse error: ${message} at line ${line} in module '${moduleName}'`);
   }
 
   // sepBy(rule, sep) -> (<rule> (sep <rule>)*)?
@@ -679,7 +678,7 @@ export const parse = (tokens: Token[], newlines: number[]) => {
         return Expr.StringInterpolation({
           parts: parts.map(part =>
             match(part, {
-              Expr: ({ tokens }) => StringInterpolationPart.Expr(parse(tokens, []).expr()),
+              Expr: ({ tokens }) => StringInterpolationPart.Expr(parse(tokens, '<internal>', moduleName).expr()),
               Str: ({ value }) => StringInterpolationPart.Str(value),
             }),
           ),
@@ -1391,14 +1390,14 @@ export const parse = (tokens: Token[], newlines: number[]) => {
     return Decl.Module({ pub: modifiers.pub, name, params, decls });
   }
 
-  function topModule(name: string, modifiers: DeclModifiers): ModuleDecl {
+  function topModule(modifiers: DeclModifiers): ModuleDecl {
     const decls: Decl[] = [];
 
     while (!isAtEnd()) {
       decls.push(decl(modifiers));
     }
 
-    return { pub: true, name, params: [], decls };
+    return { pub: true, name: moduleName, params: [], decls };
   }
 
   return { expr, stmt, decl, module: moduleDecl, topModule };

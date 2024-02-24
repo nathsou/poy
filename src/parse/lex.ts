@@ -1,12 +1,18 @@
-import { VariantOf, match } from 'itsamatch';
+import { match } from 'itsamatch';
 import { Keyword, Literal, StringInterpolationPart, Token } from './token';
-import { Backtick } from '../misc/strings';
+import { Backtick, countCharacterOccurrences } from '../misc/strings';
+import { panic } from '../misc/utils';
 
 type Char = string;
 
-export const lex = (source: string): Token[] => {
+export const lex = (source: string, moduleName: string): Token[] => {
   let index = 0;
   let startIndex = 0;
+
+  function raise(message: string): never {
+    const line = countCharacterOccurrences(source, '\n', startIndex) + 1;
+    return panic(`${message} at line ${line} in module '${moduleName}'`);
+  }
 
   function peek(lookahead = 0): Char {
     return source[index + lookahead];
@@ -103,7 +109,7 @@ export const lex = (source: string): Token[] => {
 
               if (depth === 0) {
                 const value = source.slice(start, index);
-                const tokens = lex(value);
+                const tokens = lex(value, moduleName);
                 addPart({ variant: 'Expr', tokens });
                 next();
                 lastIndex = index;
@@ -124,7 +130,7 @@ export const lex = (source: string): Token[] => {
     }
 
     if (isAtEnd()) {
-      throw new Error('Unterminated string.');
+      raise('Unterminated string');
     }
 
     addPart({ variant: 'Str', value: source.slice(lastIndex, index) });
@@ -167,7 +173,7 @@ export const lex = (source: string): Token[] => {
     }
 
     if (isAtEnd()) {
-      throw new Error('Unterminated backtick identifier.');
+      raise('Unterminated backtick identifier');
     }
 
     next();
@@ -309,7 +315,7 @@ export const lex = (source: string): Token[] => {
           return parseIdentifierOrKeyword();
         }
 
-        throw new Error(`Unexpected character: '${char}'`);
+        raise(`Unexpected character: '${char}'`);
     }
   }
 
