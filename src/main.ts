@@ -6,10 +6,13 @@ import { createFileSystem, type FileSystem } from './misc/fs';
 import { array } from './misc/utils';
 import { Module, Resolver } from './resolve/resolve';
 
-async function compile(sourceFile: string, fs: FileSystem): Promise<{ module: Module, code: string }[]> {
+async function compile(
+  sourceFile: string,
+  fs: FileSystem,
+): Promise<{ module: Module; code: string }[]> {
   const resolver = new Resolver(fs);
   await resolver.resolve(sourceFile);
-  const modules = array<{ module: Module, code: string }>();
+  const modules = array<{ module: Module; code: string }>();
 
   for (const module of resolver.modules.values()) {
     const bitterModule = bitterModuleOf(module);

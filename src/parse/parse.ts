@@ -594,7 +594,9 @@ export const parse = (tokens: Token[], source: string, moduleName: string) => {
       const subject = type();
       assert(
         subject.variant === 'Fun' ||
-        (subject.variant === 'Var' && subject.ref.variant === 'Param' && subject.ref.name === '_'),
+          (subject.variant === 'Var' &&
+            subject.ref.variant === 'Param' &&
+            subject.ref.name === '_'),
       );
 
       if (matches(Token.Symbol('('))) {
@@ -678,7 +680,8 @@ export const parse = (tokens: Token[], source: string, moduleName: string) => {
         return Expr.StringInterpolation({
           parts: parts.map(part =>
             match(part, {
-              Expr: ({ tokens }) => StringInterpolationPart.Expr(parse(tokens, '<internal>', moduleName).expr()),
+              Expr: ({ tokens }) =>
+                StringInterpolationPart.Expr(parse(tokens, '<internal>', moduleName).expr()),
               Str: ({ value }) => StringInterpolationPart.Str(value),
             }),
           ),

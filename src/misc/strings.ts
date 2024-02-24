@@ -64,7 +64,11 @@ export function matchString<T extends string, R>(
   return panic(`missing case for ${str}`);
 }
 
-export function countCharacterOccurrences(str: string, char: string, endIndex = str.length): number {
+export function countCharacterOccurrences(
+  str: string,
+  char: string,
+  endIndex = str.length,
+): number {
   let count = 0;
 
   for (let i = 0; i < endIndex; i++) {

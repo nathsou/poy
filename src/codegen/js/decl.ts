@@ -48,8 +48,8 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSStmt[] {
 
                 moduleScope.add(moduleObj);
               },
-              Type: () => { },
-              Struct: () => { },
+              Type: () => {},
+              Struct: () => {},
               Extend: ({ decls }) => {
                 for (const decl of decls) {
                   if (decl.variant === 'Stmt') {
@@ -66,7 +66,7 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSStmt[] {
                   Module: ({ name }) => {
                     moduleScope.declare(name, true, attrs.as);
                   },
-                  Type: () => { },
+                  Type: () => {},
                 });
               },
               Import: ({ pub, module }) => {
@@ -82,7 +82,7 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSStmt[] {
                   scope: importedScope,
                   usedMembers,
                 });
-                
+
                 moduleScope.add(
                   JSStmt.Import({
                     exported: pub,
@@ -91,7 +91,7 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSStmt[] {
                   }),
                 );
               },
-              Enum: () => { },
+              Enum: () => {},
             });
           }
 

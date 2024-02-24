@@ -16,7 +16,7 @@ export type StringInterpolationPart = DataType<{
 }>;
 
 export const Token = {
-  ...constructors<Token>().get('Identifier', 'Symbol', 'Keyword', 'StringInterpolation',  'EOF'),
+  ...constructors<Token>().get('Identifier', 'Symbol', 'Keyword', 'StringInterpolation', 'EOF'),
   Literal: (value: Literal) => ({ variant: 'Literal', value }) as const,
   eq: (a, b) =>
     matchMany([a, b], {
