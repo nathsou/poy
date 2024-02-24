@@ -15,7 +15,7 @@ export type Stmt = DataType<{
   Break: {};
   While: { cond: Expr; body: Stmt[] };
   For: { name: Name; iterator: Expr; body: Stmt[] };
-  Import: { path: string; members: Name[] };
+  Import: { exported: boolean, path: string; members: Name[] };
 }>;
 
 export const Stmt = {
@@ -87,13 +87,19 @@ function show(stmt: Stmt, indentLevel: number = 0): string {
         iterator,
       )}) {\n${body_}\n${indent}}`;
     },
-    Import: ({ path, members }) => {
+    Import: ({ exported, path, members }) => {
       if (members.length === 0) {
-        return '';
+        return exported ? `export * from '${path}';` : '';
       }
       
       const members_ = members.map(name => name.mangled).join(', ');
-      return `import { ${members_} } from '${path}';`;
+      const imp = `import { ${members_} } from '${path}';`;
+      
+      if (exported) {
+        return `${imp}\nexport * from '${path}';`;
+      }
+
+      return imp;
     }
   });
 }

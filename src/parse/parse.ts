@@ -1148,7 +1148,7 @@ export const parse = (tokens: Token[], newlines: number[]) => {
     return path;
   }
 
-  function importDecl(): Decl {
+  function importDecl(modifiers: DeclModifiers): Decl {
     const path = importPath();
 
     if (path.length === 0) {
@@ -1165,6 +1165,7 @@ export const parse = (tokens: Token[], newlines: number[]) => {
     consumeIfPresent(Token.Symbol(';'));
 
     return Decl.Import({
+      pub: modifiers.pub,
       path: path.slice(0, -1),
       module: last(path),
       members: members?.map(name => ({ name, native: false })) ?? [],

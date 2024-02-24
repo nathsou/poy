@@ -1,0 +1,33 @@
+
+pub declare module Math {
+    fun sqrt(x: Num): Num
+    fun cbrt(x: Num): Num
+    fun min(a: Num, b: Num): Num
+    fun max(a: Num, b: Num): Num
+    fun floor(x: Num): Num
+    fun ceil(x: Num): Num
+    fun round(x: Num): Num
+    fun abs(x: Num): Num
+    fun pow(x: Num, y: Num): Num
+    fun random(): Num
+    fun log(x: Num): Num
+    fun log2(x: Num): Num
+    fun log10(x: Num): Num
+    fun exp(x: Num): Num
+    fun cos(x: Num): Num
+    fun sin(x: Num): Num
+    fun tan(x: Num): Num
+    fun acos(x: Num): Num
+    fun asin(x: Num): Num
+    fun atan(x: Num): Num
+    fun atan2(y: Num, x: Num): Num
+    fun hypot(x: Num, y: Num): Num
+    fun sign(x: Num): Num
+}
+
+pub extend Num {
+    fun sqrt() { Math.sqrt(self) }
+    fun floor() { Math.floor(self) }
+    fun ceil() { Math.ceil(self) }
+    fun round() { Math.round(self) }
+}

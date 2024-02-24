@@ -69,13 +69,14 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSStmt[] {
                   Type: () => { },
                 });
               },
-              Import: ({ module }) => {
+              Import: ({ pub, module }) => {
                 const fullpath = ['.', `${module}.mjs`].join('/');
                 const importedScope = JSScope.topLevelModules.get(module);
                 assert(importedScope != null, `Module ${module} not found`);
                 const usedMembers = array<Name>();
 
                 moduleScope.imports.push({
+                  pub,
                   module,
                   members: new Set(), // import all
                   scope: importedScope,
@@ -84,6 +85,7 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSStmt[] {
                 
                 moduleScope.add(
                   JSStmt.Import({
+                    exported: pub,
                     path: fullpath,
                     members: usedMembers,
                   }),

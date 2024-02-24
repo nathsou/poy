@@ -69,17 +69,18 @@ export class Scope<T> {
     return [...this.members.entries()].map(([name, val]) => `${name}: ${showT(val)}`).join('\n');
   }
 
-  public *entries(depth = Infinity): IterableIterator<[string, T]> {
-    if (depth <= 0) return;
+  public *entries(depth = Infinity, visited: Set<Scope<T>> = new Set()): IterableIterator<[string, T]> {
+    if (depth <= 0 || visited.has(this)) return;
 
+    visited.add(this);
     yield* this.members;
 
     for (const imp of this.imports) {
-      yield* imp.scope.entries(1);
+      yield* imp.scope.entries(1, visited);
     }
 
     if (this.parent != null) {
-      yield* this.parent.entries(depth - 1);
+      yield* this.parent.entries(depth - 1, visited);
     }
   }
 }

@@ -1,0 +1,39 @@
+
+pub enum Option<t> { none, some(t) }
+
+pub extend<a> Option<a> {
+    fun isSome() {
+        match self {
+            .some(_) => true,
+            .none => false,
+        }
+    }
+
+    fun isNone() {
+        match self {
+            .none => true,
+            _ => false,
+        }
+    }
+
+    fun map(f) {
+        match self {
+            .some(x) => .some(f(x)),
+            .none => .none,
+        }
+    }
+
+    fun flatMap(f) {
+        match self {
+            .some(x) => f(x),
+            .none => .none,
+        }
+    }
+
+    fun do(f: a -> ()) {
+        match self {
+            .some(val) => f(val),
+            .none => (),
+        }
+    }
+}

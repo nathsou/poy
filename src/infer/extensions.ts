@@ -39,10 +39,6 @@ export class ExtensionScope {
   }
 
   public declare(info: ExtensionInfo) {
-    if (config.debug.extensionType) {
-      console.log(`// extension ${Type.show(info.subject)}::${info.member}: ${Type.show(info.ty)}`);
-    }
-
     pushMap(this.extensions, info.member, info);
   }
 

@@ -1,0 +1,46 @@
+import Array
+import Option
+
+pub enum Type {
+    variable(Str),
+    compound(Str, Type[]),
+}
+
+pub extend Type {
+    fun show(): Str {
+        match self {
+            .variable(name) => name,
+            .compound("Array", args) => args.first().show() ++ "[]",
+            .compound(name, args) => {
+                if args.length == 0 {
+                    name
+                } else {
+                    "\(name)<\(args.map(arg -> arg.show()).join(", "))>"
+                }
+            }
+        }
+    }
+
+    fun isArray(): Bool {
+        match self {
+            .compound("Array", _) => true,
+            _ => false,
+        }
+    }
+
+    fun elementType(): Option<Type> {
+        match self {
+            .compound("Array", args) => .some(args.first()),
+            _ => .none,
+        }
+    }
+
+    fun isTuple(): Bool {
+        match self {
+            .compound("Tuple", _) => true,
+            _ => false,
+        }
+    }
+}
+
+pub declare let typeOf: _ -> Type

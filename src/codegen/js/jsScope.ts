@@ -18,10 +18,11 @@ export class JSScope {
   private parent?: JSScope;
   usedNames: Set<string>;
   imports: {
+    pub: boolean;
     module: string;
     scope: JSScope;
-    members: Set<string>,
-    usedMembers: Name[],
+    members: Set<string>;
+    usedMembers: Name[];
   }[] = [];
   static topLevelModules = new Map<string, JSScope>();
 
@@ -82,9 +83,18 @@ export class JSScope {
   }
 
   public isShadowing(name: string): boolean {
-    return this.has(name) ||
-      this.imports.some(imp => imp.members.has(name) && imp.scope.has(name)) ||
-      (this.parent?.isShadowing(name) ?? false);
+    return (
+      this.has(name) ||
+      this.imports.some(
+        imp =>
+          ((imp.members.size === 0 || imp.members.has(name)) && imp.scope.has(name)) ||
+          imp.scope.imports.some(
+            exp =>
+              exp.pub && (exp.members.size === 0 || exp.members.has(name)) && exp.scope.has(name),
+          ),
+      ) ||
+      (this.parent?.isShadowing(name) ?? false)
+    );
   }
 
   public lookup(name: string): Name {
@@ -93,11 +103,33 @@ export class JSScope {
     }
 
     for (const imp of this.imports) {
-      if (imp.members.size === 0 || imp.members.has(name)) {
-        if (imp.scope.has(name)) {
-          const res = imp.scope.lookup(name);
-          if (!res.isNative && !imp.usedMembers.some(m => m.name === res.name)) {
-            imp.usedMembers.push(res);
+      if ((imp.members.size === 0 || imp.members.has(name)) && imp.scope.has(name)) {
+        const res = imp.scope.lookup(name);
+        if (!res.isNative && !imp.usedMembers.some(m => m.name === res.name)) {
+          imp.usedMembers.push(res);
+        }
+
+        return res;
+      }
+
+      // lookup public imports of the imported module (i.e. re-exports)
+      // TODO: recurse to support nested re-exports
+      for (const exp of imp.scope.imports) {
+        if (
+          exp.pub &&
+          (exp.members.size === 0 || exp.members.has(name)) &&
+          exp.scope.has(name)
+        ) {
+          const res = exp.scope.lookup(name);
+
+          if (!res.isNative) {
+            if (!imp.usedMembers.some(m => m.name === res.name)) {
+              imp.usedMembers.push(res);
+            }
+
+            if (!exp.usedMembers.some(m => m.name === res.name)) {
+              exp.usedMembers.push(res);
+            }
           }
 
           return res;

@@ -47,12 +47,13 @@ export class Resolver {
       const stdPath = await this.fs.resolveStd();
 
       if (!absolutePath.includes(stdPath)) {
-        // implicitly import the Foundations
+        // implicitly import the Foundation module
         topModule.decls.unshift(Decl.Import({
+          pub: false,
           path: [],
-          resolvedPath: this.fs.join(stdPath, 'Foundations.poy'),
+          resolvedPath: this.fs.join(stdPath, 'Foundation.poy'),
           members: [],
-          module: 'Foundations',
+          module: 'Foundation',
         }));
       }
 

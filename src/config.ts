@@ -4,6 +4,5 @@ export const config = {
   enforceExhaustiveMatch: true,
   debug: {
     unification: false,
-    extensionType: false,
   },
 };

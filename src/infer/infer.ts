@@ -36,6 +36,7 @@ export class TypeEnv {
   public generics: Scope<Type>;
   public types: TRS;
   private extensions: ExtensionScope;
+  private exports: VariantOf<Decl, 'Import'>[];
   public letLevel: number;
   private functionStack: { ty: Type; isIterator: boolean }[];
   private resolver: Resolver;
@@ -51,6 +52,7 @@ export class TypeEnv {
     this.generics = new Scope(parent?.generics, true);
     this.types = TRS.create(parent?.types);
     this.extensions = new ExtensionScope(this, parent?.extensions);
+    this.exports = [];
     this.letLevel = parent?.letLevel ?? 0;
     this.functionStack = [...(parent?.functionStack ?? [])];
     this.modulePath = modulePath;
@@ -291,18 +293,20 @@ export class TypeEnv {
           moduleEnv.inferDecl(decl);
         }
       },
-      Import: async ({ path, module, members, resolvedPath }) => {
+      Import: async importDecl => {
+        const { pub, path, module, members, resolvedPath } = importDecl;
         const fullPath = block(() => {
           if (resolvedPath) {
             return resolvedPath;
           }
-
+          
           const moduleDir = this.resolver.fs.directoryName(this.modulePath);
           return this.resolver.fs.join(moduleDir, ...path, `${module}.poy`);
         });
 
+        importDecl.resolvedPath = fullPath;
         const mod = await this.resolver.resolve(fullPath);
-        this.modules.declare(module, { ...mod, local: false });
+        // this.modules.declare(module, { ...mod, local: false });
         const membersSet = new Set(members?.map(m => m.name));
 
         if (members.length === 0) {
@@ -405,6 +409,15 @@ export class TypeEnv {
 
         // import all extensions
         this.extensions.imports.push(mod.env.extensions);
+
+        if (pub) {
+          this.exports.push(Decl.Import({ ...importDecl, pub: false }));
+        }
+
+        // import all exports
+        for (const exportDecl of mod.env.exports) {
+          this.inferDecl(exportDecl);
+        }
       },
       Extend: ({ params: globalParams, subject, decls, suffix }) => {
         const declareSelf = (env: TypeEnv): void => {

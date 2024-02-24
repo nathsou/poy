@@ -1,0 +1,50 @@
+
+pub extend Str {
+    declare {
+        fun charAt(index: Num): Str
+        fun charCodeAt(index: Num): Num
+        fun codePoNumAt(index: Num): Num
+        fun concat(str: Str): Str
+        fun endsWith(str: Str): Bool
+        fun includes(str: Str): Bool
+        fun indexOf(str: Str): Num
+        fun isWellFormed(): Bool
+        fun lastIndexOf(str: Str): Num
+        fun localeCompare(str: Str): Num
+        fun normalize(form: Str): Str
+        fun padEnd(targetLength: Num, padStr: Str): Str
+        fun padStart(targetLength: Num, padStr: Str): Str
+        fun repeat(count: Num): Str
+        fun replace(searchValue: Str, replaceValue: Str): Str
+        fun replaceAll(searchValue: Str, replaceValue: Str): Str
+    }
+
+    #as("slice")
+    declare {
+        fun slice(start: Num): Str
+        fun sliceWithEnd(start: Num, end: Num): Str
+    }
+
+    #as("split")
+    declare {
+        fun split(separator: Str): Str
+        fun splitWithLimit(separator: Str, limit: Num): Str
+    }
+
+    declare fun startsWith(str: Str): Bool
+
+    #as("substring")
+    declare {
+        fun substring(start: Num): Str
+        fun substringWithEnd(start: Num, end: Num): Str
+    }
+
+    declare {
+        fun toLowerCase(): Str
+        fun toUpperCase(): Str
+        fun toWellFormed(): Str
+        fun trim(): Str
+        fun trimEnd(): Str
+        fun trimStart(): Str
+    }
+}

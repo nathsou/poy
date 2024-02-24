@@ -24,7 +24,7 @@ export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] =>
     Type: ({ lhs, rhs }) => [BitterDecl.Type(lhs, rhs)],
     Declare: ({ sig, attrs }) => [BitterDecl.Declare({ sig, attrs })],
     Module: mod => [bitterModuleOf(mod)],
-    Import: ({ path, module, members }) => [BitterDecl.Import({ path, module, members })],
+    Import: ({ pub, path, module, members }) => [BitterDecl.Import({ pub, path, module, members })],
     Struct: ({ pub, name, fields }) => [BitterDecl.Struct({ pub, name, fields })],
     Extend: ({ subject, decls, suffix }) => {
       const filteredDecls: BitterDecl[] = [];

@@ -12,6 +12,7 @@ export type Decl = DataType<{
   Module: ModuleDecl;
   Declare: { sig: Signature; attrs: Attributes };
   Import: {
+    pub: boolean; // re export all members (i.e. make them public)
     path: string[];
     resolvedPath?: string;
     module: string;

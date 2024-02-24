@@ -11,6 +11,7 @@ export type Decl = DataType<{
   Declare: { sig: Signature; attrs: Attributes };
   Module: { pub: boolean, name: string; decls: Decl[] };
   Import: {
+    pub: boolean;
     path: string[];
     module: string;
     members?: VariantOf<SweetDecl, 'Import'>['members'];

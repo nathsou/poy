@@ -1,0 +1,21 @@
+
+pub extend Set<a> {
+    declare {
+        let size: Num
+        fun add(value: a): ()
+        fun clear(): ()
+        fun delete(value: a): ()
+        fun difference(other: Set<a>): Set<a>
+        fun entries(): Iterator<(a, a)>
+        fun forEach(f: a -> ()): ()
+        fun has(value: a): Bool
+        fun intersection(other: Set<a>): Set<a>
+        fun isDisjointFrom(other: Set<a>): Bool
+        fun isSubsetOf(other: Set<a>): Bool
+        fun isSupersetOf(other: Set<a>): Bool
+        fun keys(): Iterator<a>
+        fun symmetricDifference(other: Set<a>): Set<a>
+        fun union(other: Set<a>): Set<a>
+        fun values(): Iterator<a>
+    }
+}

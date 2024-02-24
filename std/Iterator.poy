@@ -1,0 +1,70 @@
+import Array
+
+pub extend<a> Iterator<a> {
+    fun map(f) {
+        for v in self {
+            yield f(v)
+        }
+    }
+
+    fun filter(pred) {
+        for v in self {
+            if pred(v) {
+                yield v
+            }
+        }
+    }
+
+    fun sum() {
+        mut total = 0
+
+        for v in self {
+            total += v
+        }
+
+        total
+    }
+
+    fun product() {
+        mut res = 1
+
+        for v in self {
+            res *= v
+        }
+
+        res
+    }
+
+    fun toArray() {
+        mut res = []
+
+        for v in self {
+            res.push(v)
+        }
+
+        res
+    }
+
+    fun findIndex(pred: a -> Bool) {
+        mut i = 0
+
+        for v in self {
+            if pred(v) {
+                return i
+            }
+
+            i += 1
+        }
+
+        -1
+    }
+}
+
+pub fun range(from: Num, to: Num) {
+    mut i = from
+
+    while i < to {
+        yield i
+        i += 1
+    }
+}

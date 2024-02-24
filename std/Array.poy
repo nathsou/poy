@@ -1,0 +1,182 @@
+import Math
+
+pub extend Str[] {
+    declare fun join(sep: Str): Str
+}
+
+pub extend<a> a[] {
+    static fun init(): Self { [] }
+
+    declare let length: Num
+    declare fun at(index: Num): a
+    declare fun concat(other: a[]): a[]
+
+    #as("copyWithin")
+    declare {
+        fun copyWithin(target: Num, start: Num): ()
+        fun copyWithinWithEnd(target: Num, start: Num, end: Num): ()
+    }
+
+    declare fun entries(): Iterator<(Num, a)>
+    declare fun every(predicate: a -> Bool): Bool
+
+    #as("fill")
+    declare {
+        fun fill(value: a, start: Num): ()
+        fun fillWithEnd(value: a, start: Num, end: Num): ()
+    }
+    
+    declare fun filter(predicate: a -> Bool): a[]
+    declare fun find(predicate: a -> Bool): a
+    declare fun findIndex(predicate: a -> Bool): Num
+    declare fun findLast(predicate: a -> Bool): a
+    declare fun findLastIndex(predicate: a -> Bool): Num
+
+    #as("flat")
+    declare {
+        fun flat(): a[]
+        fun flatWithDepth(depth: Num): a[]
+    }
+
+    declare fun flatMap<b>(f: a -> b[]): b[]
+    declare fun forEach(f: a -> ()): ()
+    declare fun filter(predicate: a -> Bool): a[]
+    declare fun flatMap<b>(f: a -> b[]): b[]
+    declare fun forEach(f: a -> ()): ()
+
+    #as("includes")
+    declare {
+        fun includes(elem: a): Bool
+        fun includesFromIndex(elem: a, fromIndex: Num): Bool
+    }
+    
+    #as("indexOf")
+    declare {
+        fun indexOf(elem: a): Num
+        fun indexOfFromIndex(elem: a, fromIndex: Num): Num
+    }
+
+    #as("lastIndexOf")
+    declare {
+        fun lastIndexOf(elem: a): Num
+        fun lastIndexOfFromIndex(elem: a, fromIndex: Num): Num
+    }
+
+    declare fun map<b>(f: a -> b): b[]
+    declare fun pop(): a
+    declare fun push(elem: a): ()
+    declare fun reduce<b>(f: (b, a) -> b, init: b): b
+    declare fun reduceRight<b>(f: (b, a) -> b, init: b): b
+
+    #as("reverse")
+    declare fun reverseInPlace(): ()
+
+    #as("toReversed")
+    declare fun reversed(): a[]
+
+    declare fun shift(): a
+
+    #as("slice")
+    declare {
+        fun slice(start: Num): a[]
+        fun sliceWithEnd(start: Num, end: Num): a[]
+    }
+
+    declare fun some(predicate: a -> Bool): Bool
+
+    #as("sort")
+    declare fun sortInPlace(): ()
+
+    #as("toSorted")
+    declare fun sorted(): a[]
+    
+    #as("splice")
+    declare {
+        fun splice(start: Num): a[]
+        fun spliceWithDeleteCount(start: Num, deleteCount: Num): a[]
+    }
+
+    #as("toSpliced")
+    declare {
+        fun spliced(start: Num): a[]
+        fun splicedWithDeleteCount(start: Num, deleteCount: Num): a[]
+    }
+
+    declare fun unshift(elem: a): Num
+    declare fun values(): Iterator<a>
+    declare fun with(index: Num, value: a): a[]
+ 
+    #as("Symbol.iterator")
+    declare fun iter(): Iterator<a>
+
+    #as("at")
+    declare fun `[]`(index: Num): a
+
+    fun first() { self[0] }
+
+    fun lastIndex(): Num { self.length - 1 }
+
+    fun last() { self[self.length - 1] }
+
+    fun isEmpty(): Bool {
+        self.length == 0
+    }
+
+    fun count(predicate: a -> Bool): Num {
+        mut count = 0
+        mut i = 0
+
+        while i < self.length {
+            if predicate(self[i]) {
+                count += 1
+            }
+
+            i += 1
+        }
+
+        count
+    }
+
+    fun zip<b>(other: b[]): (a, b)[] {
+        let len = Math.min(self.length, other.length)
+        mut res = []
+        mut i = 0
+
+        while i < len {
+            res.push((self[i], other[i]))
+            i += 1
+        }
+
+        res
+    }
+
+    fun join(formatFn: a -> Str, separator): Str {
+        self.map(formatFn).join(separator)
+    }
+}
+
+pub extend Num[] {
+    fun sum() {
+        mut total = 0
+        mut i = 0
+
+        while i < self.length {
+            total += self[i]
+            i += 1
+        }
+
+        total
+    }
+
+    fun product() {
+        mut total = 1
+        mut i = 0
+
+        while i < self.length {
+            total *= self[i]
+            i += 1
+        }
+
+        total 
+    }
+}
