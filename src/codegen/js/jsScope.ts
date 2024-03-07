@@ -115,11 +115,7 @@ export class JSScope {
       // lookup public imports of the imported module (i.e. re-exports)
       // TODO: recurse to support nested re-exports
       for (const exp of imp.scope.imports) {
-        if (
-          exp.pub &&
-          (exp.members.size === 0 || exp.members.has(name)) &&
-          exp.scope.has(name)
-        ) {
+        if (exp.pub && (exp.members.size === 0 || exp.members.has(name)) && exp.scope.has(name)) {
           const res = exp.scope.lookup(name);
 
           if (!res.isNative) {

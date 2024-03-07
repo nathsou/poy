@@ -48,7 +48,7 @@ export async function createFileSystem(): Promise<FileSystem> {
         }
 
         return panic('std not found');
-      }
+      },
     };
   } else {
     return {

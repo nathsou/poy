@@ -158,11 +158,9 @@ pub extend<a> a[] {
 pub extend Num[] {
     fun sum() {
         mut total = 0
-        mut i = 0
 
-        while i < self.length {
-            total += self[i]
-            i += 1
+        for n in self {
+            total += n
         }
 
         total
@@ -170,11 +168,9 @@ pub extend Num[] {
 
     fun product() {
         mut total = 1
-        mut i = 0
-
-        while i < self.length {
-            total *= self[i]
-            i += 1
+        
+        for n in self {
+            total *= n
         }
 
         total 

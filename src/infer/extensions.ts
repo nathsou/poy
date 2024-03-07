@@ -54,7 +54,7 @@ export class ExtensionScope {
         }
 
         visited.add(ext);
-        
+
         const params = this.env.generics.child();
         const extParams = Type.utils.params(ext.subject);
         const allParams = uniq([...extParams, ...ext.generics]);
@@ -114,7 +114,9 @@ export class ExtensionScope {
     if (allBest.length > 1) {
       const fmt = allBest.map(({ ext }) => Type.show(ext.subject)).join('\n');
       const decodedMember = Backtick.decode(member);
-      return Err(`Ambiguous extension for ${Type.show(subject)}::${decodedMember}, candidates:\n${fmt}`);
+      return Err(
+        `Ambiguous extension for ${Type.show(subject)}::${decodedMember}, candidates:\n${fmt}`,
+      );
     }
 
     return Ok(allBest[0]);

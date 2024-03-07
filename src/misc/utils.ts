@@ -1,4 +1,3 @@
-
 export type Ref<T> = { ref: T };
 export const ref = <T>(ref: T): Ref<T> => ({ ref });
 
@@ -90,7 +89,7 @@ export const indices = <T>(vals: T[], pred: (val: T) => boolean): number[] => {
 
 export const pushMap = <K, V>(map: Map<K, V[]>, key: K, value: V): void => {
   const values = map.get(key);
-  
+
   if (values) {
     values.push(value);
   } else {

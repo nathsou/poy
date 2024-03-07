@@ -187,7 +187,8 @@ export class TypeEnv {
       const returnTy = this.resolveType(ret ?? this.freshType());
       const retTyInfo = { ty: returnTy, isIterator: false };
 
-      this.functionStack.push(retTyInfo); {
+      this.functionStack.push(retTyInfo);
+      {
         args.forEach(({ pat }, i) => {
           this.validateDestructuringPattern(pat);
           const { vars, ty } = this.inferPattern(pat, argTys[i]);
@@ -208,8 +209,8 @@ export class TypeEnv {
         if (!retTyInfo.isIterator) {
           this.unify(bodyTy, retTyInfo.ty);
         }
-
-      } this.functionStack.pop();
+      }
+      this.functionStack.pop();
 
       const retTy = retTyInfo.isIterator ? Type.Iterator(retTyInfo.ty) : retTyInfo.ty;
       const funTy = Type.Function(argTys, retTy);
@@ -299,7 +300,7 @@ export class TypeEnv {
           if (resolvedPath) {
             return resolvedPath;
           }
-          
+
           const moduleDir = this.resolver.fs.directoryName(this.modulePath);
           return this.resolver.fs.join(moduleDir, ...path, `${module}.poy`);
         });
@@ -311,10 +312,22 @@ export class TypeEnv {
 
         if (members.length === 0) {
           // import all members
-          this.variables.imports.push({ module: mod.name, members: membersSet, scope: mod.env.variables });
-          this.modules.imports.push({ module: mod.name, members: membersSet, scope: mod.env.modules });
+          this.variables.imports.push({
+            module: mod.name,
+            members: membersSet,
+            scope: mod.env.variables,
+          });
+          this.modules.imports.push({
+            module: mod.name,
+            members: membersSet,
+            scope: mod.env.modules,
+          });
           this.enums.imports.push({ module: mod.name, members: membersSet, scope: mod.env.enums });
-          this.structs.imports.push({ module: mod.name, members: membersSet, scope: mod.env.structs });
+          this.structs.imports.push({
+            module: mod.name,
+            members: membersSet,
+            scope: mod.env.structs,
+          });
           this.types.imports.push({ mod, importedRules: membersSet });
         } else {
           for (const member of members) {
@@ -391,7 +404,9 @@ export class TypeEnv {
                             if (struct.pub) {
                               this.structs.declare(name, struct);
                             } else {
-                              panic(`Cannot import private struct '${name}' from module '${module}'`);
+                              panic(
+                                `Cannot import private struct '${name}' from module '${module}'`,
+                              );
                             }
                           },
                           None: () => {
@@ -466,9 +481,7 @@ export class TypeEnv {
               return { extensionTy: ty, subjectTy: subjectInst };
             });
 
-            const genTy = mutable ?
-              extensionTy :
-              Type.generalize(extensionTy, this.letLevel);
+            const genTy = mutable ? extensionTy : Type.generalize(extensionTy, this.letLevel);
 
             this.extensions.declare({
               subject: extEnv.normalize(subjectTy),
@@ -508,7 +521,10 @@ export class TypeEnv {
       Enum: ({ pub, name, params, variants }) => {
         const enumEnv = this.child();
         this.enums.declare(name, { pub, name, params, variants });
-        const variantTy = Type.Fun(name, params.map(name => Type.Var(TypeVar.Param({ name }))));
+        const variantTy = Type.Fun(
+          name,
+          params.map(name => Type.Var(TypeVar.Param({ name }))),
+        );
 
         for (const variant of variants) {
           match(variant, {
@@ -660,7 +676,7 @@ export class TypeEnv {
         const exprTy = this.inferExpr(expr);
         this.unify(funRet.ty, exprTy);
       },
-      Break: () => { },
+      Break: () => {},
       _Many: ({ stmts }) => {
         for (const stmt of stmts) {
           this.inferStmt(stmt);
@@ -896,7 +912,9 @@ export class TypeEnv {
         const lhsTy = this.inferExpr(lhs);
 
         if (lhsTy.variant === 'Fun' && this.structs.has(lhsTy.name)) {
-          const structDecl = this.structs.lookup(lhsTy.name).unwrap(`Struct '${lhsTy.name}' not found`);
+          const structDecl = this.structs
+            .lookup(lhsTy.name)
+            .unwrap(`Struct '${lhsTy.name}' not found`);
           const fieldInfo = structDecl.fields.find(({ name }) => name === field);
           const params = this.validateTypeParameters(
             'Struct',
@@ -959,7 +977,11 @@ export class TypeEnv {
         const ext = this.extensions.lookup(subjectInst.ty, member);
 
         return ext.match({
-          Ok: ({ ext: { ty, suffix, isDeclared: declared, isStatic: isStatic, generics }, subst, params }) => {
+          Ok: ({
+            ext: { ty, suffix, isDeclared: declared, isStatic: isStatic, generics },
+            subst,
+            params,
+          }) => {
             if (declared) {
               return panic(
                 `Cannot access a declared extension member with an extension access expression: '${Type.show(

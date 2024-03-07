@@ -147,7 +147,7 @@ export const Pattern = {
   isMoreGeneral(pat1: Pattern, pat2: Pattern): boolean {
     if (Pattern.isAnyOrVariable(pat1)) return true;
     if (Pattern.isAnyOrVariable(pat2)) return false;
-    
+
     return matchMany([pat1, pat2], {
       'Ctor Ctor': ({ args: args1, meta: meta1 }, { args: args2, meta: meta2 }) => {
         if (meta1 !== meta2) return false;
@@ -166,7 +166,10 @@ export const Pattern = {
           return Pattern.isMoreGeneral(rhs1, field2.rhs!);
         });
       },
-      'Variant Variant': ({ variantName: variantName1, args: args1 }, { variantName: variantName2, args: args2 }) => {
+      'Variant Variant': (
+        { variantName: variantName1, args: args1 },
+        { variantName: variantName2, args: args2 },
+      ) => {
         if (variantName1 !== variantName2) return false;
         if (args1.length !== args2.length) return false;
 

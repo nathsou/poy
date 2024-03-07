@@ -2,7 +2,7 @@ import { Decl } from '../ast/sweet/decl';
 import { TypeEnv } from '../infer/infer';
 import { FileSystem } from '../misc/fs';
 import { camelCase } from '../misc/strings';
-import { indices, last, panic } from '../misc/utils';
+import { last, panic } from '../misc/utils';
 import { lex } from '../parse/lex';
 import { parse } from '../parse/parse';
 
@@ -39,22 +39,23 @@ export class Resolver {
       mod = this.modules.get(absolutePath)!;
     } else {
       const source = await this.fs.readFile(absolutePath);
-      const tokens = lex(source);
-      const newlines = indices(source.split(''), c => c === '\n');
       const moduleName = camelCase(last(this.fs.normalize(absolutePath).split('/')).split('.')[0]);
-      const topModule = parse(tokens, newlines).topModule(moduleName, { pub: false });
+      const tokens = lex(source, moduleName);
+      const topModule = parse(tokens, source, moduleName).topModule({ pub: false });
       const env = new TypeEnv(this, absolutePath, moduleName);
       const stdPath = await this.fs.resolveStd();
 
       if (!absolutePath.includes(stdPath)) {
         // implicitly import the Foundation module
-        topModule.decls.unshift(Decl.Import({
-          pub: false,
-          path: [],
-          resolvedPath: this.fs.join(stdPath, 'Foundation.poy'),
-          members: [],
-          module: 'Foundation',
-        }));
+        topModule.decls.unshift(
+          Decl.Import({
+            pub: false,
+            path: [],
+            resolvedPath: this.fs.join(stdPath, 'Foundation.poy'),
+            members: [],
+            module: 'Foundation',
+          }),
+        );
       }
 
       for (const decl of topModule.decls) {

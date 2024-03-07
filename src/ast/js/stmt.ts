@@ -7,7 +7,7 @@ import { Expr } from './expr';
 export type Stmt = DataType<{
   Expr: { expr: Expr };
   Const: { name: Name; value: Expr; exported?: boolean };
-  Let: { name: Name; value?: Expr; exported?: boolean};
+  Let: { name: Name; value?: Expr; exported?: boolean };
   If: { branches: { cond?: Expr; then_: Stmt[] }[] };
   Assign: { lhs: Expr; op: AssignmentOp; rhs: Expr };
   Return: { value: Expr };
@@ -15,7 +15,7 @@ export type Stmt = DataType<{
   Break: {};
   While: { cond: Expr; body: Stmt[] };
   For: { name: Name; iterator: Expr; body: Stmt[] };
-  Import: { exported: boolean, path: string; members: Name[] };
+  Import: { exported: boolean; path: string; members: Name[] };
 }>;
 
 export const Stmt = {
@@ -91,15 +91,15 @@ function show(stmt: Stmt, indentLevel: number = 0): string {
       if (members.length === 0) {
         return exported ? `export * from '${path}';` : '';
       }
-      
+
       const members_ = members.map(name => name.mangled).join(', ');
       const imp = `import { ${members_} } from '${path}';`;
-      
+
       if (exported) {
         return `${imp}\nexport * from '${path}';`;
       }
 
       return imp;
-    }
+    },
   });
 }

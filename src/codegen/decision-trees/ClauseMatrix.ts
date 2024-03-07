@@ -80,11 +80,12 @@ export type OccurrenceComponent = DataType<{
 
 export const OccurrenceComponent = {
   ...constructors<OccurrenceComponent>().get('Variable', 'Index', 'Field'),
-  show: (occ: OccurrenceComponent): string => match(occ, {
-    Variable: name => name,
-    Index: index => `[${index}]`,
-    Field: field => `.${field}`,
-  }),
+  show: (occ: OccurrenceComponent): string =>
+    match(occ, {
+      Variable: name => name,
+      Index: index => `[${index}]`,
+      Field: field => `.${field}`,
+    }),
 } satisfies Impl<Constructors<OccurrenceComponent> & Show<OccurrenceComponent>>;
 
 export type DecisionTree = DataType<{
@@ -453,24 +454,27 @@ export class ClauseMatrix {
     for (const [ctor, { arity, meta }] of heads) {
       const specialized = this.specialized(ctor, arity);
       const subOccurrences = [
-        ...gen(arity, i => [...occurrences[0], block(() => {
-          if (meta == null) {
-            return OccurrenceComponent.Index(i);
-          }
+        ...gen(arity, i => [
+          ...occurrences[0],
+          block(() => {
+            if (meta == null) {
+              return OccurrenceComponent.Index(i);
+            }
 
-          return match(meta, {
-            Ctor: () => OccurrenceComponent.Index(i),
-            Variant: ({ enumDecl }) => {
-              const variant = enumDecl.variants.find(v => v.name === ctor);
-              assert(variant != null);
-              return match(variant, {
-                Empty: () => panic('Cannot destructure empty variant'),
-                Tuple: () => OccurrenceComponent.Field(EnumVariant.formatPositionalArg(i)),
-                Struct: () => todo('Struct variants not supported yet'),
-              });
-            },
-          });
-        })]),
+            return match(meta, {
+              Ctor: () => OccurrenceComponent.Index(i),
+              Variant: ({ enumDecl }) => {
+                const variant = enumDecl.variants.find(v => v.name === ctor);
+                assert(variant != null);
+                return match(variant, {
+                  Empty: () => panic('Cannot destructure empty variant'),
+                  Tuple: () => OccurrenceComponent.Field(EnumVariant.formatPositionalArg(i)),
+                  Struct: () => todo('Struct variants not supported yet'),
+                });
+              },
+            });
+          }),
+        ]),
         ...occurrences.slice(1),
       ];
       const Ak = specialized.compile(subOccurrences, isSignature, selectColumn);
