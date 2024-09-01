@@ -12,7 +12,7 @@ export const bitterStmtOf = (sweet: SweetStmt, env: TypeEnv): BitterStmt[] => {
     Let: ({ pub, mutable, static: isStatic, lhs, value, attrs }) => {
       const decls = array<BitterStmt>();
 
-      for (const [name, occ] of Pattern.variableOccurrences(lhs).shared) {
+      for (const [name, occ] of Pattern.variableOccurrences(lhs)) {
         decls.push(
           BitterStmt.Let({
             pub,

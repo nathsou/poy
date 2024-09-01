@@ -92,10 +92,10 @@ export function bitterExprOf(sweet: SweetExpr, env: TypeEnv): BitterExpr {
     Tuple: ({ elems }) => BitterExpr.Tuple({ elems: elems.map(aux), ty }),
     Array: ({ elems }) => BitterExpr.Array({ elems: elems.map(aux), ty }),
     UseIn: ({ lhs, value, rhs }) => {
-      const { shared } = Pattern.variableOccurrences(lhs);
+      const vars = Pattern.variableOccurrences(lhs);
       const stmts = array<BitterStmt>();
 
-      for (const [name, occ] of shared) {
+      for (const [name, occ] of vars) {
         stmts.push(
           BitterStmt.Let({
             pub: false,
@@ -132,14 +132,14 @@ export function bitterExprOf(sweet: SweetExpr, env: TypeEnv): BitterExpr {
           args.forEach((arg, idx) => {
             if (!Pattern.isVariable(arg.pat)) {
               const renamedArg = renamedArgs[idx];
-              const { shared } = Pattern.variableOccurrences(arg.pat, {
+              const vars = Pattern.variableOccurrences(arg.pat, {
                 name: renamedArg.name,
                 alreadyDeclared: true,
               });
 
               const renamed = SweetExpr.Variable({ ...renamedArg, typeParams: [] });
 
-              for (const [name, occ] of shared) {
+              for (const [name, occ] of vars) {
                 decls.push(
                   BitterStmt.Let({
                     pub: false,

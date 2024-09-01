@@ -18,13 +18,9 @@ extend Expr {
             .add(a, b) => .ok(a.eval()? + b.eval()?)
             .sub(a, b) => .ok(a.eval()? - b.eval()?)
             .mul(a, b) => .ok(a.eval()? * b.eval()?)
-            .div(a, b) => {
-                let n = b.eval()?
-
-                match n {
-                    0 => .err(.divisionByZero),
-                    _ => .ok(a.eval()? / n),
-                }
+            .div(a, b) => match b.eval()? {
+                0 => .err(.divisionByZero),
+                n => .ok(a.eval()? / n),
             }
         }
     }

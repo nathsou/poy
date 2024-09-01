@@ -206,7 +206,7 @@ export const DecisionTree = {
     return match(dt, {
       Leaf: ({ action }) => {
         const { pattern, body } = cases[action];
-        const { vars, shared } = Pattern.variableOccurrences(
+        const vars = Pattern.variableOccurrences(
           pattern,
           subject.variant === 'Variable'
             ? {
@@ -220,7 +220,7 @@ export const DecisionTree = {
           return body;
         }
 
-        const bindings = [...shared.entries()].map(([name, occ]) => ({
+        const bindings = [...vars.entries()].map(([name, occ]) => ({
           name,
           value: Occurrence.toExpr(occ, subject),
         }));

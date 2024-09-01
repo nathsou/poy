@@ -44,22 +44,11 @@ export const Pattern = {
       alreadyDeclared: false,
     },
   ) {
-    const vars = new Map<string, Occurrence>();
     const shared = new Map<string, Occurrence>();
-
-    const setVar = (name: string, occ: Occurrence) => {
-      if (vars.has(name)) {
-        panic(`Variable ${name} is bound multiple times in the same pattern`);
-      }
-
-      vars.set(name, occ);
-    };
-
     const visit = (pat: Pattern, occ: Occurrence, parent: string) => {
       match(pat, {
         Any: () => {},
         Variable: ({ name }) => {
-          setVar(name, occ);
           shared.set(name, shared.get(parent) ?? occ);
           shared.delete(parent);
         },
@@ -106,7 +95,7 @@ export const Pattern = {
       visit(pat, [], placeholderVar.name);
     }
 
-    return { vars, shared };
+    return shared;
   },
   variables(pat: Pattern): Set<string> {
     const vars = new Set<string>();
