@@ -530,7 +530,13 @@ export const parse = (tokens: Token[], source: string, moduleName: string) => {
       return Expr.Unary({ op: token.$value as UnaryOp, expr });
     }
 
-    return elementAccessExpr();
+    const expr = elementAccessExpr();
+
+    if (matches(Token.Symbol('?'))) {
+      return Expr.Unary({ op: '?', expr });
+    }
+
+    return expr;
   }
 
   function elementAccessExpr(): Expr {

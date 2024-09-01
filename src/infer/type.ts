@@ -28,6 +28,8 @@ export const Type = {
         : Type.Fun('Tuple', [list(elems)])
       : Type.Fun('Tuple', [elems]),
   Function: (args: Type[], ret: Type): Type => Type.Fun('Function', [list(args), ret]),
+  Option: (elem: Type): Type => Type.Fun('Option', [elem]),
+  Result: (ok: Type, err: Type): Type => Type.Fun('Result', [ok, err]),
   Bool: Object.freeze<Type>({ variant: 'Fun', name: 'Bool', args: [] }),
   Num: Object.freeze<Type>({ variant: 'Fun', name: 'Num', args: [] }),
   Str: Object.freeze<Type>({ variant: 'Fun', name: 'Str', args: [] }),

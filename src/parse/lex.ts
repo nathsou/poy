@@ -282,6 +282,8 @@ export const lex = (source: string, moduleName: string): Token[] => {
       }
       case '!':
         return Token.Symbol(matches('=') ? '!=' : '!');
+      case '?':
+        return Token.Symbol('?');
       case '=':
         return Token.Symbol(matches('=') ? '==' : matches('>') ? '=>' : '=');
       case '<':

@@ -11,7 +11,7 @@ export type Expr = DataType<
   Typed<{
     Literal: { literal: Literal };
     Variable: { name: string };
-    Unary: { op: UnaryOp; expr: Expr };
+    Unary: { op: Exclude<UnaryOp, '?'>; expr: Expr };
     Binary: { lhs: Expr; op: BinaryOp; rhs: Expr };
     Block: { stmts: Stmt[]; ret?: Expr };
     If: { cond: Expr; then_: Expr; else_?: Expr };

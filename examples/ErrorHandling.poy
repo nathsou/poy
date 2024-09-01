@@ -1,0 +1,34 @@
+
+enum Expr {
+    int(Num),
+    add(Expr, Expr),
+    sub(Expr, Expr),
+    mul(Expr, Expr),
+    div(Expr, Expr),
+}
+
+enum EvalError {
+    divisionByZero,
+}
+
+extend Expr {
+    fun eval() {
+        match self {
+            .int(n) => .ok(n),
+            .add(a, b) => .ok(a.eval()? + b.eval()?)
+            .sub(a, b) => .ok(a.eval()? - b.eval()?)
+            .mul(a, b) => .ok(a.eval()? * b.eval()?)
+            .div(a, b) => {
+                let n = b.eval()?
+
+                match n {
+                    0 => .err(.divisionByZero),
+                    _ => .ok(a.eval()? / n),
+                }
+            }
+        }
+    }
+}
+
+let expr = .add(.mul(.int(3), .int(7)), .div(.int(11), .sub(.int(3), .int(3))))
+print(expr.eval())

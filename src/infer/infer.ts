@@ -741,10 +741,23 @@ export class TypeEnv {
           None: () => panic(`Variable '${name}' not found`),
         }),
       Unary: ({ op, expr }) => {
-        const exprTy = this.inferExpr(expr);
-        this.unify(exprTy, UNARY_OP_TYPE[op]);
+        if (op === '?' && this.functionStack.length === 0) {
+          panic('The ? operator can only be used inside a function body');
+        }
 
-        return exprTy;
+        const exprTy = this.inferExpr(expr);
+        const [arg, ret] = UNARY_OP_TYPE[op];
+        const retTy = this.freshType();
+
+        const funTy = Type.instantiate(
+          Type.Function([arg], ret),
+          this.letLevel,
+          this.generics,
+        ).ty;
+        
+        this.unify(funTy, Type.Function([exprTy], retTy));
+
+        return retTy;
       },
       Binary: ({ lhs, op, rhs }) => {
         const lhsTy = this.inferExpr(lhs);
@@ -1262,10 +1275,11 @@ export class TypeEnv {
   }
 }
 
-const UNARY_OP_TYPE: Record<UnaryOp, Type> = {
-  '!': Type.Bool,
-  '-': Type.Num,
-  '+': Type.Num,
+const UNARY_OP_TYPE: Record<UnaryOp, [arg: Type, ret: Type]> = {
+  '!': [Type.Bool, Type.Bool],
+  '-': [Type.Num, Type.Num],
+  '+': [Type.Num, Type.Num],
+  '?': [Type.Result(Type.alpha(), Type.beta()), Type.alpha()],
 };
 
 const BINARY_OP_TYPE: Record<BinaryOp, [Type, Type, Type]> = {

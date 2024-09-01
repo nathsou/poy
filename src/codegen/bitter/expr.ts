@@ -2,6 +2,7 @@ import { match } from 'itsamatch';
 import { Expr as BitterExpr } from '../../ast/bitter/expr';
 import { Stmt as BitterStmt } from '../../ast/bitter/stmt';
 import { StringInterpolationPart, Expr as SweetExpr } from '../../ast/sweet/expr';
+import { Stmt as SweetStmt } from '../../ast/sweet/stmt';
 import { Pattern } from '../../ast/sweet/pattern';
 import { Type } from '../../infer/type';
 import { array, assert, block, panic } from '../../misc/utils';
@@ -13,37 +14,83 @@ import {
 } from '../decision-trees/ClauseMatrix';
 import { bitterStmtOf } from './stmt';
 import { Literal } from '../../parse/token';
+import { TypeEnv } from '../../infer/infer';
 
-export function bitterExprOf(sweet: SweetExpr): BitterExpr {
-  assert(sweet.ty != null, 'missing type after type inference');
+export function bitterExprOf(sweet: SweetExpr, env: TypeEnv): BitterExpr {
+  assert(
+    sweet.ty != null,
+    () => `missing type after type inference for expr: ${JSON.stringify(sweet, null, 2)}`,
+  );
+
   const ty = sweet.ty;
+  const aux = (sweet: SweetExpr) => bitterExprOf(sweet, env);
 
   return match(sweet, {
     Literal: ({ literal }) => BitterExpr.Literal(literal, ty),
     Variable: ({ name }) => BitterExpr.Variable({ name, ty }),
-    Unary: ({ op, expr }) => BitterExpr.Unary({ op, expr: bitterExprOf(expr), ty }),
+    Unary: ({ op, expr }) => {
+      if (op === '?') {
+        const resultEnumDecl = env.enums.lookup('Result').unwrap('Result enum not found');
+
+        return aux(SweetExpr.Match({
+          subject: expr,
+          cases: [
+            {
+              pattern: Pattern.Variant({
+                enumName: 'Result',
+                variantName: 'ok',
+                args: [Pattern.Variable('value')],
+                resolvedEnum: resultEnumDecl,
+              }),
+              body: SweetExpr.Variable({ name: 'value', typeParams: [], ty }),
+            },
+            {
+              pattern: Pattern.Variant({
+                enumName: 'Result',
+                variantName: 'err',
+                args: [Pattern.Variable('err')],
+                resolvedEnum: resultEnumDecl,
+              }),
+              body: SweetExpr.Block({
+                stmts: [
+                  SweetStmt.Return(SweetExpr.Variable({
+                    name: 'err',
+                    typeParams: [],
+                    ty: Type.DontCare,
+                  })),
+                ],
+                ty: Type.DontCare,
+              }),
+            },
+          ],
+          ty,
+        }));
+      } else {
+        return BitterExpr.Unary({ op, expr: aux(expr), ty });
+      }
+    },
     Binary: ({ lhs, op, rhs }) =>
       BitterExpr.Binary({
-        lhs: bitterExprOf(lhs),
+        lhs: aux(lhs),
         op,
-        rhs: bitterExprOf(rhs),
+        rhs: aux(rhs),
         ty,
       }),
     Block: ({ stmts, ret }) =>
       BitterExpr.Block({
-        stmts: stmts.flatMap(bitterStmtOf),
-        ret: ret ? bitterExprOf(ret) : undefined,
+        stmts: stmts.flatMap(stmt => bitterStmtOf(stmt, env)),
+        ret: ret ? aux(ret) : undefined,
         ty,
       }),
     If: ({ cond, then_, else_ }) =>
       BitterExpr.If({
-        cond: bitterExprOf(cond),
-        then_: bitterExprOf(then_),
-        else_: else_ ? bitterExprOf(else_) : undefined,
+        cond: aux(cond),
+        then_: aux(then_),
+        else_: else_ ? aux(else_) : undefined,
         ty,
       }),
-    Tuple: ({ elems }) => BitterExpr.Tuple({ elems: elems.map(bitterExprOf), ty }),
-    Array: ({ elems }) => BitterExpr.Array({ elems: elems.map(bitterExprOf), ty }),
+    Tuple: ({ elems }) => BitterExpr.Tuple({ elems: elems.map(aux), ty }),
+    Array: ({ elems }) => BitterExpr.Array({ elems: elems.map(aux), ty }),
     UseIn: ({ lhs, value, rhs }) => {
       const { shared } = Pattern.variableOccurrences(lhs);
       const stmts = array<BitterStmt>();
@@ -55,7 +102,7 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
             mutable: false,
             static: false,
             name,
-            value: bitterExprOf(Occurrence.toExpr(occ, value)),
+            value: aux(Occurrence.toExpr(occ, value)),
             attrs: {},
           }),
         );
@@ -63,7 +110,7 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
 
       return BitterExpr.Block({
         stmts,
-        ret: bitterExprOf(rhs),
+        ret: aux(rhs),
         ty,
       });
     },
@@ -77,7 +124,7 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
         args: renamedArgs,
         body: block(() => {
           if (args.every(arg => Pattern.isVariable(arg.pat))) {
-            return bitterExprOf(body);
+            return aux(body);
           }
 
           const decls = array<BitterStmt>();
@@ -99,7 +146,7 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
                     mutable: false,
                     static: false,
                     name,
-                    value: bitterExprOf(Occurrence.toExpr(occ, renamed)),
+                    value: aux(Occurrence.toExpr(occ, renamed)),
                     attrs: {},
                   }),
                 );
@@ -109,7 +156,7 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
 
           return BitterExpr.Block({
             stmts: decls,
-            ret: bitterExprOf(body),
+            ret: aux(body),
             ty,
           });
         }),
@@ -125,14 +172,14 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
             name: `${field}_${extensionSuffix}`,
             ty: Type.Function([lhs.ty!, ...args.map(arg => arg.ty!)], ty!),
           }),
-          args: [lhs, ...args].map(bitterExprOf),
+          args: [lhs, ...args].map(aux),
           ty: ty!,
         });
       }
 
       return BitterExpr.Call({
-        fun: bitterExprOf(fun),
-        args: args.map(bitterExprOf),
+        fun: aux(fun),
+        args: args.map(aux),
         ty: ty!,
       });
     },
@@ -156,14 +203,14 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
         name,
         fields: fields.map(field => ({
           name: field.name,
-          value: bitterExprOf(field.value),
+          value: aux(field.value),
         })),
         ty,
       }),
     FieldAccess: ({ lhs, field, extensionSuffix, isCalled, isNative }) => {
       if (isNative) {
         return BitterExpr.FieldAccess({
-          lhs: bitterExprOf(lhs),
+          lhs: aux(lhs),
           field,
           isCalled,
           ty,
@@ -178,7 +225,7 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
       }
 
       return BitterExpr.FieldAccess({
-        lhs: bitterExprOf(lhs),
+        lhs: aux(lhs),
         field: extensionSuffix ? `${field}_${extensionSuffix}` : field,
         isCalled,
         ty,
@@ -193,7 +240,7 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
     },
     TupleAccess: ({ lhs, index }) =>
       BitterExpr.FieldAccess({
-        lhs: bitterExprOf(lhs),
+        lhs: aux(lhs),
         field: index,
         isCalled: false,
         ty,
@@ -220,7 +267,7 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
       if (dt.variant === 'Switch' && !SweetExpr.isPurelyCopyable(subject)) {
         // bind the subject to a variable
         // to avoid evaluating it multiple times
-        return bitterExprOf(
+        return aux(
           SweetExpr.UseIn({
             lhs: Pattern.Variable('$subject'),
             value: subject,
@@ -239,7 +286,7 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
         );
       }
 
-      return bitterExprOf(DecisionTree.toExpr(subject, dt, cases, sweet.ty!));
+      return aux(DecisionTree.toExpr(subject, dt, cases, sweet.ty!));
     },
     VariantShorthand: ({ variantName, args, resolvedEnum }) => {
       assert(resolvedEnum != null, 'unresolved enum in variant shorthand');
@@ -251,12 +298,12 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
 
       return BitterExpr.Call({
         fun: ctor,
-        args: args.map(bitterExprOf),
+        args: args.map(aux),
         ty,
       });
     },
     StringInterpolation: ({ parts }) => {
-      const aux = (parts: StringInterpolationPart[]): BitterExpr => {
+      const go = (parts: StringInterpolationPart[]): BitterExpr => {
         if (parts.length === 0) {
           return BitterExpr.Literal({ variant: 'Str', $value: '' }, ty);
         }
@@ -264,7 +311,7 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
         const [head, ...rest] = parts;
         const lhs = match(head, {
           Str: ({ value }) => BitterExpr.Literal(Literal.Str(value), ty),
-          Expr: ({ expr }) => bitterExprOf(expr),
+          Expr: ({ expr }) => aux(expr),
         });
 
         if (rest.length === 0) {
@@ -274,12 +321,12 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
         return BitterExpr.Binary({
           lhs,
           op: '++',
-          rhs: aux(rest),
+          rhs: go(rest),
           ty,
         });
       };
 
-      return aux(parts);
+      return go(parts);
     },
   });
 }

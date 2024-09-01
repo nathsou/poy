@@ -83,7 +83,7 @@ export const Literal = {
     }),
 } satisfies Impl<Eq<Literal> & Constructors<Literal>>;
 
-export type UnaryOp = '+' | '-' | '!';
+export type UnaryOp = '+' | '-' | '!' | '?';
 export type AssignmentOp =
   | '='
   | '+='

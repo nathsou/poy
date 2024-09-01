@@ -15,7 +15,7 @@ async function compile(
   const modules = array<{ module: Module; code: string }>();
 
   for (const module of resolver.modules.values()) {
-    const bitterModule = bitterModuleOf(module);
+    const bitterModule = bitterModuleOf(module, module.env);
     const topLevelScope = new JSScope(false);
     const jsModule = jsOfDecl(bitterModule, topLevelScope);
     const code = JSStmt.showStmts(jsModule);

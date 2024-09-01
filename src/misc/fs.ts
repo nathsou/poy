@@ -35,7 +35,7 @@ export async function createFileSystem(): Promise<FileSystem> {
           return stdPath;
         }
 
-        const path = ['./'];
+        const path = [__dirname];
 
         for (let i = 0; i < 5; i += 1) {
           if (existsSync(join(...path, 'poy'))) {

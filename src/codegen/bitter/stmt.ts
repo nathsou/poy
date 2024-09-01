@@ -5,9 +5,10 @@ import { bitterExprOf } from './expr';
 import { Pattern } from '../../ast/sweet/pattern';
 import { array } from '../../misc/utils';
 import { Occurrence } from '../decision-trees/ClauseMatrix';
+import { TypeEnv } from '../../infer/infer';
 
-export const bitterStmtOf = (sweet: SweetStmt): BitterStmt[] =>
-  match(sweet, {
+export const bitterStmtOf = (sweet: SweetStmt, env: TypeEnv): BitterStmt[] => {
+  return match(sweet, {
     Let: ({ pub, mutable, static: isStatic, lhs, value, attrs }) => {
       const decls = array<BitterStmt>();
 
@@ -18,7 +19,7 @@ export const bitterStmtOf = (sweet: SweetStmt): BitterStmt[] =>
             mutable,
             static: isStatic,
             name,
-            value: bitterExprOf(Occurrence.toExpr(occ, value)),
+            value: bitterExprOf(Occurrence.toExpr(occ, value), env),
             attrs,
           }),
         );
@@ -26,14 +27,15 @@ export const bitterStmtOf = (sweet: SweetStmt): BitterStmt[] =>
 
       return decls;
     },
-    Expr: ({ expr }) => [BitterStmt.Expr(bitterExprOf(expr))],
-    Assign: ({ lhs, op, rhs }) => [BitterStmt.Assign(bitterExprOf(lhs), op, bitterExprOf(rhs))],
-    While: ({ cond, body }) => [BitterStmt.While(bitterExprOf(cond), body.flatMap(bitterStmtOf))],
+    Expr: ({ expr }) => [BitterStmt.Expr(bitterExprOf(expr, env))],
+    Assign: ({ lhs, op, rhs }) => [BitterStmt.Assign(bitterExprOf(lhs, env), op, bitterExprOf(rhs, env))],
+    While: ({ cond, body }) => [BitterStmt.While(bitterExprOf(cond, env), body.flatMap(expr => bitterStmtOf(expr, env)))],
     For: ({ name, iterator, body }) => [
-      BitterStmt.For(name, bitterExprOf(iterator.ref), body.flatMap(bitterStmtOf)),
+      BitterStmt.For(name, bitterExprOf(iterator.ref, env), body.flatMap(expr => bitterStmtOf(expr, env))),
     ],
-    Return: ({ expr }) => [BitterStmt.Return(bitterExprOf(expr))],
-    Yield: ({ expr }) => [BitterStmt.Yield(bitterExprOf(expr))],
+    Return: ({ expr }) => [BitterStmt.Return(bitterExprOf(expr, env))],
+    Yield: ({ expr }) => [BitterStmt.Yield(bitterExprOf(expr, env))],
     Break: () => [BitterStmt.Break()],
-    _Many: ({ stmts }) => stmts.flatMap(bitterStmtOf),
+    _Many: ({ stmts }) => stmts.flatMap(expr => bitterStmtOf(expr, env)),
   });
+};

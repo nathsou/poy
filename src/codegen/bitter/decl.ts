@@ -9,21 +9,22 @@ import { Type } from '../../infer/type';
 import { Literal } from '../../parse/token';
 import assert from 'assert';
 import { Pattern } from '../../ast/sweet/pattern';
+import { TypeEnv } from '../../infer/infer';
 
-export const bitterModuleOf = (sweet: ModuleDecl): VariantOf<BitterDecl, 'Module'> => {
+export const bitterModuleOf = (sweet: ModuleDecl, env: TypeEnv): VariantOf<BitterDecl, 'Module'> => {
   return BitterDecl.Module({
     pub: sweet.pub,
     name: sweet.name,
-    decls: sweet.decls.flatMap(bitterDeclsOf),
+    decls: sweet.decls.flatMap(decl => bitterDeclsOf(decl, env)),
   });
 };
 
-export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] =>
+export const bitterDeclsOf = (sweet: SweetDecl, env: TypeEnv): BitterDecl[] =>
   match(sweet, {
-    Stmt: ({ stmt }) => bitterStmtOf(stmt).map(BitterDecl.Stmt),
+    Stmt: ({ stmt }) => bitterStmtOf(stmt, env).map(BitterDecl.Stmt),
     Type: ({ lhs, rhs }) => [BitterDecl.Type(lhs, rhs)],
     Declare: ({ sig, attrs }) => [BitterDecl.Declare({ sig, attrs })],
-    Module: mod => [bitterModuleOf(mod)],
+    Module: mod => [bitterModuleOf(mod, env)],
     Import: ({ pub, path, module, members }) => [BitterDecl.Import({ pub, path, module, members })],
     Struct: ({ pub, name, fields }) => [BitterDecl.Struct({ pub, name, fields })],
     Extend: ({ subject, decls, suffix }) => {
@@ -42,12 +43,12 @@ export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] =>
             });
           }
 
-          filteredDecls.push(...bitterDeclsOf(SweetDecl.Stmt(letStmt)));
+          filteredDecls.push(...bitterDeclsOf(SweetDecl.Stmt(letStmt), env));
         } else if (decl.variant === 'Declare') {
-          filteredDecls.push(...bitterDeclsOf(decl));
+          filteredDecls.push(...bitterDeclsOf(decl, env));
         } else if (decl.variant === '_Many') {
           for (const subDecl of decl.decls) {
-            filteredDecls.push(...bitterDeclsOf(subDecl));
+            filteredDecls.push(...bitterDeclsOf(subDecl, env));
           }
         }
       }
@@ -118,5 +119,5 @@ export const bitterDeclsOf = (sweet: SweetDecl): BitterDecl[] =>
 
       return [mod];
     },
-    _Many: ({ decls }) => decls.flatMap(bitterDeclsOf),
+    _Many: ({ decls }) => decls.flatMap(decl => bitterDeclsOf(decl, env)),
   });
