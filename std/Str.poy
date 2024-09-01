@@ -10,6 +10,7 @@ pub extend Str {
         fun indexOf(str: Str): Num
         fun isWellFormed(): Bool
         fun lastIndexOf(str: Str): Num
+        let length: Num
         fun localeCompare(str: Str): Num
         fun normalize(form: Str): Str
         fun padEnd(targetLength: Num, padStr: Str): Str
@@ -38,6 +39,9 @@ pub extend Str {
         fun substring(start: Num): Str
         fun substringWithEnd(start: Num, end: Num): Str
     }
+
+    #as("charAt")
+    declare fun `[]`(index: Num): Str
 
     declare {
         fun toLowerCase(): Str

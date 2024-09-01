@@ -1,5 +1,4 @@
 import { Attributes } from '../ast/sweet/attribute';
-import { config } from '../config';
 import { Err, Ok, Result } from '../misc/result';
 import { uniq } from '../misc/sets';
 import { Backtick } from '../misc/strings';
@@ -7,7 +6,6 @@ import { proj, pushMap, zip } from '../misc/utils';
 import { TypeEnv } from './infer';
 import { Subst, Type } from './type';
 
-export type ExtensionMembers = Map<string, { ty: Type; declared: boolean }>;
 export type ExtensionInfo = {
   subject: Type;
   member: string;
@@ -16,6 +14,7 @@ export type ExtensionInfo = {
   ty: Type;
   isDeclared: boolean;
   isStatic: boolean;
+  isMutFun: boolean;
   suffix: string;
   module: string;
 };

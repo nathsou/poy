@@ -217,11 +217,7 @@ export function bitterExprOf(sweet: SweetExpr): BitterExpr {
         isSignature,
       );
 
-      if (
-        dt.variant === 'Switch' &&
-        !SweetExpr.isPurelyCopyable(subject) &&
-        DecisionTree.totalTestsCount(dt) > 1
-      ) {
+      if (dt.variant === 'Switch' && !SweetExpr.isPurelyCopyable(subject)) {
         // bind the subject to a variable
         // to avoid evaluating it multiple times
         return bitterExprOf(

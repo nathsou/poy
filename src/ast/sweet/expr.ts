@@ -18,6 +18,7 @@ export type Expr = DataType<{
   Array: { elems: Expr[] };
   UseIn: { lhs: Pattern; ann?: Type; value: Expr; rhs: Expr };
   Fun: {
+    mut: boolean;
     generics: string[];
     args: FunctionArgument[];
     ret?: Type;

@@ -4,6 +4,7 @@ pub import Iterator
 pub import Map
 pub import Math
 pub import Option
+pub import Result
 pub import Set
 pub import Str
 pub import Type

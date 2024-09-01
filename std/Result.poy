@@ -1,0 +1,32 @@
+
+pub enum Result<t, e> { ok(t), err(e) }
+
+pub extend <t, e> Result<t, e> {
+    fun isOk() {
+        match self {
+            .ok(_) => true,
+            .err(_) => false,
+        }
+    }
+
+    fun isErr() {
+        match self {
+            .err(_) => true,
+            .ok(_) => false,
+        }
+    }
+
+    fun map(f) {
+        match self {
+            .ok(x) => .ok(f(x)),
+            .err(e) => .err(e),
+        }
+    }
+
+    fun flatMap(f) {
+        match self {
+            .ok(x) => f(x),
+            .err(e) => .err(e),
+        }
+    }
+}

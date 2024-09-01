@@ -435,11 +435,11 @@ export class TypeEnv {
         }
       },
       Extend: ({ params: globalParams, subject, decls, suffix }) => {
-        const declareSelf = (env: TypeEnv): void => {
+        const declareSelf = (env: TypeEnv, mut: boolean): void => {
           TRS.add(env.types, Type.Fun('Self', []), subject, false);
           env.variables.declare('self', {
+            mut,
             pub: false,
-            mut: false,
             ty: subject,
           });
         };
@@ -456,7 +456,7 @@ export class TypeEnv {
             const generics: string[] = [];
 
             const { extensionTy, subjectTy } = extEnv.parameterize(globalParams, () => {
-              declareSelf(extEnv);
+              declareSelf(extEnv, value.variant === 'Fun' && value.mut);
               const subjectInst = Type.instantiate(subject, extEnv.letLevel, extEnv.generics).ty;
 
               if (value.variant === 'Fun') {
@@ -471,6 +471,7 @@ export class TypeEnv {
                   ty: ann ?? extEnv.freshType(),
                   isDeclared: false,
                   isStatic,
+                  isMutFun: value.mut,
                   suffix,
                   module: this.moduleName,
                 });
@@ -491,6 +492,7 @@ export class TypeEnv {
               ty: extEnv.normalize(genTy),
               isDeclared: false,
               isStatic: isStatic,
+              isMutFun: value.variant === 'Fun' && value.mut,
               suffix,
               module: this.moduleName,
             });
@@ -506,6 +508,7 @@ export class TypeEnv {
               ty: genTy,
               isDeclared: true,
               isStatic: isStatic,
+              isMutFun: false,
               suffix,
               module: this.moduleName,
             });
@@ -606,7 +609,6 @@ export class TypeEnv {
         this.unify(lhsTy, rhsTy);
 
         const isLhsMutable = Expr.isMutable(lhs, this);
-
         if (!isLhsMutable) {
           panic('Left-hand side of assignment is immutable');
         }
@@ -932,7 +934,7 @@ export class TypeEnv {
 
         return this.extensions.lookup(lhsTy, field).match({
           Ok: ({
-            ext: { ty: memberTy, isDeclared: isNative, suffix, subject, attrs },
+            ext: { ty: memberTy, isDeclared: isNative, isMutFun, suffix, subject, attrs },
             subst,
             params,
           }) => {
@@ -942,6 +944,14 @@ export class TypeEnv {
             if (isNative && !isCalled && Type.utils.isFunction(memberTy)) {
               return panic(
                 `Declared member '${field}' from extension of '${Type.show(lhsTy)}' must be called`,
+              );
+            }
+
+            if (isMutFun && !Expr.isMutable(lhs, this)) {
+              panic(
+                `Cannot access mutable extension function '${field}' of '${Type.show(
+                  lhsTy,
+                )}' with an immutable target`,
               );
             }
 
@@ -978,7 +988,7 @@ export class TypeEnv {
 
         return ext.match({
           Ok: ({
-            ext: { ty, suffix, isDeclared: declared, isStatic: isStatic, generics },
+            ext: { ty, suffix, isDeclared: declared, isStatic, generics },
             subst,
             params,
           }) => {

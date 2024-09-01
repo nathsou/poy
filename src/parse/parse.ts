@@ -147,18 +147,10 @@ export const parse = (tokens: Token[], source: string, moduleName: string) => {
 
     try {
       return Some(p());
-    } catch (e) {
+    } catch {
       index = start;
       return None;
     }
-  }
-
-  function parens<T>(p: () => T): T {
-    consume(Token.Symbol('('));
-    const ret = p();
-    consume(Token.Symbol(')'));
-
-    return ret;
   }
 
   function brackets<T>(p: () => T): T {
@@ -401,7 +393,7 @@ export const parse = (tokens: Token[], source: string, moduleName: string) => {
       }
     }
 
-    return funExpr(true);
+    return funExpr({ isArrowFunction: true, isMutableExtension: false });
   }
 
   function functionArgument(): FunctionArgument {
@@ -410,7 +402,12 @@ export const parse = (tokens: Token[], source: string, moduleName: string) => {
     return { pat, ann };
   }
 
-  function funExpr(isArrowFunction: boolean): Expr {
+  type FunExprParams = {
+    isArrowFunction: boolean;
+    isMutableExtension: boolean;
+  };
+
+  function funExpr({ isArrowFunction, isMutableExtension }: FunExprParams): Expr {
     return attempt<Expr>(() => {
       let args: FunctionArgument[];
       let ret: Type | undefined;
@@ -434,7 +431,7 @@ export const parse = (tokens: Token[], source: string, moduleName: string) => {
       }
 
       const body = expr();
-      return Expr.Fun({ generics, args, ret, body, isIterator: false });
+      return Expr.Fun({ mut: isMutableExtension, generics, args, ret, body, isIterator: false });
     }).orDefault(logicalOrExpr);
   }
 
@@ -533,7 +530,28 @@ export const parse = (tokens: Token[], source: string, moduleName: string) => {
       return Expr.Unary({ op: token.$value as UnaryOp, expr });
     }
 
-    return callExpr();
+    return elementAccessExpr();
+  }
+
+  function elementAccessExpr(): Expr {
+    let lhs = callExpr();
+
+    while (matches(Token.Symbol('['))) {
+      const key = expr();
+      consume(Token.Symbol(']'));
+      lhs = Expr.Call({
+        fun: Expr.FieldAccess({
+          lhs,
+          field: Backtick.encode('[]'),
+          typeParams: [],
+          isCalled: true,
+          isNative: false,
+        }),
+        args: [key],
+      });
+    }
+
+    return lhs;
   }
 
   function callExpr(): Expr {
@@ -620,28 +638,7 @@ export const parse = (tokens: Token[], source: string, moduleName: string) => {
         typeParams: params,
         subject,
       });
-    }).orDefault(elementAccessExpr);
-  }
-
-  function elementAccessExpr(): Expr {
-    let lhs = primaryExpr();
-
-    while (matches(Token.Symbol('['))) {
-      const key = expr();
-      consume(Token.Symbol(']'));
-      lhs = Expr.Call({
-        fun: Expr.FieldAccess({
-          lhs,
-          field: Backtick.encode('[]'),
-          typeParams: [],
-          isCalled: true,
-          isNative: false,
-        }),
-        args: [key],
-      });
-    }
-
-    return lhs;
+    }).orDefault(primaryExpr);
   }
 
   function primaryExpr(): Expr {
@@ -898,9 +895,16 @@ export const parse = (tokens: Token[], source: string, moduleName: string) => {
             return stmt({ ...modifiers, static: true });
           }
           case 'mut':
-          case 'let':
             next();
+            if (matches(Token.Keyword('fun'))) {
+              return funStmt({ ...modifiers, mut: true });
+            }
+            // fallthrough
+          case 'let':
             const isMutable = keyword === 'mut';
+            if (!isMutable) {
+              next();
+            }
 
             if (matches(Token.Symbol('{'))) {
               const stmts: Stmt[] = [];
@@ -944,13 +948,13 @@ export const parse = (tokens: Token[], source: string, moduleName: string) => {
   function funStmt(modifiers: StmtModifiers): Stmt {
     const attrs = attribs.copy();
     const name = identifier();
-    const value = funExpr(false);
+    const value = funExpr({ isArrowFunction: false, isMutableExtension: modifiers.mut });
     consumeIfPresent(Token.Symbol(';'));
 
     return Stmt.Let({
       pub: modifiers.pub,
       static: modifiers.static,
-      mutable: false,
+      mutable: modifiers.mut,
       lhs: Pattern.Variable(name),
       value,
       attrs,
