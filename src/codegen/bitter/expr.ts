@@ -45,12 +45,7 @@ export function bitterExprOf(sweet: SweetExpr, env: TypeEnv): BitterExpr {
               body: SweetExpr.Variable({ name: 'value', typeParams: [], ty }),
             },
             {
-              pattern: Pattern.Variant({
-                enumName: 'Result',
-                variantName: 'err',
-                args: [Pattern.Variable('err')],
-                resolvedEnum: resultEnumDecl,
-              }),
+              pattern: Pattern.Variable('err'),
               body: SweetExpr.Block({
                 stmts: [
                   SweetStmt.Return(SweetExpr.Variable({

@@ -36,15 +36,19 @@ mut cities = [
         name: "Paris",
         population: 2102650,
     },
+    City {
+        name: "Saint-Genis-Pouilly",
+        population: 10824,
+    },
 ]
 
-let sg = City {
-    name: "Saint-Genis-Pouilly",
-    population: 10824,
+let thoiry = City {
+    name: "Thoiry",
+    population: 6136,
 }
 
-// sg.name = "yo" // Error: Left-hand side of assignment is immutable
+// thoiry.name = "yo" // Error: Left-hand side of assignment is immutable
 
-cities.push(sg)
+cities.push(thoiry)
 
 print(cities)
