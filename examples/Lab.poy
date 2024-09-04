@@ -1,5 +1,5 @@
 import Euler { euler1 }
-import List { IsEmpty }
+import List { IsEmpty, True, False }
 
 struct Person {
     name: Str,

@@ -53,7 +53,7 @@ export type Signature = DataType<{
     ty: Type;
   };
   Module: { name: string; signatures: Signature[] };
-  Type: TypeDecl;
+  Type: { name: string, params: string[] };
 }>;
 
 export const Signature = constructors<Signature>().get('Variable', 'Module', 'Type') satisfies Impl<

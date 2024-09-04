@@ -29,7 +29,7 @@ extend Num {
     }
 }
 
-mut m = Map()
+mut m = Map<_, _>()
 m.push("hello", 1)
 m.push("world", 2)
 m.push("hello", 7)

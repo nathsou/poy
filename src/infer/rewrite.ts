@@ -11,17 +11,36 @@ import { Module } from '../resolve/resolve';
 export type Rule = { pub: boolean; lhs: Type; rhs: Type };
 export type TRS = {
   imports: { mod: Module; importedRules: Set<string> }[];
+  symbols: Scope<number>; // type name -> arity
   rules: Scope<Rule[]>;
 };
 
 export const TRS = {
   create: (parent?: TRS): TRS => ({
     imports: [],
+    symbols: new Scope(parent?.symbols),
     rules: new Scope(parent?.rules),
   }),
-  add: ({ rules }: TRS, lhs: Type, rhs: Type, pub: boolean): void => {
+  add: ({ rules, symbols }: TRS, lhs: Type, rhs: Type, pub: boolean): void => {
     assert(lhs.variant === 'Fun');
+    symbols.lookup(lhs.name).match({
+      Some: arity => {
+        if (arity !== lhs.args.length) {
+          panic(`Type '${lhs.name}' has already been declared with a different arity`);
+        }
+      },
+      None: () => {
+        symbols.declare(lhs.name, lhs.args.length);
+      },
+    });
+
     pushMap(rules.members, lhs.name, { lhs, rhs, pub });
+  },
+  declare: ({ symbols }: TRS, name: string, arity: number): void => {
+    symbols.lookup(name).match({
+      Some: () => { panic(`Type '${name}' has already been declared`); },
+      None: () => { symbols.declare(name, arity); },
+    });
   },
   lookup: (trs: TRS, name: string): Maybe<Rule[]> => {
     return trs.rules.lookup(name).or(() => {
@@ -186,6 +205,19 @@ function reduce(env: TypeEnv, ty: Type, counter: StepCounter): { term: Type; mat
 
 export function normalize(env: TypeEnv, ty: Type, counter: StepCounter = { steps: 0 }): Type {
   let term = ty;
+
+  if (ty.variant === 'Fun' && ty.name[0] !== '@') {
+    env.types.symbols.lookup(ty.name).match({
+      Some: arity => {
+        if (arity !== ty.args.length) {
+          panic(`Incorrect number of arguments for type '${ty.name}', expected ${arity}, got ${ty.args.length}`);
+        }
+      },
+      None: () => {
+        panic(`Unknown type '${ty.name}' in module '${env.moduleName}'`);
+      },
+    });
+  }
 
   while (counter.steps < config.maxReductionSteps) {
     const { term: reduced, matched } = reduce(env, term, counter);

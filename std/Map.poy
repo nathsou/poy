@@ -6,12 +6,6 @@ declare fun initMap(): Map<_, _>
 #new("Map")
 declare fun initMapFromEntries<k, v>(entries: Iterator<(k, v)>): Map<k, v>
 
-pub extend Map {
-    static fun init() {
-        initMap()
-    }
-}
-
 pub extend<k, v> Map<k, v> {
     declare {
         let size: Num

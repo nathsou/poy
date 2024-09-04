@@ -12,6 +12,7 @@ import { Module, Resolver } from '../resolve/resolve';
 import { ExtensionScope } from './extensions';
 import { TRS } from './rewrite';
 import { Subst, Type, TypeVar } from './type';
+import { Maybe, None, Some } from '../misc/maybe';
 
 type VarInfo = {
   pub?: boolean;
@@ -41,7 +42,7 @@ export class TypeEnv {
   private functionStack: { ty: Type; isIterator: boolean }[];
   private resolver: Resolver;
   private modulePath: string;
-  private moduleName: string;
+  public moduleName: string;
 
   constructor(resolver: Resolver, modulePath: string, moduleName: string, parent?: TypeEnv) {
     this.resolver = resolver;
@@ -77,7 +78,7 @@ export class TypeEnv {
     const unifiable = Type.unify(normalizedS, normalizedT, this.generics);
 
     if (!unifiable) {
-      panic(message ?? `Cannot unify '${Type.show(s)}' with '${Type.show(t)}'`);
+      panic(message ?? `Cannot unify '${Type.show(normalizedS)}' with '${Type.show(normalizedT)}'`);
     }
   }
 
@@ -243,6 +244,7 @@ export class TypeEnv {
         }
 
         this.structs.declare(struct.name, struct);
+        TRS.declare(this.types, struct.name, struct.params.length);
       },
       Declare: ({ sig }) =>
         match(sig, {
@@ -273,8 +275,8 @@ export class TypeEnv {
               moduleEnv.inferDecl(decl);
             }
           },
-          Type: ({ pub, lhs, rhs }) => {
-            TRS.add(this.types, this.normalize(lhs), this.normalize(rhs), pub);
+          Type: ({ name, params }) => {
+            TRS.declare(this.types, name, params.length);
           },
         }),
       Module: ({ pub, name, params, decls }) => {
@@ -317,18 +319,28 @@ export class TypeEnv {
             members: membersSet,
             scope: mod.env.variables,
           });
+          
           this.modules.imports.push({
             module: mod.name,
             members: membersSet,
             scope: mod.env.modules,
           });
+
           this.enums.imports.push({ module: mod.name, members: membersSet, scope: mod.env.enums });
+
           this.structs.imports.push({
             module: mod.name,
             members: membersSet,
             scope: mod.env.structs,
           });
+
           this.types.imports.push({ mod, importedRules: membersSet });
+
+          this.types.symbols.imports.push({
+            module: mod.name,
+            members: membersSet,
+            scope: mod.env.types.symbols,
+          });
         } else {
           for (const member of members) {
             const name = member.name;
@@ -395,6 +407,12 @@ export class TypeEnv {
                             importedRules: new Set([member.name]),
                           });
                         }
+
+                        this.types.symbols.imports.push({
+                          module: mod.name,
+                          members: new Set([member.name]),
+                          scope: mod.env.types.symbols,
+                        });
                       },
                       None: () => {
                         mod.env.structs.lookup(name).match({
@@ -410,7 +428,15 @@ export class TypeEnv {
                             }
                           },
                           None: () => {
-                            panic(`Cannot find member '${name}' in module '${module}'`);
+                            mod.env.types.symbols.lookup(name).match({
+                              Some: arity => {
+                                member.kind = 'type';
+                                TRS.declare(this.types, name, arity);
+                              },
+                              None: () => {
+                                panic(`Cannot import unknown member '${name}' from module '${module}'`);
+                              },
+                            });
                           },
                         });
                       },
@@ -557,6 +583,8 @@ export class TypeEnv {
           local: true,
           decls: [],
         });
+
+        TRS.declare(this.types, name, params.length);
       },
       _Many: ({ decls }) => {
         for (const decl of decls) {

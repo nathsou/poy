@@ -56,6 +56,17 @@ export class Resolver {
             module: 'Foundation',
           }),
         );
+      } else if (moduleName !== 'Builtin') {
+        // implicitly import the Builtin module
+        topModule.decls.unshift(
+          Decl.Import({
+            pub: false,
+            path: [],
+            resolvedPath: this.fs.join(stdPath, 'Builtin.poy'),
+            members: [],
+            module: 'Builtin',
+          })
+        );
       }
 
       for (const decl of topModule.decls) {

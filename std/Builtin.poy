@@ -1,0 +1,15 @@
+
+pub declare type {
+    Unit
+    Bool
+    Str
+    Num
+    Nil
+    Cons<head, tail>
+    Tuple<elems>
+    Array<t>
+    Set<t>
+    Function<args, ret>
+    Iterator<elem>
+    Map<key, val>
+}

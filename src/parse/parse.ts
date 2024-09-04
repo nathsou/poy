@@ -7,7 +7,7 @@ import { Stmt } from '../ast/sweet/stmt';
 import { Type, TypeVar } from '../infer/type';
 import { Maybe, None, Some } from '../misc/maybe';
 import { Backtick, countCharacterOccurrences, isLowerCase, isUpperCase } from '../misc/strings';
-import { array, assert, block, last, letIn, panic } from '../misc/utils';
+import { array, assert, block, last, panic } from '../misc/utils';
 import { AssignmentOp, BinaryOp, Keyword, Literal, Symbol, Token, UnaryOp } from './token';
 
 export const parse = (tokens: Token[], source: string, moduleName: string) => {
@@ -1279,14 +1279,21 @@ export const parse = (tokens: Token[], source: string, moduleName: string) => {
     const ty = typeAnnotationRequired();
     consumeIfPresent(Token.Symbol(';'));
 
-    return {
-      variant: 'Variable',
+    return Signature.Variable({
       static: modifiers.static,
       mut: modifiers.mut,
       params: [],
       name,
       ty,
-    };
+    });
+  }
+
+  function typeSignature(): VariantOf<Signature, 'Type'> {
+    const name = identifier();
+    const params = typeParams();
+    consumeIfPresent(Token.Symbol(';'));
+
+    return Signature.Type({ name, params });
   }
 
   function functionSignature(modifiers: SignatureModifiers): VariantOf<Signature, 'Variable'> {
@@ -1307,14 +1314,13 @@ export const parse = (tokens: Token[], source: string, moduleName: string) => {
       ret,
     );
 
-    return {
-      variant: 'Variable',
-      mut: false,
+    return Signature.Variable({
       static: modifiers.static,
+      mut: false,
       params,
       name,
       ty: funTy,
-    };
+    });
   }
 
   function moduleSignature(modifiers: SignatureModifiers): VariantOf<Signature, 'Module'> {
@@ -1328,7 +1334,7 @@ export const parse = (tokens: Token[], source: string, moduleName: string) => {
 
     consumeIfPresent(Token.Symbol(';'));
 
-    return { variant: 'Module', name, signatures: sigs };
+    return Signature.Module({ name, signatures: sigs });
   }
 
   function signatures(modifiers: SignatureModifiers): Signature[] {
@@ -1336,13 +1342,7 @@ export const parse = (tokens: Token[], source: string, moduleName: string) => {
       let: () => variableSignature({ ...modifiers, mut: false }),
       mut: () => variableSignature({ ...modifiers, mut: true }),
       fun: () => functionSignature(modifiers),
-      type: () =>
-        letIn(typeDecl(modifiers), td => ({
-          variant: 'Type',
-          pub: modifiers.pub,
-          lhs: td.lhs,
-          rhs: td.rhs,
-        })),
+      type: () => typeSignature(),
       module: () => moduleSignature(modifiers),
     };
 

@@ -1,4 +1,11 @@
 
+pub declare {
+    type Zero
+    type S<n>
+    type True
+    type False
+}
+
 pub type {
     IsEmpty<[]> = True
     IsEmpty<_> = False
@@ -7,6 +14,6 @@ pub type {
     Len<[]> = Zero
     Len<_:tl> = S<Len<tl>>
     
-    Map<_, []> = []
-    Map<f, h:tl> = @app<f, h>:Map<f, tl>
+    MapList<_, []> = []
+    MapList<f, h:tl> = @app<f, h>:MapList<f, tl>
 }
