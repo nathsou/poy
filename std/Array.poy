@@ -9,12 +9,12 @@ pub extend<a> a[] {
 
     declare let length: Num
     declare fun at(index: Num): a
-    declare fun concat(other: a[]): a[]
+    declare mut fun concat(other: a[]): a[]
 
     #as("copyWithin")
     declare {
-        fun copyWithin(target: Num, start: Num): ()
-        fun copyWithinWithEnd(target: Num, start: Num, end: Num): ()
+        mut fun copyWithin(target: Num, start: Num): ()
+        mut fun copyWithinWithEnd(target: Num, start: Num, end: Num): ()
     }
 
     declare fun entries(): Iterator<(Num, a)>
@@ -22,8 +22,8 @@ pub extend<a> a[] {
 
     #as("fill")
     declare {
-        fun fill(value: a, start: Num): ()
-        fun fillWithEnd(value: a, start: Num, end: Num): ()
+        mut fun fill(value: a, start: Num): ()
+        mut fun fillWithEnd(value: a, start: Num, end: Num): ()
     }
     
     declare fun filter(predicate: a -> Bool): a[]
@@ -63,18 +63,18 @@ pub extend<a> a[] {
     }
 
     declare fun map<b>(f: a -> b): b[]
-    declare fun pop(): a
-    declare fun push(elem: a): ()
+    declare mut fun pop(): a
+    declare mut fun push(elem: a): ()
     declare fun reduce<b>(f: (b, a) -> b, init: b): b
     declare fun reduceRight<b>(f: (b, a) -> b, init: b): b
 
     #as("reverse")
-    declare fun reverseInPlace(): ()
+    declare mut fun reverseInPlace(): ()
 
     #as("toReversed")
     declare fun reversed(): a[]
 
-    declare fun shift(): a
+    declare mut fun shift(): a
 
     #as("slice")
     declare {
@@ -85,15 +85,15 @@ pub extend<a> a[] {
     declare fun some(predicate: a -> Bool): Bool
 
     #as("sort")
-    declare fun sortInPlace(): ()
+    declare mut fun sortInPlace(): ()
 
     #as("toSorted")
     declare fun sorted(): a[]
     
     #as("splice")
     declare {
-        fun splice(start: Num): a[]
-        fun spliceWithDeleteCount(start: Num, deleteCount: Num): a[]
+        mut fun splice(start: Num): a[]
+        mut fun spliceWithDeleteCount(start: Num, deleteCount: Num): a[]
     }
 
     #as("toSpliced")
@@ -102,7 +102,7 @@ pub extend<a> a[] {
         fun splicedWithDeleteCount(start: Num, deleteCount: Num): a[]
     }
 
-    declare fun unshift(elem: a): Num
+    declare mut fun unshift(elem: a): Num
     declare fun values(): Iterator<a>
     declare fun with(index: Num, value: a): a[]
  

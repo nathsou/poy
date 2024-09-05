@@ -20,6 +20,7 @@ type VarInfo = {
   ty: Type;
   native?: boolean;
   sourceModule?: Module;
+  isMutExtension?: boolean;
 };
 
 type ModuleInfo = Module & {
@@ -60,7 +61,7 @@ export class TypeEnv {
   }
 
   public child(): TypeEnv {
-    return new TypeEnv(this.resolver, this.modulePath, this.modulePath, this);
+    return new TypeEnv(this.resolver, this.modulePath, this.moduleName, this);
   }
 
   public freshType(): Type {
@@ -77,12 +78,16 @@ export class TypeEnv {
     const unifiable = Type.unify(normalizedS, normalizedT, this.generics);
 
     if (!unifiable) {
-      panic(message ?? `Cannot unify '${Type.show(normalizedS)}' with '${Type.show(normalizedT)}'`);
+      this.panic(message ?? `Cannot unify '${Type.show(normalizedS)}' with '${Type.show(normalizedT)}'`);
     }
   }
 
   private unifyPure(s: Type, t: Type): Subst | undefined {
     return Type.unifyPure(this.normalize(s), this.normalize(t), this.generics);
+  }
+
+  private panic(message: string): never {
+    return panic(`[${this.moduleName}] ${message}`);
   }
 
   public declareGenerics(generics: Iterable<string>): void {
@@ -247,7 +252,7 @@ export class TypeEnv {
       },
       Declare: ({ sig }) =>
         match(sig, {
-          Variable: ({ mut, name, ty }) => {
+          Variable: ({ mut, name, ty, isMutExtension }) => {
             const normalizedTy = this.normalize(ty);
             const genTy = mut ? normalizedTy : Type.generalize(normalizedTy, this.letLevel);
             this.variables.declare(name, {
@@ -255,6 +260,7 @@ export class TypeEnv {
               mut,
               native: true,
               ty: genTy,
+              isMutExtension,
             });
           },
           Module: ({ name, signatures }) => {
@@ -356,7 +362,7 @@ export class TypeEnv {
                     ty,
                   });
                 } else {
-                  panic(`Cannot import private variable '${name}' from module '${module}'`);
+                  this.panic(`Cannot import private variable '${name}' from module '${module}'`);
                 }
               },
               None: () => {
@@ -372,11 +378,12 @@ export class TypeEnv {
                         local: false,
                       });
                     } else {
-                      panic(`Cannot import private module '${name}' from module '${module.name}'`);
+                      this.panic(`Cannot import private module '${name}' from module '${module.name}'`);
                     }
 
                     mod.env.enums.lookup(name).do(enumDecl => {
                       this.enums.declare(name, enumDecl);
+                      TRS.declare(this.types, name, enumDecl.params.length);
                     });
                   },
                   None: () => {
@@ -387,13 +394,13 @@ export class TypeEnv {
                         const somePubRules = rules.some(rule => rule.pub);
                         const somePrivateRules = rules.some(rule => !rule.pub);
                         if (somePubRules && somePrivateRules) {
-                          panic(
+                          this.panic(
                             `Cannot import partially public type '${name}' from module '${module}'`,
                           );
                         }
 
                         if (somePrivateRules) {
-                          panic(`Cannot import private type '${name}' from module '${module}'`);
+                          this.panic(`Cannot import private type '${name}' from module '${module}'`);
                         }
 
                         const import_ = this.types.imports.find(imp => imp.mod === mod);
@@ -420,8 +427,9 @@ export class TypeEnv {
 
                             if (struct.pub) {
                               this.structs.declare(name, struct);
+                              TRS.declare(this.types, name, struct.params.length);
                             } else {
-                              panic(
+                              this.panic(
                                 `Cannot import private struct '${name}' from module '${module}'`,
                               );
                             }
@@ -433,7 +441,7 @@ export class TypeEnv {
                                 TRS.declare(this.types, name, arity);
                               },
                               None: () => {
-                                panic(`Cannot import unknown member '${name}' from module '${module}'`);
+                                this.panic(`Cannot import unknown member '${name}' from module '${module}'`);
                               },
                             });
                           },
@@ -522,7 +530,7 @@ export class TypeEnv {
               module: this.moduleName,
             });
           } else if (decl.variant === 'Declare' && decl.sig.variant === 'Variable') {
-            const { mut, name, ty, static: isStatic } = decl.sig;
+            const { mut, name, ty, static: isStatic, isMutExtension } = decl.sig;
             const genTy = mut ? ty : Type.generalize(ty, this.letLevel);
 
             this.extensions.declare({
@@ -533,14 +541,14 @@ export class TypeEnv {
               ty: genTy,
               isDeclared: true,
               isStatic: isStatic,
-              isMutFun: false,
+              isMutFun: isMutExtension,
               suffix,
               module: this.moduleName,
             });
           } else if (decl.variant === '_Many') {
             decl.decls.forEach(extend);
           } else {
-            panic(`Cannot extend a type with a '${decl.variant}' declaration`);
+            this.panic(`Cannot extend a type with a '${decl.variant}' declaration`);
           }
         };
 
@@ -637,7 +645,7 @@ export class TypeEnv {
 
         const isLhsMutable = Expr.isMutable(lhs, this);
         if (!isLhsMutable) {
-          panic('Left-hand side of assignment is immutable');
+          this.panic('Left-hand side of assignment is immutable');
         }
       },
       While: ({ cond, body }) => {
@@ -688,7 +696,7 @@ export class TypeEnv {
       },
       Return: ({ expr }) => {
         if (this.functionStack.length === 0) {
-          panic('Return statement used outside of a function body');
+          this.panic('Return statement used outside of a function body');
         }
 
         const funReturnTy = last(this.functionStack).ty;
@@ -697,7 +705,7 @@ export class TypeEnv {
       },
       Yield: ({ expr }) => {
         if (this.functionStack.length === 0) {
-          panic('Yield statement used outside of a function body');
+          this.panic('Yield statement used outside of a function body');
         }
 
         const funRet = last(this.functionStack);
@@ -721,11 +729,11 @@ export class TypeEnv {
     typeParams: Type[],
   ): Type[] {
     if (typeParams.length > 0 && generics == null) {
-      panic(`${kind} '${name}' expects no type parameters, but ${typeParams.length} were given.`);
+      this.panic(`${kind} '${name}' expects no type parameters, but ${typeParams.length} were given.`);
     }
 
     if (generics != null && typeParams.length > 0 && typeParams.length !== generics.length) {
-      panic(
+      this.panic(
         `${kind} '${name}' expects ${generics.length} type parameters, but ${typeParams.length} were given.`,
       );
     }
@@ -743,7 +751,7 @@ export class TypeEnv {
 
   private validateDestructuringPattern(pattern: Pattern) {
     if (!Pattern.isIrrefutable(pattern)) {
-      panic(`Pattern '${Pattern.show(pattern)}' can fail to match.`);
+      this.panic(`Pattern '${Pattern.show(pattern)}' can fail to match.`);
     }
   }
 
@@ -765,11 +773,11 @@ export class TypeEnv {
 
             return Type.instantiate(ty, this.letLevel, typeParamScope).ty;
           },
-          None: () => panic(`Variable '${name}' not found`),
+          None: () => this.panic(`Variable '${name}' not found`),
         }),
       Unary: ({ op, expr }) => {
         if (op === '?' && this.functionStack.length === 0) {
-          panic('The ? operator can only be used inside a function body');
+          this.panic('The ? operator can only be used inside a function body');
         }
 
         const exprTy = this.inferExpr(expr);
@@ -897,7 +905,7 @@ export class TypeEnv {
             .unwrap(() => `Module '${path.slice(0, index + 1).join('.')}' not found`);
 
           if (!mod.local && !mod.pub) {
-            panic(`Module '${path.slice(0, index + 1).join('.')}' is private`);
+            this.panic(`Module '${path.slice(0, index + 1).join('.')}' is private`);
           }
         });
 
@@ -906,7 +914,7 @@ export class TypeEnv {
           .unwrap(() => `Member '${path.join('.')}.${member}' not found`);
 
         if (!mod.local && !pub) {
-          panic(`Member '${path.join('.')}.${member}' is private`);
+          this.panic(`Member '${path.join('.')}.${member}' is private`);
         }
 
         return Type.instantiate(ty, this.letLevel, this.generics).ty;
@@ -919,14 +927,14 @@ export class TypeEnv {
 
         const missingFields = setDifference(expectedFields, actualFields);
         if (missingFields.size > 0) {
-          panic(
+          this.panic(
             `Missing field(s) in '${name}' struct expression: ${[...missingFields].join(', ')}`,
           );
         }
 
         const extraFields = setDifference(actualFields, expectedFields);
         if (extraFields.size > 0) {
-          panic(`Extra field(s) in '${name}' struct expression: ${[...extraFields].join(', ')}`);
+          this.panic(`Extra field(s) in '${name}' struct expression: ${[...extraFields].join(', ')}`);
         }
 
         const structParamsScope = this.generics.child();
@@ -941,7 +949,7 @@ export class TypeEnv {
           );
           const value = fields.find(({ name: fieldName }) => fieldName === name)!.value;
           if (mut && !Type.utils.isValueType(ty) && !Expr.isMutable(value, this)) {
-            panic(
+            this.panic(
               `Cannot use an immutable value in place of the mutable field '${name}' of struct '${structName}'`,
             );
           }
@@ -982,13 +990,13 @@ export class TypeEnv {
             dotExpr.isNative = isNative;
 
             if (isNative && !isCalled && Type.utils.isFunction(memberTy)) {
-              return panic(
+              return this.panic(
                 `Declared member '${field}' from extension of '${Type.show(lhsTy)}' must be called`,
               );
             }
 
             if (isMutFun && !Expr.isMutable(lhs, this)) {
-              panic(
+              this.panic(
                 `Cannot access mutable extension function '${field}' of '${Type.show(
                   lhsTy,
                 )}' with an immutable target`,
@@ -1033,7 +1041,7 @@ export class TypeEnv {
             params,
           }) => {
             if (declared) {
-              return panic(
+              return this.panic(
                 `Cannot access a declared extension member with an extension access expression: '${Type.show(
                   subject,
                 )}::${member}'`,
@@ -1175,7 +1183,7 @@ export class TypeEnv {
                 return Type.Tuple(pat.args.map((arg, idx) => aux(arg, elems[idx])));
               }
               default:
-                return panic(`Unknown meta type: '${pat.meta}'`);
+                return this.panic(`Unknown meta type: '${pat.meta}'`);
             }
           } else {
             assert(
@@ -1212,7 +1220,7 @@ export class TypeEnv {
           this.unify(ty, Type.Fun(decl.name, paramsInst));
 
           if (variant == null) {
-            return panic(`Enum '${enumName}' has no variant '${pat.variantName}'`);
+            return this.panic(`Enum '${enumName}' has no variant '${pat.variantName}'`);
           }
 
           for (const [arg, { ty: argTy }] of zip(pat.args, EnumVariant.arguments(variant))) {
@@ -1229,7 +1237,7 @@ export class TypeEnv {
           for (const field of pat.fields) {
             const fieldInfo = decl.fields.find(f => f.name === field.name);
             if (fieldInfo == null) {
-              panic(`Struct '${ty.name}' has no field '${field.name}'`);
+              this.panic(`Struct '${ty.name}' has no field '${field.name}'`);
             } else {
               if (field.rhs) {
                 aux(field.rhs, fieldInfo.ty);

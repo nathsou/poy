@@ -9,6 +9,29 @@ pub import Set
 pub import Str
 pub import Type
 
+pub extend () {
+    fun show(): Str {
+        "()"
+    }
+}
+
+pub extend Num {
+   #as("toString")
+   declare fun show(): Str
+}
+
+pub extend Bool {
+    fun show(): Str {
+        if self { "true" } else { "false" }
+    }
+}
+
+pub extend Function<_, _> {
+    fun show(): Str {
+        "<fun>"
+    }
+}
+
 pub let print = console.log
 
 pub type {

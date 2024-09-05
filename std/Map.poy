@@ -53,7 +53,7 @@ pub extend<k, v> Map<k, v> {
     }
 
     fun groupBy<k2>(f: v -> k2): Map<k2, v[]> {
-        mut grouped = initMap()
+        mut grouped = Map<_, _>()
 
         for pair in self.entries() {
             let key = pair.0
@@ -61,7 +61,8 @@ pub extend<k, v> Map<k, v> {
             let k = f(key)
 
             if grouped.has(k) {
-                grouped.get(k).push(val)
+                mut group = grouped.get(k)
+                group.push(val)
             } else {
                 grouped.set(k, [val])
             }
@@ -72,9 +73,10 @@ pub extend<k, v> Map<k, v> {
 }
 
 pub extend <k, e> Map<k, e[]> {
-    fun push(key, elem) {
+    mut fun push(key, elem) {
         if self.has(key) {
-            self.get(key).push(elem)
+            mut arr = self.get(key)
+            arr.push(elem)
         } else {
             self.set(key, [elem])
         }

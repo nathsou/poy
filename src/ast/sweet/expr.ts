@@ -6,6 +6,7 @@ import { BinaryOp, Literal, UnaryOp } from '../../parse/token';
 import { Pattern } from './pattern';
 import { Stmt } from './stmt';
 import { EnumDecl } from './decl';
+import { panic } from '../../misc/utils';
 
 export type Expr = DataType<{
   Literal: { literal: Literal };
@@ -79,7 +80,10 @@ export const Expr = {
   Literal: (literal: Literal): Expr => ({ variant: 'Literal', literal }) as const,
   isMutable: (expr: Expr, env: TypeEnv): boolean =>
     match(expr, {
-      Variable: ({ name }) => env.variables.lookup(name).unwrap().mut ?? false,
+      Variable: ({ name }) => env.variables.lookup(name).match({
+        Some: ({ mut, isMutExtension }) => mut ?? isMutExtension ?? false,
+        None: () => panic(`Variable '${name}' not found`),
+      }),
       FieldAccess: ({ lhs, field }) => {
         if (!Expr.isMutable(lhs, env)) return false;
         if (lhs.ty === undefined) return false;

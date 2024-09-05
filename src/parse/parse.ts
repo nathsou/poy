@@ -483,9 +483,12 @@ export const parse = (tokens: Token[], source: string, moduleName: string) => {
 
     while (!matches(Token.Symbol('}'))) {
       const name = identifier();
-      consume(Token.Symbol(':'));
-      const value = expr();
-      fields.push({ name, value });
+      if (matches(Token.Symbol(':'))) {
+        const value = expr();
+        fields.push({ name, value });
+      } else {
+        fields.push({ name, value: Expr.Variable({ name, typeParams: [] }) });
+      }
 
       consumeSeparatorIfPresent();
     }
@@ -1280,6 +1283,7 @@ export const parse = (tokens: Token[], source: string, moduleName: string) => {
     consumeIfPresent(Token.Symbol(';'));
 
     return Signature.Variable({
+      isMutExtension: false,
       static: modifiers.static,
       mut: modifiers.mut,
       params: [],
@@ -1315,6 +1319,7 @@ export const parse = (tokens: Token[], source: string, moduleName: string) => {
     );
 
     return Signature.Variable({
+      isMutExtension: modifiers.mut,
       static: modifiers.static,
       mut: false,
       params,
@@ -1340,7 +1345,15 @@ export const parse = (tokens: Token[], source: string, moduleName: string) => {
   function signatures(modifiers: SignatureModifiers): Signature[] {
     const SIGNATURE_MAPPING: Partial<Record<Keyword, () => Signature>> = {
       let: () => variableSignature({ ...modifiers, mut: false }),
-      mut: () => variableSignature({ ...modifiers, mut: true }),
+      mut: () => {
+        const token = peek();
+        if (token.variant === 'Keyword' && token.$value === 'fun') {
+          next();
+          return functionSignature({ ...modifiers, mut: true });
+        }
+
+        return variableSignature({ ...modifiers, mut: true });
+      },
       fun: () => functionSignature(modifiers),
       type: () => typeSignature(),
       module: () => moduleSignature(modifiers),

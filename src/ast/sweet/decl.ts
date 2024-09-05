@@ -51,6 +51,7 @@ export type Signature = DataType<{
     params: string[];
     name: string;
     ty: Type;
+    isMutExtension: boolean;
   };
   Module: { name: string; signatures: Signature[] };
   Type: { name: string, params: string[] };
