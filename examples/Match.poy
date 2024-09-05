@@ -61,11 +61,6 @@ enum Expr {
     ifThenElse(Expr, Expr, Expr),
 }
 
-extend Num {
-    #as("toString")
-    declare fun show(): Str
-}
-
 extend Bool {
     fun toNum() {
         if self { 1 } else { 0 }
@@ -91,20 +86,20 @@ extend Expr {
     fun show() {
         match self {
             .num(n) => n.show(),
-            .add(a, b) => "(\(a.show()) + \(b.show()))",
-            .sub(a, b) => "(\(a.show()) - \(b.show()))",
-            .mul(a, b) => "(\(a.show()) * \(b.show()))",
-            .div(a, b) => "(\(a.show()) / \(b.show()))",
-            .equ(a, b) => "(\(a.show()) == \(b.show()))",
-            .neq(a, b) => "(\(a.show()) != \(b.show()))",
-            .lss(a, b) => "(\(a.show()) < \(b.show()))",
-            .gtr(a, b) => "(\(a.show()) > \(b.show()))",
-            .ifThenElse(cond, a, b) => "if \(cond.show()) then \(a.show()) else \(b.show())",
+            .add(a, b) => "(\{a.show()} + \{b.show()})",
+            .sub(a, b) => "(\{a.show()} - \{b.show()})",
+            .mul(a, b) => "(\{a.show()} * \{b.show()})",
+            .div(a, b) => "(\{a.show()} / \{b.show()})",
+            .equ(a, b) => "(\{a.show()} == \{b.show()})",
+            .neq(a, b) => "(\{a.show()} != \{b.show()})",
+            .lss(a, b) => "(\{a.show()} < \{b.show()})",
+            .gtr(a, b) => "(\{a.show()} > \{b.show()})",
+            .ifThenElse(cond, a, b) => "if \{cond.show()} then \{a.show()} else \{b.show()}",
         }
     }
 }
 
 let expr = .gtr(.add(.num(3), .mul(.num(5), .num(7))), .num(37))
-print("\(expr.show()) ~> \(expr.eval().show())")
+print("\{expr.show()} ~> \{expr.eval().show()}")
 
 print((a, b, c, d, e, f, g, f.isSome(), g.isNone(), h, i, j, k, l, m))

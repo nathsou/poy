@@ -12,7 +12,6 @@ import { Module, Resolver } from '../resolve/resolve';
 import { ExtensionScope } from './extensions';
 import { TRS } from './rewrite';
 import { Subst, Type, TypeVar } from './type';
-import { Maybe, None, Some } from '../misc/maybe';
 
 type VarInfo = {
   pub?: boolean;

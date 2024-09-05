@@ -93,7 +93,7 @@ export const lex = (source: string, moduleName: string): Token[] => {
 
     while (peek() !== '"' && !isAtEnd()) {
       if (peek() === '\\') {
-        if (peek(1) === '(') {
+        if (peek(1) === '{') {
           addPart({ variant: 'Str', value: source.slice(lastIndex, index) });
           next();
           next();
@@ -102,9 +102,9 @@ export const lex = (source: string, moduleName: string): Token[] => {
 
           while (!isAtEnd()) {
             const c = peek();
-            if (c === '(') {
+            if (c === '{') {
               depth += 1;
-            } else if (c === ')') {
+            } else if (c === '}') {
               depth -= 1;
 
               if (depth === 0) {

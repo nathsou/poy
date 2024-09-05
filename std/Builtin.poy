@@ -13,3 +13,26 @@ pub declare type {
     Iterator<elem>
     Map<key, val>
 }
+
+pub extend () {
+    fun show(): Str {
+        "()"
+    }
+}
+
+pub extend Num {
+   #as("toString")
+   declare fun show(): Str
+}
+
+pub extend Bool {
+    fun show(): Str {
+        if self { "true" } else { "false" }
+    }
+}
+
+pub extend Function<_, _> {
+    fun show(): Str {
+        "<fun>"
+    }
+}

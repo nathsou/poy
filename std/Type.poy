@@ -15,7 +15,7 @@ pub extend Type {
                 if args.length == 0 {
                     name
                 } else {
-                    "\(name)<\(args.map(arg -> arg.show()).join(", "))>"
+                    "\{name}<\{args.map(Type::show).join(", ")}>"
                 }
             }
         }
