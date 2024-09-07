@@ -33,6 +33,7 @@ pub extend Function<_, _> {
 }
 
 pub let print = console.log
+declare fun raise(message: Str): _
 
 pub type {
     ReturnType<Function<_, ret>> = ret

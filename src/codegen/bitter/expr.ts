@@ -172,6 +172,12 @@ export function bitterExprOf(sweet: SweetExpr, env: TypeEnv): BitterExpr {
         });
       }
 
+      // raise
+      if (fun.variant === 'Variable' && fun.name === 'raise' && args.length === 1) {
+        assert(args[0].variant === 'Literal' && args[0].literal.variant === 'Str');
+        return BitterExpr.Raise({ message: args[0].literal.$value, ty: ty! });
+      }
+
       return BitterExpr.Call({
         fun: aux(fun),
         args: args.map(aux),

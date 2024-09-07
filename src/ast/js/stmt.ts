@@ -16,10 +16,11 @@ export type Stmt = DataType<{
   While: { cond: Expr; body: Stmt[] };
   For: { name: Name; iterator: Expr; body: Stmt[] };
   Import: { exported: boolean; path: string; members: Name[] };
+  Throw: { message: string };
 }>;
 
 export const Stmt = {
-  ...constructors<Stmt>().get('Const', 'Let', 'If', 'Import'),
+  ...constructors<Stmt>().get('Const', 'Let', 'If', 'Import', 'Throw'),
   Expr: (expr: Expr) => ({ variant: 'Expr', expr }) satisfies Stmt,
   Return: (value: Expr) => ({ variant: 'Return', value }) satisfies Stmt,
   Yield: (value: Expr) => ({ variant: 'Yield', value }) satisfies Stmt,
@@ -101,5 +102,6 @@ function show(stmt: Stmt, indentLevel: number = 0): string {
 
       return imp;
     },
+    Throw: ({ message }) => `${indent}throw new Error(${JSON.stringify(message)});`,
   });
 }

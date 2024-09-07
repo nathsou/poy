@@ -31,6 +31,7 @@ export type Expr = DataType<
       isCalled: boolean;
     };
     ModuleAccess: { path: string[]; member: string };
+    Raise: { message: string };
   }>
 >;
 
@@ -48,6 +49,7 @@ export const Expr = {
     'Call',
     'Struct',
     'FieldAccess',
+    'Raise',
   ),
   Literal: (literal: Literal, ty: Type) => ({
     variant: 'Literal',
