@@ -1,4 +1,5 @@
 import Iterator
+import Option
 
 #new("Map")
 declare fun initMap(): Map<_, _>
@@ -9,16 +10,18 @@ declare fun initMapFromEntries<k, v>(entries: Iterator<(k, v)>): Map<k, v>
 pub extend<k, v> Map<k, v> {
     declare {
         let size: Num
-        fun clear(): ()
-        fun delete(key: k): ()
+        mut fun clear(): ()
+        mut fun delete(key: k): ()
         fun entries(): Iterator<(k, v)>
         fun forEach(f: (v, k) -> ()): ()
-        fun get(key: k): v
         fun has(key: k): Bool
         fun keys(): Iterator<k>
-        fun set(key: k, value: v): ()
+        mut fun set(key: k, value: v): ()
         fun values(): Iterator<v>
     }
+
+    #as("get")
+    declare fun getUnsafe(key: k): v
 
     static fun init(): Self {
         initMap()
@@ -26,6 +29,22 @@ pub extend<k, v> Map<k, v> {
 
     static fun fromEntries(entries) {
         initMapFromEntries(entries)
+    }
+
+    fun get(key: k): Option<v> {
+        if self.has(key) {
+            .some(self.getUnsafe(key))
+        } else {
+            .none
+        }
+    }
+
+    fun `[]`(key: k): Option<v> {
+        self.get(key)
+    }
+
+    mut fun `[]=`(key: k, value: v): () {
+        self.set(key, value)
     }
 
     fun map<k2, v2>(f: (k, v) -> (k2, v2)): Map<k2, v2> {
@@ -61,7 +80,7 @@ pub extend<k, v> Map<k, v> {
             let k = f(key)
 
             if grouped.has(k) {
-                mut group = grouped.get(k)
+                mut group = grouped.getUnsafe(k)
                 group.push(val)
             } else {
                 grouped.set(k, [val])
@@ -75,7 +94,7 @@ pub extend<k, v> Map<k, v> {
 pub extend <k, e> Map<k, e[]> {
     mut fun push(key, elem) {
         if self.has(key) {
-            mut arr = self.get(key)
+            mut arr = self.getUnsafe(key)
             arr.push(elem)
         } else {
             self.set(key, [elem])

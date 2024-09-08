@@ -30,6 +30,7 @@ export type Expr = DataType<
       field: string | number;
       isCalled: boolean;
     };
+    ArrayAccess: { lhs: Expr; index: Expr };
     ModuleAccess: { path: string[]; member: string };
     Raise: { message: string };
   }>
@@ -50,6 +51,7 @@ export const Expr = {
     'Struct',
     'FieldAccess',
     'Raise',
+    'ArrayAccess',
   ),
   Literal: (literal: Literal, ty: Type) => ({
     variant: 'Literal',

@@ -26,6 +26,7 @@ pub declare module Math {
 }
 
 pub extend Num {
+    fun abs() { Math.abs(self) }
     fun sqrt() { Math.sqrt(self) }
     fun floor() { Math.floor(self) }
     fun ceil() { Math.ceil(self) }

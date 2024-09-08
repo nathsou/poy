@@ -243,12 +243,13 @@ export class TypeEnv {
         TRS.add(this.types, typeEnv.resolveType(lhs), typeEnv.resolveType(rhs), pub);
       },
       Struct: struct => {
+        TRS.declare(this.types, struct.name, struct.params.length);
+
         for (const field of struct.fields) {
-          field.ty = Type.generalize(field.ty, this.letLevel);
+          field.ty = Type.generalize(this.normalize(field.ty), this.letLevel);
         }
 
         this.structs.declare(struct.name, struct);
-        TRS.declare(this.types, struct.name, struct.params.length);
       },
       Declare: ({ sig }) =>
         match(sig, {
@@ -555,6 +556,7 @@ export class TypeEnv {
         decls.forEach(extend);
       },
       Enum: ({ pub, name, params, variants }) => {
+        TRS.declare(this.types, name, params.length);
         const enumEnv = this.child();
         this.enums.declare(name, { pub, name, params, variants });
         const variantTy = Type.Fun(
@@ -575,7 +577,7 @@ export class TypeEnv {
               enumEnv.variables.declare(variant.name, {
                 pub: true,
                 mut: false,
-                ty: Type.Function(args, variantTy),
+                ty: Type.Function(args.map(arg => this.normalize(arg)), variantTy),
               });
             },
             Struct: () => todo('Enum struct variants'),
@@ -590,8 +592,6 @@ export class TypeEnv {
           local: true,
           decls: [],
         });
-
-        TRS.declare(this.types, name, params.length);
       },
       _Many: ({ decls }) => {
         for (const decl of decls) {
@@ -1025,7 +1025,7 @@ export class TypeEnv {
 
             return extInst;
           },
-          Error: panic,
+          Error: err => this.panic(err),
         });
       },
       ExtensionAccess: extensionAccessExpr => {

@@ -15,6 +15,7 @@ import {
 import { bitterStmtOf } from './stmt';
 import { Literal } from '../../parse/token';
 import { TypeEnv } from '../../infer/infer';
+import { BacktickConsts } from '../../misc/strings';
 
 export function bitterExprOf(sweet: SweetExpr, env: TypeEnv): BitterExpr {
   assert(
@@ -160,6 +161,31 @@ export function bitterExprOf(sweet: SweetExpr, env: TypeEnv): BitterExpr {
       });
     },
     Call: ({ fun, args, ty }) => {
+      // array element assignment
+      if (
+        fun.variant === 'FieldAccess' &&
+        fun.field === BacktickConsts.ELEMENT_ASSIGN &&
+        fun.lhs.ty!.variant === 'Fun' &&
+        fun.lhs.ty!.name === 'Array'
+      ) {
+        assert(args.length === 2, 'array element assignment must have 2 arguments');
+        const [key, val] = args;
+
+        const lhs = BitterExpr.ArrayAccess({
+          lhs: aux(fun.lhs),
+          index: aux(key),
+          ty: Type.DontCare,
+        });
+
+        return BitterExpr.Block({
+          stmts: [
+            BitterStmt.Assign(lhs, '=', aux(val)),
+          ],
+          ret: BitterExpr.Literal(Literal.Unit, Type.Unit),
+          ty: Type.Unit,
+        });
+      }
+
       if (fun.variant === 'FieldAccess' && fun.extensionSuffix != null && !fun.isNative) {
         const { lhs, field, extensionSuffix } = fun;
         return BitterExpr.Call({

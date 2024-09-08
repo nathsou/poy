@@ -47,6 +47,11 @@ export const Backtick = {
   },
 };
 
+export const BacktickConsts = {
+  ELEMENT_ACCESS: Backtick.encode('[]'),
+  ELEMENT_ASSIGN: Backtick.encode('[]='),
+};
+
 export function matchString<T extends string, R>(
   str: T,
   cases: Record<T, R | (() => R)> | (Partial<Record<T, R | (() => R)>> & { _: R | (() => R) }),

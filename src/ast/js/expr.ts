@@ -17,6 +17,7 @@ export type Expr = DataType<{
   Paren: { expr: Expr };
   Object: { entries: { key: string; value: Expr }[] };
   Dot: { lhs: Expr; field: string | number };
+  ArrayAccess: { lhs: Expr; index: Expr };
 }>;
 
 export type UnaryOp = '!' | '-' | '+';
@@ -50,6 +51,7 @@ export const Expr = {
     'Closure',
     'Object',
     'Generator',
+    'ArrayAccess',
   ),
   Variable: (name: Name): Expr => ({ variant: 'Variable', name }) as const,
   Paren: (expr: Expr): Expr => ({ variant: 'Paren', expr }) as const,
@@ -125,5 +127,6 @@ function show(expr: Expr, indentLevel: number = 0): string {
       typeof field === 'number' || field.includes('.')
         ? `${show(lhs)}[${field}]`
         : `${show(lhs)}.${field}`,
+    ArrayAccess: ({ lhs, index }) => `${show(lhs)}[${show(index, indentLevel)}]`,
   });
 }

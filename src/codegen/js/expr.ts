@@ -1,8 +1,8 @@
 import { match } from 'itsamatch';
-import { Expr as BitterExpr, Expr } from '../../ast/bitter/expr';
+import { Expr as BitterExpr } from '../../ast/bitter/expr';
 import { Stmt as BitterStmt } from '../../ast/bitter/stmt';
 import { BinaryOp as JSBinaryOp, Expr as JSExpr } from '../../ast/js/expr';
-import { Stmt as JSStmt, Stmt } from '../../ast/js/stmt';
+import { Stmt as JSStmt } from '../../ast/js/stmt';
 import { EnumVariant } from '../../ast/sweet/decl';
 import { Type, showTypeVarId } from '../../infer/type';
 import { assert } from '../../misc/utils';
@@ -248,6 +248,7 @@ export function jsExprOf(bitter: BitterExpr, scope: JSScope): JSExpr {
       blockScope.add(JSStmt.Throw({ message }));
       return JSExpr.Literal({ literal: Literal.Unit });
     },
+    ArrayAccess: ({ lhs, index }) => JSExpr.ArrayAccess({ lhs: jsExprOf(lhs, scope), index: jsExprOf(index, scope) }),
   });
 }
 

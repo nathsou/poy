@@ -41,7 +41,6 @@ pub extend<a> a[] {
     declare fun flatMap<b>(f: a -> b[]): b[]
     declare fun forEach(f: a -> ()): ()
     declare fun filter(predicate: a -> Bool): a[]
-    declare fun flatMap<b>(f: a -> b[]): b[]
     declare fun forEach(f: a -> ()): ()
 
     #as("includes")
@@ -111,6 +110,8 @@ pub extend<a> a[] {
 
     #as("at")
     declare fun `[]`(index: Num): a
+
+    declare mut fun `[]=`(index: Num, value: a): ()
 
     fun first() { self[0] }
 

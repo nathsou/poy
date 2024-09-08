@@ -9,7 +9,7 @@ struct Person {
 
 extend Person {
     static fun init(name, age, city) {
-        Person { name: name, age: age, city: city }
+        Person { name, age, city }
     }
 }
 

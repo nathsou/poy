@@ -6,7 +6,7 @@ import { Pattern } from '../ast/sweet/pattern';
 import { Stmt } from '../ast/sweet/stmt';
 import { Type, TypeVar } from '../infer/type';
 import { Maybe, None, Some } from '../misc/maybe';
-import { Backtick, countCharacterOccurrences, isLowerCase, isUpperCase } from '../misc/strings';
+import { Backtick, BacktickConsts, countCharacterOccurrences, isLowerCase, isUpperCase } from '../misc/strings';
 import { array, assert, block, last, panic } from '../misc/utils';
 import { AssignmentOp, BinaryOp, Keyword, Literal, Symbol, Token, UnaryOp } from './token';
 
@@ -551,7 +551,7 @@ export const parse = (tokens: Token[], source: string, moduleName: string) => {
       lhs = Expr.Call({
         fun: Expr.FieldAccess({
           lhs,
-          field: Backtick.encode('[]'),
+          field: BacktickConsts.ELEMENT_ACCESS,
           typeParams: [],
           isCalled: true,
           isNative: false,
@@ -1055,6 +1055,28 @@ export const parse = (tokens: Token[], source: string, moduleName: string) => {
 
   function assignmentStmt(): Stmt {
     const lhs = expr();
+
+    // lhs.`[]`(key) = val ~> lhs.`[]=`(key, val)
+    if (
+      lhs.variant === 'Call' &&
+      lhs.fun.variant === 'FieldAccess' &&
+      lhs.fun.field === BacktickConsts.ELEMENT_ACCESS &&
+      matches(Token.Symbol('='))
+    ) {
+      const value = expr();
+      consumeIfPresent(Token.Symbol(';'));
+
+      return Stmt.Expr(Expr.Call({
+        fun: Expr.FieldAccess({
+          lhs: lhs.fun.lhs,
+          field: BacktickConsts.ELEMENT_ASSIGN,
+          typeParams: [],
+          isCalled: true,
+          isNative: false,
+        }),
+        args: [lhs.args[0], value],
+      }));
+    }
 
     const token = peek();
     if (token.variant === 'Symbol' && (ASSIGNMENT_OPERATORS as Set<string>).has(token.$value)) {
