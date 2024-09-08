@@ -27,6 +27,7 @@ import {
   todo,
 } from '../../misc/utils';
 import { Literal } from '../../parse/token';
+import { Err, Ok, Result } from '../../misc/result';
 
 // Based on Compiling Pattern Matching to Good Decision Trees
 // http://moscova.inria.fr/~maranget/papers/ml05e-maranget.pdf
@@ -432,17 +433,17 @@ export class ClauseMatrix {
     occurrences: Occurrence[],
     isSignature: SignatureCheckFn,
     selectColumn: (matrix: ClauseMatrix) => number = pbaHeuristic,
-  ): DecisionTree {
+  ): Result<DecisionTree, string> {
     if (this.height === 0) {
       if (config.enforceExhaustiveMatch) {
-        panic('Non-exhaustive match expression.');
+        Err('Non-exhaustive match expression.');
       }
 
-      return DecisionTree.Fail();
+      return Ok(DecisionTree.Fail());
     }
 
     if (this.rows[0].every(p => Pattern.isAnyOrVariable(p))) {
-      return DecisionTree.Leaf({ action: this.actions[0] });
+      return Ok(DecisionTree.Leaf({ action: this.actions[0] }));
     }
 
     const columnIndex = selectColumn(this);
@@ -477,26 +478,35 @@ export class ClauseMatrix {
         ]),
         ...occurrences.slice(1),
       ];
+
       const Ak = specialized.compile(subOccurrences, isSignature, selectColumn);
 
-      tests.push({ ctor, meta, dt: Ak });
+      if (Ak.isError()) {
+        return Ak;
+      }
+
+      tests.push({ ctor, meta, dt: Ak.unwrap() });
     }
 
     if (!isSignature(heads)) {
       const subOccurrences = occurrences.slice(1);
       const Ad = this.defaulted().compile(subOccurrences, isSignature, selectColumn);
 
-      tests.push({ ctor: '_', dt: Ad });
+      if (Ad.isError()) {
+        return Ad;
+      }
+
+      tests.push({ ctor: '_', dt: Ad.unwrap() });
     } else if (tests.length > 1) {
       // if all cases are handled (i.e. it's a signature)
       // then the last test does not need to be checked
       last(tests).ctor = '_';
     }
 
-    return DecisionTree.Switch({
+    return Ok(DecisionTree.Switch({
       occurrence: occurrences[0],
       tests,
-    });
+    }));
   }
 }
 

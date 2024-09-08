@@ -291,29 +291,34 @@ export function bitterExprOf(sweet: SweetExpr, env: TypeEnv): BitterExpr {
         isSignature,
       );
 
-      if (dt.variant === 'Switch' && !SweetExpr.isPurelyCopyable(subject)) {
-        // bind the subject to a variable
-        // to avoid evaluating it multiple times
-        return aux(
-          SweetExpr.UseIn({
-            lhs: Pattern.Variable('$subject'),
-            value: subject,
-            rhs: DecisionTree.toExpr(
-              SweetExpr.Variable({
-                name: '$subject',
-                typeParams: [],
-                ty: subject.ty!,
+      return dt.match({
+        Ok: dt => {
+          if (dt.variant === 'Switch' && !SweetExpr.isPurelyCopyable(subject)) {
+            // bind the subject to a variable
+            // to avoid evaluating it multiple times
+            return aux(
+              SweetExpr.UseIn({
+                lhs: Pattern.Variable('$subject'),
+                value: subject,
+                rhs: DecisionTree.toExpr(
+                  SweetExpr.Variable({
+                    name: '$subject',
+                    typeParams: [],
+                    ty: subject.ty!,
+                  }),
+                  dt,
+                  cases,
+                  sweet.ty!,
+                ),
+                ty: sweet.ty!,
               }),
-              dt,
-              cases,
-              sweet.ty!,
-            ),
-            ty: sweet.ty!,
-          }),
-        );
-      }
-
-      return aux(DecisionTree.toExpr(subject, dt, cases, sweet.ty!));
+            );
+          }
+    
+          return aux(DecisionTree.toExpr(subject, dt, cases, sweet.ty!));
+        },
+        Error: err => env.panic(err),
+      });
     },
     VariantShorthand: ({ variantName, args, resolvedEnum }) => {
       assert(resolvedEnum != null, 'unresolved enum in variant shorthand');

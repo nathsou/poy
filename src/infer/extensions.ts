@@ -17,6 +17,7 @@ export type ExtensionInfo = {
   isMutFun: boolean;
   suffix: string;
   module: string;
+  id: number;
 };
 
 export type MatchingExtension = {
@@ -30,6 +31,7 @@ export class ExtensionScope {
   private parent?: ExtensionScope;
   private env: TypeEnv;
   imports: ExtensionScope[] = [];
+  private nextId = 0;
 
   constructor(env: TypeEnv, parent?: ExtensionScope) {
     this.env = env;
@@ -37,8 +39,18 @@ export class ExtensionScope {
     this.parent = parent;
   }
 
-  public declare(info: ExtensionInfo) {
-    pushMap(this.extensions, info.member, info);
+  public declare(info: Omit<ExtensionInfo, 'id'>): number {
+    const id = this.nextId++;
+    pushMap(this.extensions, info.member, { ...info, id });
+    return id;
+  }
+
+  public delete(member: string, id: number): void {
+    const exts = this.extensions.get(member);
+
+    if (exts) {
+      this.extensions.set(member, exts.filter(ext => ext.id !== id));
+    }
   }
 
   public matchingCandidates(subject: Type, member: string): MatchingExtension[] {

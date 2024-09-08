@@ -51,9 +51,20 @@ export function jsOfDecl(decl: BitterDecl, scope: JSScope): JSStmt[] {
               Type: () => {},
               Struct: () => {},
               Extend: ({ decls }) => {
+                // declare all the new names first
+                for (const decl of decls) {
+                  if (decl.variant === 'Stmt' && decl.stmt.variant === 'Let') {
+                    moduleScope.declare(decl.stmt.name, false, decl.stmt.attrs.as);
+                  }
+                }
+
                 for (const decl of decls) {
                   if (decl.variant === 'Stmt') {
                     const stmt = decl.stmt;
+                    if (stmt.variant === 'Let') {
+                      moduleScope.delete(stmt.name);
+                    }
+
                     moduleScope.add(jsStmtOf(stmt, moduleScope));
                   }
                 }

@@ -32,7 +32,7 @@ export const bitterDeclsOf = (sweet: SweetDecl, env: TypeEnv): BitterDecl[] =>
 
       for (const decl of decls) {
         if (decl.variant === 'Stmt' && decl.stmt.variant === 'Let') {
-          const letStmt = { ...decl.stmt };
+          const letStmt = { ...decl.stmt, mutable: false };
           assert(letStmt.lhs.variant === 'Variable');
           letStmt.lhs.name = `${letStmt.lhs.name}_${suffix}`;
 

@@ -86,7 +86,7 @@ export class TypeEnv {
     return Type.unifyPure(this.normalize(s), this.normalize(t), this.generics);
   }
 
-  private panic(message: string): never {
+  public panic(message: string): never {
     return panic(`[${this.moduleName}] ${message}`);
   }
 
@@ -478,6 +478,38 @@ export class TypeEnv {
           });
         };
 
+        const extensionFunEnvs = new Map<string, { env: TypeEnv, subjectTy: Type, id: number }>();
+
+        // declare all extensions to support recursive (and mutually-recursive) calls
+        for (const decl of decls) {
+          if (
+            decl.variant === 'Stmt' &&
+            decl.stmt.variant === 'Let' &&
+            decl.stmt.lhs.variant === 'Variable' &&
+            decl.stmt.value.variant === 'Fun'
+          ) {
+            const extEnv = this.child();
+            const { static: isStatic, lhs, ann, value, attrs } = decl.stmt;
+            declareSelf(extEnv, value.variant === 'Fun' && value.mut);
+            const subjectInst = Type.instantiate(subject, extEnv.letLevel, extEnv.generics).ty;
+
+            const id = this.extensions.declare({
+              subject: subjectInst,
+              member: lhs.name,
+              attrs,
+              generics: value.generics,
+              ty: ann ?? extEnv.freshType(),
+              isDeclared: false,
+              isStatic,
+              isMutFun: value.mut,
+              suffix,
+              module: this.moduleName,
+            });
+
+            extensionFunEnvs.set(lhs.name, { env: extEnv, subjectTy: subjectInst, id });
+          }
+        }
+
         const extend = (decl: Decl): void => {
           const extEnv = this.child();
 
@@ -492,26 +524,14 @@ export class TypeEnv {
             const { extensionTy, subjectTy } = extEnv.parameterize(globalParams, () => {
               declareSelf(extEnv, value.variant === 'Fun' && value.mut);
               const subjectInst = Type.instantiate(subject, extEnv.letLevel, extEnv.generics).ty;
+              const ty = extEnv.inferLet(false, mutable, lhs, ann, value, !!attrs.as);
 
               if (value.variant === 'Fun') {
                 generics.push(...value.generics);
-
-                // support recursive calls
-                extEnv.extensions.declare({
-                  subject: subjectInst,
-                  member: lhs.name,
-                  attrs,
-                  generics,
-                  ty: ann ?? extEnv.freshType(),
-                  isDeclared: false,
-                  isStatic,
-                  isMutFun: value.mut,
-                  suffix,
-                  module: this.moduleName,
-                });
+                const { subjectTy: declaredSubjectTy, id } = extensionFunEnvs.get(lhs.name)!;
+                this.unify(subjectInst, declaredSubjectTy);
+                this.extensions.delete(lhs.name, id);
               }
-
-              const ty = extEnv.inferLet(false, mutable, lhs, ann, value, !!attrs.as);
 
               return { extensionTy: ty, subjectTy: subjectInst };
             });
@@ -525,7 +545,7 @@ export class TypeEnv {
               generics,
               ty: extEnv.normalize(genTy),
               isDeclared: false,
-              isStatic: isStatic,
+              isStatic,
               isMutFun: value.variant === 'Fun' && value.mut,
               suffix,
               module: this.moduleName,

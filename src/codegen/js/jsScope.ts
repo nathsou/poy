@@ -78,6 +78,14 @@ export class JSScope {
     return result;
   }
 
+  public delete(name: string): void {
+    if (this.members.has(name)) {
+      const { mangled } = this.members.get(name)!;
+      this.members.delete(name);
+      this.usedNames.delete(mangled);
+    }
+  }
+
   public has(name: string): boolean {
     return this.usedNames.has(name);
   }
