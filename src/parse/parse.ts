@@ -6,7 +6,7 @@ import { Pattern } from '../ast/sweet/pattern';
 import { Stmt } from '../ast/sweet/stmt';
 import { Type, TypeVar } from '../infer/type';
 import { Maybe, None, Some } from '../misc/maybe';
-import { Backtick, BacktickConsts, countCharacterOccurrences, isLowerCase, isUpperCase } from '../misc/strings';
+import { BacktickConsts, countCharacterOccurrences, isLowerCase, isUpperCase } from '../misc/strings';
 import { array, assert, block, last, panic } from '../misc/utils';
 import { AssignmentOp, BinaryOp, Keyword, Literal, Symbol, Token, UnaryOp } from './token';
 
@@ -432,7 +432,7 @@ export const parse = (tokens: Token[], source: string, moduleName: string) => {
 
       const body = expr();
       return Expr.Fun({ mut: isMutableExtension, generics, args, ret, body, isIterator: false });
-    }).orDefault(logicalOrExpr);
+    }).orDefaultFrom(logicalOrExpr);
   }
 
   function useInExpr(): Expr {
@@ -647,7 +647,7 @@ export const parse = (tokens: Token[], source: string, moduleName: string) => {
         typeParams: params,
         subject,
       });
-    }).orDefault(primaryExpr);
+    }).orDefaultFrom(primaryExpr);
   }
 
   function primaryExpr(): Expr {

@@ -52,23 +52,6 @@ export const BacktickConsts = {
   ELEMENT_ASSIGN: Backtick.encode('[]='),
 };
 
-export function matchString<T extends string, R>(
-  str: T,
-  cases: Record<T, R | (() => R)> | (Partial<Record<T, R | (() => R)>> & { _: R | (() => R) }),
-): R {
-  if (str in cases) {
-    const result = cases[str];
-    return typeof result === 'function' ? result() : result;
-  }
-
-  if ('_' in cases) {
-    const result = cases._;
-    return typeof result === 'function' ? (result as () => R)() : result;
-  }
-
-  return panic(`missing case for ${str}`);
-}
-
 export function countCharacterOccurrences(
   str: string,
   char: string,
